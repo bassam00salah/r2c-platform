@@ -1,0 +1,75 @@
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap');
+@import "tailwindcss";
+
+:root {
+/* ألوان r2c الأصلية المستخرجة من الصور /
+--r2c-bg: #110d35;          / الكحلي العميق للخلفية الأساسية /
+--r2c-card-bg: #0a4f44;     / الأخضر الزمردي لبطاقات الطلبات /
+--r2c-orange: #ee7b26;      / البرتقالي للأزرار والأسعار /
+--r2c-red-tab: #8b151e;     / اللون الأحمر لتبويب "جديدة" /
+--r2c-yellow-tab: #5a540a;  / اللون الزيتي لتبويب "مقبولة" /
+--r2c-green-tab: #10b981;   / اللون الأخضر لتبويب "مُسلمة" */
+--r2c-text-gray: #94a3b8;
+}
+
+body {
+margin: 0;
+padding: 0;
+font-family: 'Cairo', sans-serif;
+background-color: var(--r2c-bg);
+color: white;
+direction: rtl; /* تفعيل الاتجاه من اليمين لليسار */
+min-height: 100vh;
+-webkit-font-smoothing: antialiased;
+-moz-osx-font-smoothing: grayscale;
+}
+
+/* تنسيق بطاقة الطلب (Emerald Card) */
+.order-card-v2 {
+@apply bg-[#0a4f44] rounded-[2rem] border border-emerald-400/10 p-6 relative overflow-hidden shadow-2xl transition-all duration-300;
+box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+}
+
+.order-card-v2:hover {
+@apply border-emerald-400/30 scale-[1.02];
+box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.6);
+}
+
+/* أزرار التبويبات العلوية الضخمة */
+.btn-tab {
+@apply flex-1 py-4 rounded-2xl font-black text-lg transition-all text-center shadow-lg active:scale-95 flex flex-col items-center justify-center gap-1;
+}
+
+.tab-red { @apply bg-[#8b151e] text-white hover:bg-red-700; }
+.tab-yellow { @apply bg-[#5a540a] text-white hover:bg-yellow-700; }
+.tab-green { @apply bg-[#10b981] text-white hover:bg-green-700; }
+
+/* أزرار الهيدر الصغير (الإعدادات/التقارير) */
+.header-action-btn {
+@apply bg-[#2d2665] text-white px-4 py-2 rounded-xl text-xs font-bold border border-white/10 flex items-center gap-2 hover:bg-[#3b337a] transition-all shadow-md;
+}
+
+/* زر مسح QR الكبير */
+.qr-scan-btn {
+@apply bg-[#10b981] text-white px-8 py-4 rounded-2xl font-black flex items-center gap-3 shadow-xl shadow-green-900/40 hover:brightness-110 active:scale-95 transition-all text-lg;
+}
+
+/* التنسيق الخاص بالمدخلات (Inputs) */
+.navy-input {
+@apply bg-[#0f172a] border-2 border-slate-700 text-white rounded-2xl px-5 py-3 outline-none focus:border-[#ee7b26] transition-all text-center font-bold;
+}
+
+/* تأثيرات الانتقال (Animations) */
+.animate-fade-up {
+animation: fadeUp 0.5s ease-out forwards;
+}
+
+@keyframes fadeUp {
+from { opacity: 0; transform: translateY(20px); }
+to { opacity: 1; transform: translateY(0); }
+}
+
+/* إخفاء شريط التمرير للمظهر النظيف */
+.scrollbar-hide::-webkit-scrollbar {
+display: none;
+}

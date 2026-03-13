@@ -1,0 +1,9 @@
+{
+  "name": "@r2c/shared",
+  "version": "1.0.0",
+  "private": true,
+  "main": "./src/index.js",
+  "dependencies": {
+    "firebase": "^11.10.0"
+  }
+}

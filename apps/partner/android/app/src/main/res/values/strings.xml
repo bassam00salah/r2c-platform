@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">R2C Partner</string>
+    <string name="title_activity_main">R2C Partner</string>
+    <string name="package_name">com.r2c.partner</string>
+    <string name="custom_url_scheme">com.r2c.partner</string>
+</resources>

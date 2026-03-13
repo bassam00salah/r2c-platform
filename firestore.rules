@@ -1,0 +1,70 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /users/{userId} {
+      allow read, write: if request.auth.uid == userId;
+    }
+
+    match /restaurants/{restaurantId} {
+      allow read: if true;
+      allow write: if isAdmin();
+
+      match /branches/{branchId} {
+        allow read: if true;
+        allow write: if isAdmin() || isPartner(restaurantId);
+      }
+    }
+
+    match /offers/{offerId} {
+      allow read: if true;
+      allow write: if isAdmin() || request.auth != null;
+    }
+
+    match /orders/{orderId} {
+      allow read: if request.auth.uid == resource.data.userId
+                  || isPartnerOfBranch(resource.data.branchId)
+                  || isAdmin();
+      allow create: if request.auth.uid == request.resource.data.userId;
+      allow update: if isPartnerOfBranch(resource.data.branchId)
+                    && onlyUpdating(['status', 'updatedAt']);
+      allow delete: if isAdmin();
+    }
+
+    match /admins/{adminId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    match /branches/{branchId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /influencers/{docId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /system/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    function isAdmin() {
+      return exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    function isPartner(restaurantId) {
+      return request.auth.uid == restaurantId;
+    }
+
+    function isPartnerOfBranch(branchId) {
+      return request.auth.uid == branchId;
+    }
+
+    function onlyUpdating(fields) {
+      return request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(fields);
+    }
+  }
+}

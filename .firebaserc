@@ -1,0 +1,15 @@
+{
+  "projects": {
+    "default": "r2capp-64f2a"
+  },
+  "targets": {
+    "r2capp-64f2a": {
+      "hosting": {
+        "admin": [
+          "r2capp-64f2a"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}
