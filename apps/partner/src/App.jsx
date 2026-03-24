@@ -54,6 +54,14 @@ export default function App() {
     )
   }
 
+  const handleLogout = async () => {
+    try {
+      await auth.signOut()
+    } catch (err) {
+      showToast('حدث خطأ أثناء تسجيل الخروج', 'error')
+    }
+  }
+
   const commonProps = { setCurrentScreen: nav, showToast, branchId: user?.uid }
 
   return (
@@ -63,7 +71,7 @@ export default function App() {
       {currentScreen === 'dashboard'   && <DashboardScreen   {...commonProps} />}
       {currentScreen === 'orderDetail' && <OrderDetailScreen {...commonProps} order={currentOrder} />}
       {currentScreen === 'reports'     && <ReportsScreen     {...commonProps} />}
-      {currentScreen === 'settings'    && <SettingScreen     {...commonProps} />}
+      {currentScreen === 'settings'    && <SettingScreen     {...commonProps} onLogout={handleLogout} />}
       {currentScreen === 'qrScanner'   && <QRScannerScreen   {...commonProps} />}
 
       {WITH_NAV.includes(currentScreen) && (

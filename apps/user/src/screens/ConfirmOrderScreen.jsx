@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react'
 import { useApp } from '../context/AppContext'
 import { auth, db } from '@shared/firebase/config'
-import { collection, query, where, getDocs, addDoc, serverTimestamp } from 'firebase/firestore'
+import { collection, query, where, getDocs, doc, setDoc, serverTimestamp } from 'firebase/firestore'
 import { haversineKm } from '@shared/utils/haversine'
+import { ORDER_STATUS } from '@r2c/shared/constants/orderStatus'
 import OfferImage from '../components/OfferImage'
 
 export default function ConfirmOrderScreen() {
-    const { selectedOffer, setCurrentScreen, user, userLocation, setUserLocation, setCurrentOrderId } = useApp()
+    const { selectedOffer, setCurrentScreen, userLocation, setUserLocation, setCurrentOrderId } = useApp()
     const [needsLocation,  setNeedsLocation]  = useState(false)
     const [locating,       setLocating]       = useState(false)
     const [assignedBranch, setAssignedBranch] = useState(null)
@@ -25,11 +26,11 @@ export default function ConfirmOrderScreen() {
 
         getDocs(q).then(snap => {
             let minDist = Infinity, nearest = null
-            snap.forEach(doc => {
-                const b = doc.data()
+            snap.forEach(branchDoc => {
+                const b = branchDoc.data()
                 if (b.latitude && b.longitude) {
                     const d = haversineKm(userLocation.lat, userLocation.lng, b.latitude, b.longitude)
-                    if (d < minDist) { minDist = d; nearest = { id: doc.id, ...b, distanceKm: d } }
+                    if (d < minDist) { minDist = d; nearest = { id: branchDoc.id, ...b, distanceKm: d } }
                 }
             })
             if (nearest && nearest.distanceKm <= MAX_BRANCH_DISTANCE_KM) {
@@ -43,7 +44,7 @@ export default function ConfirmOrderScreen() {
 
     useEffect(() => {
         if (needsLocation && userLocation) setNeedsLocation(false)
-    }, [userLocation])
+    }, [needsLocation, userLocation])
 
     const requestLocationAndRetry = () => {
         setLocating(true)
@@ -63,8 +64,6 @@ export default function ConfirmOrderScreen() {
 
     if (!selectedOffer) return null
 
-    const offerDuration = selectedOffer.duration || 45
-
     const handleConfirm = async () => {
         try {
             const currentUser = auth.currentUser
@@ -74,6 +73,9 @@ export default function ConfirmOrderScreen() {
                 return
             }
             if (!assignedBranch) { setNeedsLocation(true); return }
+
+            const newOrderRef = doc(collection(db, 'orders'))
+            const orderId = newOrderRef.id
 
             const newOrder = {
                 userId:         currentUser.uid,
@@ -90,15 +92,16 @@ export default function ConfirmOrderScreen() {
                 price:          selectedOffer.price || selectedOffer.finalPrice,
                 discount:       selectedOffer.discount,
                 city:           selectedOffer.city,
-                status:         'preparing',
-                qrCode:         (() => { const a = new Uint8Array(16); crypto.getRandomValues(a); return 'QR-' + Array.from(a, b => b.toString(16).padStart(2,'0')).join('').toUpperCase() })(),
+                status:         ORDER_STATUS.PENDING,
+                qrCode:         orderId,
+                orderCode:      orderId.slice(-6).toUpperCase(),
                 timeRemaining:  (selectedOffer.duration || 45) * 60,
-                createdAt:      new Date().toISOString(),
-                timestamp:      serverTimestamp()
+                createdAt:      serverTimestamp(),
+                updatedAt:      serverTimestamp(),
             }
 
-            const docRef = await addDoc(collection(db, 'orders'), newOrder)
-            setCurrentOrderId(docRef.id)
+            await setDoc(newOrderRef, newOrder)
+            setCurrentOrderId(orderId)
             setCurrentScreen('waiting')
         } catch (error) {
             console.error('❌ Error creating order:', error)
@@ -107,90 +110,46 @@ export default function ConfirmOrderScreen() {
     }
 
     return (
-        <div className="min-h-screen bg-white p-6">
-            <div className="mb-8">
-                <button onClick={() => setCurrentScreen('offerDetails')} className="text-gray-900 text-2xl mb-4">←</button>
-                <h1 className="text-3xl font-bold text-[#ee7b26] text-center">تأكيد الطلب</h1>
-            </div>
-
-            <div className="bg-gray-50 rounded-2xl p-4 mb-6">
-                <h3 className="font-bold mb-4">ملخص الطلب</h3>
-                <div className="flex gap-4 mb-4">
-                    <div className="relative w-24 h-24 bg-gradient-to-br from-orange-900/20 to-gray-100 rounded-xl flex items-center justify-center overflow-hidden">
-                        <OfferImage offer={selectedOffer} size="small" />
-                        <div className="absolute -top-2 -right-2">
-                            <div className="discount-badge text-xs px-2 py-1">{selectedOffer.discount}%</div>
-                        </div>
-                    </div>
-                    <div className="flex-1">
-                        <h4 className="font-bold text-lg mb-1">{selectedOffer.name}</h4>
-                        <div className="flex items-center gap-1 text-sm text-gray-500 mb-2">
-                            <span>🏪</span><span>{selectedOffer.restaurant}</span>
-                        </div>
-                        <div className="flex items-baseline gap-2">
-                            <span className="text-[#ee7b26] text-2xl font-bold">{selectedOffer.price} ريال</span>
-                            {selectedOffer.oldPrice && (
-                                <span className="text-gray-500 text-sm line-through">{selectedOffer.oldPrice} ريال</span>
-                            )}
-                        </div>
-                    </div>
+        <div className="min-h-screen bg-white p-6 pb-24">
+            <h1 className="text-2xl font-bold mb-4">تأكيد الطلب</h1>
+            <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden mb-4">
+                <OfferImage offer={selectedOffer} />
+                <div className="p-4">
+                    <h2 className="text-xl font-bold mb-1">{selectedOffer.name}</h2>
+                    <p className="text-gray-500 text-sm">{selectedOffer.restaurantName || selectedOffer.restaurant}</p>
+                    <p className="text-[#ee7b26] font-black mt-2">{selectedOffer.price || selectedOffer.finalPrice} ر.س</p>
                 </div>
             </div>
 
-            <div className="bg-[#ee7b26]/10 border border-[#ee7b26]/30 rounded-xl p-4 mb-6 flex items-start gap-3">
-                <span className="text-[#ee7b26] text-2xl">⚠️</span>
-                <span className="text-[#ee7b26] font-bold">سيكون الطلب صالح لمدة {offerDuration} دقيقة بعد قبول الفرع</span>
-            </div>
-
-            <div className="bg-gray-50 rounded-2xl p-4 mb-6">
-                <h3 className="font-bold mb-4">الفرع المُعيَّن لطلبك</h3>
-                {loadingBranch ? (
-                    <div className="flex items-center gap-3 py-2">
-                        <div className="spinner" style={{width:28,height:28,borderWidth:3}} />
-                        <span className="text-gray-400 font-semibold">جاري تحديد أقرب فرع...</span>
-                    </div>
-                ) : assignedBranch ? (
-                    <>
-                        <div className="flex items-center gap-3 mb-3">
-                            <span className="text-[#ee7b26] text-3xl">📍</span>
-                            <div>
-                                <div className="font-bold text-lg">{assignedBranch.name || 'الفرع الرئيسي'}</div>
-                                <div className="text-sm text-gray-500">{assignedBranch.address}</div>
-                                <div className="text-sm font-bold mt-0.5" style={{color:'#10b981'}}>🧭 على بُعد {assignedBranch.distanceLabel}</div>
-                            </div>
-                        </div>
-                        <div className="h-28 bg-gray-100 rounded-xl flex items-center justify-center">
-                            <span className="text-[#ee7b26] text-5xl">🗺️</span>
-                        </div>
-                    </>
-                ) : (
-                    <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-center">
-                        <div className="text-3xl mb-2">⚠️</div>
-                        <p className="font-bold text-red-700">لا يوجد فرع في نطاق 100كم من موقعك</p>
-                        <p className="text-red-400 text-sm mt-1">جرب تغيير موقعك أو تواصل معنا</p>
-                    </div>
-                )}
-            </div>
-
             {needsLocation && (
-                <div className="bg-red-50 border-2 border-red-400 rounded-2xl p-5 mb-5 text-center">
-                    <div className="text-4xl mb-2">📍</div>
-                    <p className="font-bold text-red-700 text-lg mb-1">يجب تحديد موقعك أولاً</p>
-                    <p className="text-red-500 text-sm mb-4">نحتاج موقعك لتوجيه طلبك للفرع الأقرب إليك</p>
-                    <button
-                        onClick={requestLocationAndRetry}
-                        disabled={locating}
-                        className="gradient-button text-white font-bold text-base py-3 px-8 rounded-xl w-full"
-                    >
-                        {locating ? '⏳ جاري تحديد موقعك...' : '📍 السماح بالموقع والمتابعة'}
+                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-4">
+                    <p className="text-amber-800 font-bold mb-3">نحتاج موقعك لتحديد أقرب فرع مناسب</p>
+                    <button onClick={requestLocationAndRetry} className="w-full py-3 rounded-xl text-white font-bold" style={{ background: '#ee7b26' }}>
+                        {locating ? 'جاري تحديد الموقع...' : 'تحديد موقعي الآن'}
                     </button>
                 </div>
             )}
 
+            <div className="bg-gray-50 border border-gray-100 rounded-2xl p-4 mb-6">
+                <div className="font-bold mb-2">الفرع المحدد</div>
+                {loadingBranch ? (
+                    <p className="text-gray-500">جاري تحديد الفرع المناسب...</p>
+                ) : assignedBranch ? (
+                    <div>
+                        <p className="font-bold">{assignedBranch.name || 'الفرع الرئيسي'}</p>
+                        <p className="text-gray-500 text-sm">{assignedBranch.address || 'بدون عنوان'}</p>
+                        <p className="text-[#ee7b26] text-sm font-bold mt-1">يبعد عنك {assignedBranch.distanceLabel}</p>
+                    </div>
+                ) : (
+                    <p className="text-red-500 font-bold">لا يوجد فرع نشط قريب منك حالياً</p>
+                )}
+            </div>
+
             <button
                 onClick={handleConfirm}
-                disabled={needsLocation || loadingBranch || !assignedBranch}
-                className={`font-bold text-xl py-4 rounded-2xl w-full transition-transform ${needsLocation || loadingBranch || !assignedBranch ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'gradient-button text-white'}`}
+                disabled={loadingBranch || !assignedBranch}
+                className="w-full py-4 rounded-2xl text-white font-black text-lg disabled:opacity-50"
+                style={{ background: '#ee7b26' }}
             >
                 {loadingBranch ? '⏳ جاري تحديد الفرع...' : !assignedBranch && !needsLocation ? '⚠️ لا يوجد فرع قريب' : 'تأكيد الطلب'}
             </button>

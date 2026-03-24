@@ -14,6 +14,7 @@ export default function FeedScreen() {
     } = useApp()
 
     const [searchQuery, setSearchQuery] = useState('')
+    const [showSearch, setShowSearch]   = useState(false)
     const [selectedCity, setSelectedCity] = useState('الكل')
 
     const cities = ['الكل', ...new Set((offers || []).map(o => o.city).filter(Boolean))]
@@ -56,18 +57,122 @@ export default function FeedScreen() {
     return (
         <div className="h-screen flex flex-col bg-black overflow-hidden" dir="rtl">
 
-            {/* ── Header ── */}
+            {/* ══════════ Search Overlay ══════════ */}
+            {showSearch && (
+                <div style={{
+                    position: 'fixed', inset: 0, background: '#fff', zIndex: 50,
+                    display: 'flex', flexDirection: 'column',
+                }}>
+                    {/* Search Header */}
+                    <div style={{
+                        background: 'linear-gradient(135deg, #ee7b26, #f5a623)',
+                        padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10,
+                    }}>
+                        <button
+                            onClick={() => { setShowSearch(false); setSearchQuery('') }}
+                            style={{
+                                width: 38, height: 38, borderRadius: '50%',
+                                background: 'rgba(255,255,255,0.25)', border: 'none',
+                                color: '#fff', fontSize: 20, cursor: 'pointer', fontWeight: 700,
+                            }}
+                        >✕</button>
+                        <div style={{
+                            flex: 1, background: '#fff', borderRadius: 24,
+                            padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 8,
+                        }}>
+                            <input
+                                autoFocus
+                                type="text"
+                                placeholder="ابحث عن مطعم أو طبق ..."
+                                value={searchQuery}
+                                onChange={e => setSearchQuery(e.target.value)}
+                                style={{
+                                    flex: 1, border: 'none', outline: 'none',
+                                    fontSize: 14, fontFamily: 'inherit', direction: 'rtl',
+                                }}
+                            />
+                            <span style={{ color: '#9ca3af' }}>🔍</span>
+                        </div>
+                    </div>
+
+                    {/* Search Results */}
+                    <div style={{ flex: 1, overflowY: 'auto', padding: 16 }}>
+                        {searchQuery.trim() ? (
+                            <>
+                                {offers.filter(o =>
+                                    o.name?.includes(searchQuery) ||
+                                    (o.restaurantName || o.restaurant || '').includes(searchQuery) ||
+                                    o.city?.includes(searchQuery)
+                                ).map(offer => (
+                                    <div
+                                        key={offer.id}
+                                        onClick={() => {
+                                            setSelectedOffer(offer)
+                                            setShowSearch(false)
+                                            setSearchQuery('')
+                                            setCurrentScreen('offerDetails')
+                                        }}
+                                        style={{
+                                            display: 'flex', alignItems: 'center', gap: 12,
+                                            padding: '12px 0', borderBottom: '1px solid #f3f4f6', cursor: 'pointer',
+                                        }}
+                                    >
+                                        <div style={{
+                                            width: 56, height: 56, borderRadius: 12, overflow: 'hidden',
+                                            background: '#f3f4f6', flexShrink: 0,
+                                        }}>
+                                            <OfferImage offer={offer} size="small" />
+                                        </div>
+                                        <div style={{ flex: 1 }}>
+                                            <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 2 }}>{offer.name}</div>
+                                            <div style={{ fontSize: 12, color: '#9ca3af' }}>
+                                                {offer.restaurantName || offer.restaurant}
+                                            </div>
+                                            {offer.city && (
+                                                <div style={{ fontSize: 11, color: '#b0b0b0', marginTop: 2 }}>
+                                                    📍 {offer.city}
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div style={{
+                                            background: '#ee7b26', color: '#fff', fontWeight: 700,
+                                            padding: '4px 10px', borderRadius: 8, fontSize: 12,
+                                        }}>
+                                            خصم {offer.discount}%
+                                        </div>
+                                    </div>
+                                ))}
+                                {offers.filter(o =>
+                                    o.name?.includes(searchQuery) ||
+                                    (o.restaurantName || o.restaurant || '').includes(searchQuery) ||
+                                    o.city?.includes(searchQuery)
+                                ).length === 0 && (
+                                    <div style={{ textAlign: 'center', padding: 40, color: '#9ca3af' }}>
+                                        <div style={{ fontSize: 48, marginBottom: 12 }}>🔍</div>
+                                        <p style={{ fontWeight: 700 }}>لا توجد نتائج لـ "{searchQuery}"</p>
+                                    </div>
+                                )}
+                            </>
+                        ) : (
+                            <div style={{ textAlign: 'center', padding: 40, color: '#9ca3af' }}>
+                                <div style={{ fontSize: 48, marginBottom: 12 }}>🔍</div>
+                                <p style={{ fontWeight: 600 }}>اكتب للبحث عن مطعم أو طبق</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* ── Header (الأصلي) ── */}
             <div className="flex-none bg-white shadow-sm px-4 pt-4 pb-3 z-20">
 
-                {/* ✅ اللوجو في المنتصف + أزرار التبديل على اليسار */}
+                {/* اللوجو + أزرار التبديل */}
                 <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
-                    {/* اللوجو في المنتصف */}
                     <img
                         src="/logo.png"
                         alt="R2C"
                         style={{ height: 36, width: 'auto', maxWidth: 100, objectFit: 'contain' }}
                     />
-                    {/* أزرار التبديل على اليسار */}
                     <div style={{ position: 'absolute', left: 0, display: 'flex', gap: 8 }}>
                         <button
                             onClick={() => setViewMode('feed')}
@@ -90,13 +195,15 @@ export default function FeedScreen() {
                     </div>
                 </div>
 
-                <input
-                    type="text"
-                    placeholder="ابحث عن عرض أو مطعم..."
-                    value={searchQuery}
-                    onChange={e => setSearchQuery(e.target.value)}
+                {/* شريط البحث — يفتح overlay عند الضغط بدلاً من الكتابة مباشرة */}
+                <div
+                    onClick={() => setShowSearch(true)}
                     className="search-bar w-full mb-3"
-                />
+                    style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}
+                >
+                    <span style={{ color: '#9ca3af', fontSize: 14 }}>ابحث عن عرض أو مطعم...</span>
+                    <span style={{ marginRight: 'auto', color: '#9ca3af' }}>🔍</span>
+                </div>
 
                 <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
                     {cities.map(city => (
@@ -114,7 +221,7 @@ export default function FeedScreen() {
                 </div>
             </div>
 
-            {/* ── Feed scroll ── */}
+            {/* ── Feed scroll (الأصلي) ── */}
             <div
                 className="flex-1 min-h-0"
                 style={{
@@ -146,18 +253,15 @@ export default function FeedScreen() {
                                     cursor: 'pointer', backgroundColor: '#111',
                                 }}
                             >
-                                {/* خلفية الصورة/الفيديو */}
                                 <div style={{ position: 'absolute', inset: 0 }}>
                                     <OfferImage offer={offer} size="fullscreen" />
                                 </div>
 
-                                {/* Gradient overlay */}
                                 <div style={{
                                     position: 'absolute', inset: 0,
                                     background: 'linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.4) 45%, rgba(0,0,0,0.15) 100%)',
                                 }} />
 
-                                {/* شارة الخصم — أعلى اليسار */}
                                 <div style={{ position: 'absolute', top: 16, left: 16, zIndex: 10 }}>
                                     <div style={{
                                         background: '#ee7b26', color: '#000', fontWeight: 800,
@@ -167,7 +271,6 @@ export default function FeedScreen() {
                                     </div>
                                 </div>
 
-                                {/* اسم المطعم — أعلى اليمين */}
                                 <div style={{ position: 'absolute', top: 16, right: 16, zIndex: 10 }}>
                                     <div
                                         onClick={e => {
@@ -188,7 +291,6 @@ export default function FeedScreen() {
                                     </div>
                                 </div>
 
-                                {/* محتوى الأسفل */}
                                 <div style={{
                                     position: 'absolute', bottom: 0, right: 0, left: 0,
                                     padding: '20px 20px 100px', zIndex: 10,

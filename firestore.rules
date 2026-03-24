@@ -2,43 +2,105 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    function branchDoc(branchId) {
+      return get(/databases/$(database)/documents/branches/$(branchId));
+    }
+
+    function isBranchAccount(branchId) {
+      return isSignedIn() && request.auth.uid == branchId;
+    }
+
+    function isBranchManager(branchId) {
+      return isSignedIn()
+        && branchDoc(branchId).data.managerUid == request.auth.uid;
+    }
+
+    function isBranchOwner(branchId) {
+      return isSignedIn()
+        && (
+          branchDoc(branchId).data.ownerUid == request.auth.uid
+          || branchDoc(branchId).data.partnerUid == request.auth.uid
+          || branchDoc(branchId).data.authUid == request.auth.uid
+          || branchDoc(branchId).data.userId == request.auth.uid
+        );
+    }
+
+    function isPartnerOfBranch(branchId) {
+      return isBranchAccount(branchId) || isBranchManager(branchId) || isBranchOwner(branchId);
+    }
+
+    function isOrderOwner() {
+      return isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+
+    function isCreatingOwnOrder() {
+      return isSignedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.status == 'pending';
+    }
+
+    function partnerOwnsOffer() {
+      return isSignedIn()
+        && request.resource.data.branchId is string
+        && isPartnerOfBranch(request.resource.data.branchId);
+    }
+
+    function onlyUpdating(fields) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(fields);
+    }
+
     match /users/{userId} {
-      allow read, write: if request.auth.uid == userId;
+      allow read, write: if isSignedIn() && request.auth.uid == userId;
     }
 
     match /restaurants/{restaurantId} {
       allow read: if true;
       allow write: if isAdmin();
-
-      match /branches/{branchId} {
-        allow read: if true;
-        allow write: if isAdmin() || isPartner(restaurantId);
-      }
-    }
-
-    match /offers/{offerId} {
-      allow read: if true;
-      allow write: if isAdmin() || request.auth != null;
-    }
-
-    match /orders/{orderId} {
-      allow read: if request.auth.uid == resource.data.userId
-                  || isPartnerOfBranch(resource.data.branchId)
-                  || isAdmin();
-      allow create: if request.auth.uid == request.resource.data.userId;
-      allow update: if isPartnerOfBranch(resource.data.branchId)
-                    && onlyUpdating(['status', 'updatedAt']);
-      allow delete: if isAdmin();
-    }
-
-    match /admins/{adminId} {
-      allow read: if request.auth != null;
-      allow write: if false;
     }
 
     match /branches/{branchId} {
       allow read: if true;
       allow write: if isAdmin();
+    }
+
+    match /offers/{offerId} {
+      allow read: if true;
+      allow create, update: if isAdmin() || partnerOwnsOffer();
+      allow delete: if isAdmin();
+    }
+
+    match /orders/{orderId} {
+      allow read: if isOrderOwner()
+                  || isPartnerOfBranch(resource.data.branchId)
+                  || isAdmin();
+      allow create: if isCreatingOwnOrder();
+      // Owner can set qrCode + orderCode once (only while still pending and those fields are currently empty).
+      allow update: if isAdmin()
+                    || (isOrderOwner()
+                        && resource.data.status == 'pending'
+                        && resource.data.qrCode == ''
+                        && onlyUpdating(['qrCode', 'orderCode', 'updatedAt']))
+                    || (isOrderOwner()
+                        && resource.data.status == 'pending'
+                        && request.resource.data.status == 'cancelled'
+                        && onlyUpdating(['status', 'cancelReason', 'cancelledAt', 'updatedAt']))
+                    || (isPartnerOfBranch(resource.data.branchId)
+                        && onlyUpdating(['status', 'updatedAt', 'acceptedAt', 'readyAt', 'rejectedAt', 'completedAt', 'cancelledAt', 'collected', 'rejectedReason', 'cancelReason']));
+      allow delete: if isAdmin();
+    }
+
+    match /admins/{adminId} {
+      allow read: if isAdmin();
+      allow write: if false;
     }
 
     match /influencers/{docId} {
@@ -48,23 +110,6 @@ service cloud.firestore {
     match /system/{docId} {
       allow read: if true;
       allow write: if isAdmin();
-    }
-
-    function isAdmin() {
-      return exists(/databases/$(database)/documents/admins/$(request.auth.uid));
-    }
-
-    function isPartner(restaurantId) {
-      return request.auth.uid == restaurantId;
-    }
-
-    function isPartnerOfBranch(branchId) {
-      return request.auth.uid == branchId;
-    }
-
-    function onlyUpdating(fields) {
-      return request.resource.data.diff(resource.data).affectedKeys()
-             .hasOnly(fields);
     }
   }
 }

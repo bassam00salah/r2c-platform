@@ -1,27 +1,29 @@
 import { useApp } from './context/AppContext'
 
 // Screens
-import AuthScreen            from './screens/AuthScreen'
-import LocationScreen        from './screens/LocationScreen'
-import FeedScreen            from './screens/FeedScreen'           // كان FeedScreen.jsx.save — أعد تسميته
-import GridScreen            from './screens/GridScreen'
+import AuthScreen              from './screens/AuthScreen'
+import LocationScreen          from './screens/LocationScreen'
+import FeedScreen              from './screens/FeedScreen'
+import GridScreen              from './screens/GridScreen'
+import SearchScreen            from './screens/SearchScreen'          // ← جديد
 import RestaurantProfileScreen from './screens/RestaurantProfileScreen'
-import OfferDetailsScreen    from './screens/OfferDetailsScreen'
-import ConfirmOrderScreen    from './screens/ConfirmOrderScreen'
-import WaitingScreen         from './screens/WaitingScreen'
-import SuccessScreen         from './screens/SuccessScreen'
-import OrdersScreen          from './screens/OrdersScreen'
-import ProfileScreen         from './screens/ProfileScreen'
-import EmptyStateScreen      from './screens/EmptyStateScreen'
+import OfferDetailsScreen      from './screens/OfferDetailsScreen'
+import ConfirmOrderScreen      from './screens/ConfirmOrderScreen'
+import WaitingScreen           from './screens/WaitingScreen'
+import SuccessScreen           from './screens/SuccessScreen'
+import OrdersScreen            from './screens/OrdersScreen'
+import ProfileScreen           from './screens/ProfileScreen'
+import EmptyStateScreen        from './screens/EmptyStateScreen'
 
 // Components
-import BottomNav             from './components/BottomNav'
+import BottomNav               from './components/BottomNav'
 
 const SCREENS = {
   auth:              AuthScreen,
   location:          LocationScreen,
   feed:              FeedScreen,
   grid:              GridScreen,
+  search:            SearchScreen,                                    // ← جديد
   restaurantProfile: RestaurantProfileScreen,
   offerDetails:      OfferDetailsScreen,
   confirmOrder:      ConfirmOrderScreen,
@@ -32,7 +34,7 @@ const SCREENS = {
   empty:             EmptyStateScreen,
 }
 
-const WITH_NAV = ['feed', 'grid', 'restaurantProfile', 'orders', 'profile']
+const WITH_NAV = ['feed', 'grid', 'search', 'restaurantProfile', 'orders', 'profile']
 
 export default function App() {
   const { currentScreen, authLoading } = useApp()
