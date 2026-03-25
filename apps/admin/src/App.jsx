@@ -1,15 +1,16 @@
 import { AppProvider, useApp } from './context/AppContext';
-import LoginScreen from './screens/LoginScreen';
-import OverviewPage from './screens/OverviewPage';
+import LoginScreen    from './screens/LoginScreen';
+import OverviewPage   from './screens/OverviewPage';
 import RestaurantsPage from './screens/RestaurantsPage';
-import BranchesPage from './screens/BranchesPage';
-import OffersPage from './screens/OffersPage';
-import OrdersPage from './screens/OrdersPage';
+import BranchesPage   from './screens/BranchesPage';
+import OffersPage     from './screens/OffersPage';
+import OrdersPage     from './screens/OrdersPage';
+import OwnersPage     from './screens/OwnersPage';
 import { InfluencersPage, SettingsPage } from './screens/OtherPages';
-import Sidebar from './components/Sidebar';
+import Sidebar        from './components/Sidebar';
 
 function AdminApp() {
-  const { adminUser, loading, currentPage, toast } = useApp();
+  const { adminUser, userRole, loading, currentPage, toast } = useApp();
 
   if (loading) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -22,16 +23,29 @@ function AdminApp() {
 
   if (!adminUser) return <LoginScreen />;
 
- const pages = {
-  overview:    <OverviewPage />,
-  restaurants: <RestaurantsPage />,
-  branches:    <BranchesPage />,
-  offers:      <OffersPage />,
-  orders:      <OrdersPage />,
-  influencers: <InfluencersPage />,
-  reports:     <OverviewPage />,   // مؤقتاً نفس Overview حتى نبني ReportsPage
-  settings:    <SettingsPage />,
-};
+  // الصفحات المتاحة للسوبر أدمن
+  const superAdminPages = {
+    overview:    <OverviewPage />,
+    restaurants: <RestaurantsPage />,
+    branches:    <BranchesPage />,
+    offers:      <OffersPage />,
+    orders:      <OrdersPage />,
+    influencers: <InfluencersPage />,
+    reports:     <OverviewPage />,
+    owners:      <OwnersPage />,
+    settings:    <SettingsPage />,
+  };
+
+  // الصفحات المتاحة لمالك المطعم
+  const ownerPages = {
+    overview: <OverviewPage />,
+    branches: <BranchesPage readOnly />,
+    offers:   <OffersPage />,
+    orders:   <OrdersPage />,
+    reports:  <OverviewPage />,
+  };
+
+  const pages = userRole === 'superAdmin' ? superAdminPages : ownerPages;
 
   return (
     <div style={{ direction: 'rtl', fontFamily: "'Segoe UI', Tahoma, sans-serif", background: '#f3f4f6', minHeight: '100vh' }}>
@@ -40,7 +54,7 @@ function AdminApp() {
         {pages[currentPage] || <OverviewPage />}
       </main>
       {toast && (
-        <div style={{ position: 'fixed', bottom: '24px', left: '50%', transform: 'translateX(-50%)', background: toast.type==='error'?'#ef4444':'#10b981', color: 'white', padding: '12px 24px', borderRadius: '10px', fontWeight: '600', zIndex: 9999 }}>
+        <div style={{ position: 'fixed', bottom: '24px', left: '50%', transform: 'translateX(-50%)', background: toast.type === 'error' ? '#ef4444' : '#10b981', color: 'white', padding: '12px 24px', borderRadius: '10px', fontWeight: '600', zIndex: 9999 }}>
           {toast.message}
         </div>
       )}

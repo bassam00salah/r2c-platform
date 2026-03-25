@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useApp } from '../context/AppContext'
-import { auth, db } from '@shared/firebase/config'
+import { auth, db } from '@r2c/shared'
 import { collection, query, where, getDocs, doc, setDoc, serverTimestamp } from 'firebase/firestore'
-import { haversineKm } from '@shared/utils/haversine'
+import { haversineKm } from '@r2c/shared'
 import { ORDER_STATUS } from '@r2c/shared/constants/orderStatus'
 import OfferImage from '../components/OfferImage'
 

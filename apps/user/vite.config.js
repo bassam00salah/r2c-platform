@@ -10,7 +10,6 @@ export default defineConfig({
   ],
   resolve: {
     alias: {
-      '@shared':     resolve(__dirname, '../../packages/shared/src'),
       '@r2c/shared': resolve(__dirname, '../../packages/shared/src'),
     }
   },

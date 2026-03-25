@@ -3,7 +3,7 @@ import { useApp } from '../context/AppContext'
 export default function BottomNav() {
     const { bottomNav, setBottomNav, setCurrentScreen, setViewMode, orders } = useApp()
     const activeOrdersCount = orders.filter(o =>
-        ['pending', 'preparing', 'accepted', 'ready'].includes(o.status)
+        ['pending', 'accepted', 'ready'].includes(o.status)
     ).length
 
     return (

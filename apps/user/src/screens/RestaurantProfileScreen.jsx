@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useApp } from '../context/AppContext'
 import OfferImage from '../components/OfferImage'
-import { db } from '@shared/firebase/config'
+import { db } from '@r2c/shared'
 import { collection, query, where, limit, getDocs } from 'firebase/firestore'
 
 export default function RestaurantProfileScreen() {

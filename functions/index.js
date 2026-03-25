@@ -26,10 +26,8 @@ const CANCEL_DELAY_SECONDS = 45;
 const TASKS_SHARED_SECRET  = process.env.TASKS_SHARED_SECRET || "";
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
-function normalizeStatus(status) {
-  if (status === "preparing") return ORDER_STATUS.PENDING;
-  if (status === "timeout")   return ORDER_STATUS.CANCELLED;
-  return status || ORDER_STATUS.PENDING;
+function isPending(status) {
+  return status === ORDER_STATUS.PENDING;
 }
 
 async function cancelPendingOrder(orderId, reason = "timeout") {
@@ -37,8 +35,8 @@ async function cancelPendingOrder(orderId, reason = "timeout") {
   const snap = await orderRef.get();
   if (!snap.exists) return false;
 
-  const normalizedStatus = normalizeStatus(snap.data().status);
-  if (normalizedStatus !== ORDER_STATUS.PENDING) return false;
+  const normalizedStatus = snap.data().status;
+  if (!isPending(normalizedStatus)) return false;
 
   await orderRef.update({
     status: ORDER_STATUS.CANCELLED,
@@ -53,7 +51,7 @@ async function cancelPendingOrder(orderId, reason = "timeout") {
 exports.autoCancelOrder = onDocumentCreated("orders/{orderId}", async (event) => {
   const order = event.data?.data();
   if (!order) return null;
-  if (normalizeStatus(order.status) !== ORDER_STATUS.PENDING) return null;
+  if (!isPending(order.status)) return null;
 
   if (!CANCEL_URL || !PROJECT_ID) {
     console.warn("autoCancelOrder: TASKS_CANCEL_URL or GCLOUD_PROJECT not set — skipping.");
@@ -158,5 +156,5 @@ exports.cancelOrderOnTimeout = onCall(async (request) => {
   }
 
   const cancelled = await cancelPendingOrder(orderId, "timeout");
-  return { cancelled, status: cancelled ? ORDER_STATUS.CANCELLED : normalizeStatus(order.status) };
+  return { cancelled, status: cancelled ? ORDER_STATUS.CANCELLED : order.status };
 });

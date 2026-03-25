@@ -1,16 +1,43 @@
-import React, { useState, useEffect, useRef } from "react";
-import { usePartnerOrders } from "@r2c/shared";
-import { db } from "@r2c/shared";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { usePartnerOrders, db } from "@r2c/shared";
+import { ORDER_STATUS } from "@r2c/shared/constants/orderStatus";
+import { doc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import OrderCard from "../components/OrderCard";
 import Logo from "../components/logo";
+
+// ── تشغيل صوت تنبيه عند ورود طلب جديد ──────────────────────────────────────
+function playAlertSound() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const beep = (freq, start, duration) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.4, ctx.currentTime + start);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + start + duration);
+      osc.start(ctx.currentTime + start);
+      osc.stop(ctx.currentTime + start + duration);
+    };
+    beep(880, 0,    0.15);
+    beep(660, 0.2,  0.15);
+    beep(880, 0.4,  0.15);
+    beep(1100, 0.6, 0.3);
+  } catch (e) {
+    console.warn('Audio not available:', e);
+  }
+}
 
 const DashboardScreen = ({ branchId, setCurrentScreen, showToast }) => {
   const { orders = [], loading = false } = usePartnerOrders(branchId) || {};
   const [activeTab, setActiveTab]           = useState("new");
   const [partnerProfile, setPartnerProfile] = useState(null);
-  const [pendingAckOrders, setPendingAckOrders] = useState([]);
-  const seenRef = useRef(new Set());
+
+  // ── تتبع الطلبات الجديدة للتنبيه الصوتي ─────────────────────────────────
+  const seenOrdersRef = useRef(new Set());   // الطلبات التي رأيناها من قبل
+  const isFirstLoadRef = useRef(true);        // تجاهل الـ snapshot الأول
 
   useEffect(() => {
     if (!branchId) return;
@@ -20,41 +47,37 @@ const DashboardScreen = ({ branchId, setCurrentScreen, showToast }) => {
   }, [branchId]);
 
   useEffect(() => {
+    if (loading) return;
+
+    // الـ snapshot الأول: نسجّل الطلبات الموجودة بدون تنبيه
+    if (isFirstLoadRef.current) {
+      orders.forEach(o => seenOrdersRef.current.add(o.id));
+      isFirstLoadRef.current = false;
+      return;
+    }
+
+    // أي طلب pending جديد لم نره من قبل → نُنبّه
     orders.forEach(o => {
-      if (o.status === "accepted" && !seenRef.current.has(o.id)) {
-        seenRef.current.add(o.id);
-        setPendingAckOrders(prev => [...prev, o.id]);
+      if (o.status === ORDER_STATUS.PENDING && !seenOrdersRef.current.has(o.id)) {
+        seenOrdersRef.current.add(o.id);
+        playAlertSound();
+        showToast('🔔 طلب جديد وارد!', 'success');
+      }
+      // نسجّل كل الطلبات حتى لو غير pending
+      if (!seenOrdersRef.current.has(o.id)) {
+        seenOrdersRef.current.add(o.id);
       }
     });
-  }, [orders]);
+  }, [orders, loading]);
 
-  const handleAcknowledgeOrder = (orderId) => {
-    setPendingAckOrders(prev => prev.filter(id => id !== orderId));
-  };
-
-  const handleAcceptOrder = async (orderId) => {
-    await updateDoc(doc(db, "orders", orderId), { status: "accepted" });
-    showToast("تم قبول الطلب");
-  };
-
-  const handleRejectOrder = async (orderId) => {
-    await updateDoc(doc(db, "orders", orderId), { status: "rejected" });
-    showToast("تم رفض الطلب", "error");
-  };
-
-  const handleReadyOrder = async (orderId) => {
-    await updateDoc(doc(db, "orders", orderId), { status: "ready" });
-    showToast("تم تجهيز الطلب");
-  };
-
-  const newCount       = orders.filter(o => o.status === "preparing").length;
-  const acceptedCount  = orders.filter(o => o.status === "accepted").length;
-  const completedCount = orders.filter(o => o.status === "completed").length;
+  const newCount       = orders.filter(o => o.status === ORDER_STATUS.PENDING).length;
+  const acceptedCount  = orders.filter(o => o.status === ORDER_STATUS.ACCEPTED).length;
+  const completedCount = orders.filter(o => o.status === ORDER_STATUS.COMPLETED).length;
 
   const filteredOrders = orders.filter(o => {
-    if (activeTab === "new")       return o.status === "preparing";
-    if (activeTab === "accepted")  return o.status === "accepted";
-    if (activeTab === "completed") return o.status === "completed";
+    if (activeTab === "new")       return o.status === ORDER_STATUS.PENDING;
+    if (activeTab === "accepted")  return o.status === ORDER_STATUS.ACCEPTED || o.status === ORDER_STATUS.READY;
+    if (activeTab === "completed") return o.status === ORDER_STATUS.COMPLETED;
     return false;
   });
 
@@ -108,28 +131,6 @@ const DashboardScreen = ({ branchId, setCurrentScreen, showToast }) => {
         </div>
       </div>
 
-      {/* Auto-accept banners */}
-      {pendingAckOrders.map(orderId => {
-        const ord = orders.find(o => o.id === orderId);
-        return (
-          <div key={orderId} className="rounded-2xl p-4 mb-3 flex items-center justify-between gap-3"
-            style={{ background: "linear-gradient(135deg,#7f1d1d,#991b1b)", border: "2px solid #ef4444" }}>
-            <div>
-              <p className="font-black text-sm text-red-300">⚡ تم قبول الطلب تلقائياً</p>
-              {ord && (
-                <p className="text-xs text-red-200 font-bold mt-1">
-                  #{orderId.slice(-5).toUpperCase()} — {ord.offerName || "عرض"}
-                </p>
-              )}
-            </div>
-            <button onClick={() => handleAcknowledgeOrder(orderId)}
-              className="bg-red-500 text-white rounded-xl px-3 py-2 font-black text-xs whitespace-nowrap">
-              🔕 تم قبول الطلب<br />إيقاف التنبيه
-            </button>
-          </div>
-        );
-      })}
-
       {/* Tabs */}
       <div className="flex gap-3 mb-5 flex-wrap">
         <button onClick={() => setActiveTab("new")}
@@ -141,7 +142,7 @@ const DashboardScreen = ({ branchId, setCurrentScreen, showToast }) => {
         </button>
         <button onClick={() => setActiveTab("accepted")}
           className={`flex-1 py-3 rounded-2xl font-black text-sm transition-all
-            ${activeTab === "accepted" ? "bg-gray-700 text-white" : "bg-[#1e293b] text-gray-400"}`}>
+            ${activeTab === "accepted" ? "bg-blue-700 text-white" : "bg-[#1e293b] text-gray-400"}`}>
           مقبولة {acceptedCount > 0 && `(${acceptedCount})`}
         </button>
         <button onClick={() => setActiveTab("completed")}
@@ -166,9 +167,6 @@ const DashboardScreen = ({ branchId, setCurrentScreen, showToast }) => {
           <OrderCard
             key={order.id}
             order={order}
-            onAccept={() => handleAcceptOrder(order.id)}
-            onReject={() => handleRejectOrder(order.id)}
-            onReady={() => handleReadyOrder(order.id)}
             onView={() => setCurrentScreen("orderDetail", order)}
             showToast={showToast}
           />

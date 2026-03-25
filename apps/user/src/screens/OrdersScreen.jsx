@@ -82,7 +82,7 @@ function OrderQRModal({ order, onClose }) {
 }
 
 function getStep(status) {
-    if (status === 'preparing') return 1
+    if (status === 'pending')  return 1
     if (status === 'accepted')  return 2
     if (status === 'ready' || status === 'completed') return 3
     return 0
@@ -92,7 +92,7 @@ export default function OrdersScreen() {
     const { orders, activeOrdersTab, setActiveOrdersTab, setBottomNav, setCurrentScreen } = useApp()
     const [selectedOrderForModal, setSelectedOrderForModal] = useState(null)
 
-    const currentOrders = orders.filter(o => ['pending', 'preparing', 'accepted', 'ready'].includes(o.status))
+    const currentOrders = orders.filter(o => ['pending', 'accepted', 'ready'].includes(o.status))
     const pastOrders    = orders.filter(o => ['completed', 'rejected'].includes(o.status))
     const displayOrders = activeOrdersTab === 'current' ? currentOrders : pastOrders
 

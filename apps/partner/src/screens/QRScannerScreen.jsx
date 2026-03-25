@@ -1,32 +1,51 @@
 import React, { useState, useEffect, useRef } from 'react';
-// استيراد المكتبة - تأكد من تنفيذ npm install html5-qrcode في مجلد apps/partner
-import { Html5QrcodeScanner } from 'html5-qrcode';
-// استيراد معالج الطلبات من المجلد المشترك
+import { Html5QrcodeScanner, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { handleQRScan } from '@r2c/shared/utils/orderHandlers';
 
-const QRScannerScreen = ({ setCurrentScreen, showToast, partnerProfile }) => {
-  const [scannerStatus, setScannerStatus] = useState('starting');
-  const [manualCode, setManualCode] = useState('');
+const QRScannerScreen = ({ setCurrentScreen, showToast, branchId }) => {
+  const [scannerStatus, setScannerStatus] = useState('requesting'); // requesting → starting → active → success | error
+  const [manualCode, setManualCode]       = useState('');
   const scannerInstanceRef = useRef(null);
-  const mountedRef = useRef(true);
-
-  // استخراج معرف الفرع (branchId) من ملف الشريك
-  const branchId = partnerProfile?.branchId || partnerProfile?.uid;
+  const mountedRef         = useRef(true);
 
   useEffect(() => {
     mountedRef.current = true;
 
-    const startScanner = async () => {
+    const initScanner = async () => {
+      if (!branchId) {
+        console.error('QRScannerScreen: branchId is undefined');
+        setScannerStatus('error');
+        return;
+      }
+
+      // ── 1. طلب إذن الكاميرا يدوياً أولاً (ضروري لـ Capacitor/Android) ──
       try {
-        // إنشاء مثيل جديد للماسح الضوئي
+        await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+          .then(stream => {
+            // نوقف الـ stream فوراً — Html5QrcodeScanner سيفتحه هو بعدين
+            stream.getTracks().forEach(t => t.stop());
+          });
+      } catch (err) {
+        console.error('Camera permission denied:', err);
+        if (mountedRef.current) setScannerStatus('error');
+        return;
+      }
+
+      if (!mountedRef.current) return;
+      setScannerStatus('starting');
+
+      // ── 2. تشغيل الماسح بعد الحصول على الإذن ──
+      try {
         const scanner = new Html5QrcodeScanner(
           'qr-reader',
           {
             fps: 10,
             qrbox: { width: 250, height: 250 },
-            aspectRatio: 1.0
+            aspectRatio: 1.0,
+            formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+            showTorchButtonIfSupported: true,
           },
-          /* verbose= */ false
+          false
         );
 
         scannerInstanceRef.current = scanner;
@@ -35,23 +54,23 @@ const QRScannerScreen = ({ setCurrentScreen, showToast, partnerProfile }) => {
           async (decodedText) => {
             if (!mountedRef.current) return;
 
-            // تنفيذ عملية التحقق من الكود عبر Firestore
             const result = await handleQRScan(decodedText, branchId);
 
             if (result.success) {
               setScannerStatus('success');
               showToast(result.message, 'success');
               if (mountedRef.current) {
-                // العودة للوحة التحكم بعد نجاح العملية
                 setTimeout(() => setCurrentScreen('dashboard'), 2000);
               }
             } else {
               showToast(result.message, 'error');
             }
           },
-          (err) => {
-            // تجاهل أخطاء الإطارات الفردية أثناء البحث عن كود
-            if (scannerStatus !== 'active') setScannerStatus('active');
+          () => {
+            // أخطاء الإطارات الفردية — نتجاهلها
+            if (mountedRef.current && scannerStatus !== 'active') {
+              setScannerStatus('active');
+            }
           }
         );
       } catch (err) {
@@ -60,33 +79,24 @@ const QRScannerScreen = ({ setCurrentScreen, showToast, partnerProfile }) => {
       }
     };
 
-    // تشغيل الماسح الضوئي
-    startScanner();
+    initScanner();
 
-    // تنظيف الذاكرة وإغلاق الكاميرا عند مغادرة الشاشة
     return () => {
       mountedRef.current = false;
       if (scannerInstanceRef.current) {
-        try {
-          scannerInstanceRef.current.clear().catch(error => {
-            console.error("Failed to clear scanner on unmount", error);
-          });
-        } catch (e) {
-          console.warn("Scanner cleanup error", e);
-        }
+        scannerInstanceRef.current.clear().catch(() => {});
+        scannerInstanceRef.current = null;
       }
     };
-  }, [branchId, showToast, setCurrentScreen]);
+  }, [branchId]);
 
   const handleManualSubmit = async () => {
     const code = manualCode.trim();
     if (!code) {
-      showToast('يرجى إدخال كود الطلب يدوياً', 'error');
+      showToast('يرجى إدخال كود الطلب', 'error');
       return;
     }
-
     const result = await handleQRScan(code, branchId);
-
     if (result.success) {
       setScannerStatus('success');
       showToast(result.message, 'success');
@@ -96,13 +106,13 @@ const QRScannerScreen = ({ setCurrentScreen, showToast, partnerProfile }) => {
     }
   };
 
-  // واجهة عرض النجاح عند تأكيد الطلب
+  // ── شاشة النجاح ──────────────────────────────────────────────────────────
   if (scannerStatus === 'success') {
     return (
-      <div className="fixed inset-0 bg-green-900 flex flex-col items-center justify-center z-50 p-6 text-center animate-in fade-in duration-500">
-        <div className="text-8xl mb-6 bounce-in">✅</div>
+      <div className="fixed inset-0 bg-green-900 flex flex-col items-center justify-center z-50 p-6 text-center">
+        <div className="text-8xl mb-6">✅</div>
         <h1 className="text-3xl font-black text-green-400 mb-2">تم التأكيد!</h1>
-        <p className="text-green-200 text-lg">تم تحديث حالة الطلب وتسليمه بنجاح</p>
+        <p className="text-green-200 text-lg">تم تسليم الطلب بنجاح</p>
       </div>
     );
   }
@@ -116,7 +126,7 @@ const QRScannerScreen = ({ setCurrentScreen, showToast, partnerProfile }) => {
         </div>
         <button
           onClick={() => setCurrentScreen('dashboard')}
-          className="bg-gray-100 text-gray-600 px-4 py-2 rounded-xl font-bold hover:bg-gray-200 transition-colors"
+          className="bg-gray-100 text-gray-600 px-4 py-2 rounded-xl font-bold"
         >
           إلغاء
         </button>
@@ -128,25 +138,40 @@ const QRScannerScreen = ({ setCurrentScreen, showToast, partnerProfile }) => {
           className="overflow-hidden rounded-3xl border-4 border-gray-100 shadow-2xl bg-black aspect-square"
         ></div>
 
-        {scannerStatus === 'starting' && (
+        {/* طلب الإذن */}
+        {scannerStatus === 'requesting' && (
           <div className="absolute inset-0 flex items-center justify-center bg-gray-900 rounded-3xl z-10">
-             <div className="text-center">
-                <div className="w-12 h-12 border-4 border-green-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                <p className="text-white">جاري تشغيل الكاميرا...</p>
-             </div>
+            <div className="text-center px-4">
+              <div className="text-5xl mb-4">📷</div>
+              <p className="text-white font-bold mb-2">جاري طلب إذن الكاميرا...</p>
+              <p className="text-gray-400 text-sm">يرجى الموافقة على طلب الكاميرا</p>
+            </div>
           </div>
         )}
 
+        {/* تشغيل الماسح */}
+        {scannerStatus === 'starting' && (
+          <div className="absolute inset-0 flex items-center justify-center bg-gray-900 rounded-3xl z-10">
+            <div className="text-center">
+              <div className="w-12 h-12 border-4 border-green-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+              <p className="text-white">جاري تشغيل الكاميرا...</p>
+            </div>
+          </div>
+        )}
+
+        {/* خطأ */}
         {scannerStatus === 'error' && (
           <div className="absolute inset-0 flex items-center justify-center bg-red-50 rounded-3xl z-10 p-6 text-center">
-             <div>
-                <p className="text-red-600 font-bold mb-2">تعذر الوصول للكاميرا</p>
-                <p className="text-sm text-red-400">يرجى التأكد من منح صلاحيات الكاميرا أو استخدام الإدخال اليدوي أدناه.</p>
-             </div>
+            <div>
+              <div className="text-4xl mb-3">🚫</div>
+              <p className="text-red-600 font-bold mb-2">تعذر الوصول للكاميرا</p>
+              <p className="text-sm text-red-400">يرجى منح صلاحية الكاميرا من إعدادات التطبيق</p>
+            </div>
           </div>
         )}
       </div>
 
+      {/* إدخال يدوي */}
       <div className="mt-8 bg-gray-50 p-6 rounded-3xl border border-gray-100 max-w-md mx-auto">
         <h2 className="text-xs font-bold text-gray-400 mb-4 text-center uppercase tracking-widest">إدخال يدوي للطلب</h2>
         <div className="flex gap-2">
@@ -155,12 +180,13 @@ const QRScannerScreen = ({ setCurrentScreen, showToast, partnerProfile }) => {
             placeholder="أدخل رمز الطلب هنا"
             value={manualCode}
             onChange={(e) => setManualCode(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleManualSubmit()}
             className="flex-1 bg-white border-2 border-gray-200 rounded-2xl px-4 py-3 outline-none focus:border-green-500 transition-all text-center font-mono text-lg"
             dir="ltr"
           />
           <button
             onClick={handleManualSubmit}
-            className="bg-green-600 text-white px-6 py-3 rounded-2xl font-bold shadow-lg shadow-green-200 active:scale-95 transition-transform"
+            className="bg-green-600 text-white px-6 py-3 rounded-2xl font-bold shadow-lg active:scale-95 transition-transform"
           >
             تأكيد
           </button>

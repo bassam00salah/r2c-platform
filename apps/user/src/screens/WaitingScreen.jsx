@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useApp } from '../context/AppContext'
-import { auth, db, functions } from '@shared/firebase/config'
+import { auth, db, functions } from '@r2c/shared'
 import { doc, getDoc, updateDoc, onSnapshot } from 'firebase/firestore'
 import { httpsCallable } from 'firebase/functions'
 

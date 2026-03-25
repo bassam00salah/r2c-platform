@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useApp } from '../context/AppContext'
 // ✅ إصلاح: Firebase modular بدل db.collection()
-import { db } from '@shared/firebase/config'
+import { db } from '@r2c/shared'
 import { doc, onSnapshot } from 'firebase/firestore'
 
 // ✅ إصلاح: تعريف QrImage كان مفقوداً تماماً

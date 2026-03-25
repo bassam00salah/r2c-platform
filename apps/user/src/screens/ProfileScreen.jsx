@@ -1,5 +1,5 @@
 import { useApp } from '../context/AppContext'
-import { auth } from '@shared/firebase/config'
+import { auth } from '@r2c/shared'
 import { signOut } from 'firebase/auth'
 
 export default function ProfileScreen() {
