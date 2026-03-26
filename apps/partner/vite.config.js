@@ -15,5 +15,24 @@ export default defineConfig({
   },
   server: {
     port: 3001
-  }
+  },
+  build: {
+    // [أداء] تقسيم الحزمة — كان ~1.1MB monolith
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-firebase': [
+            'firebase/app',
+            'firebase/auth',
+            'firebase/firestore',
+            'firebase/functions',
+          ],
+          'vendor-react': ['react', 'react-dom'],
+          // lucide-react ثقيل — chunk مستقل
+          'vendor-icons': ['lucide-react'],
+        },
+      },
+    },
+    chunkSizeWarningLimit: 500,
+  },
 })

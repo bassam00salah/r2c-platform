@@ -1,85 +1,62 @@
-import { db } from "../firebase";
-import { doc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
+/**
+ * orderHandlers — مُصلَح أمنياً
+ *
+ * الإصلاحات:
+ *  1. [أمان] handleQRScan يستدعي Cloud Function بدلاً من updateDoc مباشر
+ *  2. [أمان] updateOrderStatus يستدعي Cloud Function بدلاً من updateDoc مباشر
+ *  3. [جودة] رسائل خطأ أوضح مع تمييز نوع الفشل
+ */
+
+import { functions } from "../firebase";
+import { httpsCallable } from "firebase/functions";
+
+const completeOrderByQRFn  = httpsCallable(functions, "completeOrderByQR");
+const updateOrderStatusFn  = httpsCallable(functions, "updateOrderStatus");
 
 /**
- * وظيفة معالجة مسح رمز QR
- * @param {string} qrData - البيانات المستخرجة من رمز QR (غالباً ما تكون معرف الطلب orderId)
- * @param {string} currentBranchId - معرف الفرع الحالي للتأكد من أن الطلب يخص هذا الفرع
- * @returns {Object} نتيجة العملية { success: boolean, message: string, orderData: object }
+ * مسح رمز QR وإكمال الطلب — عبر Cloud Function
+ * @param {string} qrCode         - الكود المستخرج من QR
+ * @param {string} _currentBranchId - غير مستخدم بعد الإصلاح (التحقق server-side)
  */
-export const handleQRScan = async (qrData, currentBranchId) => {
+export const handleQRScan = async (qrCode, _currentBranchId) => {
+  if (!qrCode) return { success: false, message: "لم يتم العثور على بيانات في الرمز" };
+
   try {
-    // 1. التحقق من وجود بيانات
-    if (!qrData) {
-      return { success: false, message: "لم يتم العثور على بيانات في الرمز" };
-    }
-
-    // 2. جلب بيانات الطلب من Firestore
-    const orderId = qrData.trim();
-    const orderRef = doc(db, "orders", orderId);
-    const orderSnap = await getDoc(orderRef);
-
-    if (!orderSnap.exists()) {
-      return { success: false, message: "عذراً، هذا الطلب غير موجود في النظام" };
-    }
-
-    const orderData = orderSnap.data();
-
-    // 3. التحقق من أن الطلب يخص هذا الفرع لمنع الاحتيال
-    if (orderData.branchId !== currentBranchId) {
-      return {
-        success: false,
-        message: "هذا الطلب يخص فرعاً آخر، لا يمكن إتمامه هنا"
-      };
-    }
-
-    // 4. التحقق من حالة الطلب (يجب أن يكون مقبولاً ليتم تسليمه)
-    if (orderData.status === "completed") {
-      return { success: false, message: "تم تسليم هذا الطلب مسبقاً" };
-    }
-
-    if (orderData.status !== "accepted") {
-      return {
-        success: false,
-        message: `حالة الطلب الحالية هي (${orderData.status})، يجب قبول الطلب أولاً من لوحة التحكم`
-      };
-    }
-
-    // 5. تحديث حالة الطلب إلى "مكتمل" (Completed)
-    await updateDoc(orderRef, {
-      status: "completed",
-      completedAt: serverTimestamp(),
-      collected: true
-    });
-
+    const result = await completeOrderByQRFn({ qrCode: qrCode.trim() });
     return {
-      success: true,
-      message: "تم التحقق من الطلب وتسليمه بنجاح!",
-      orderData: { id: orderId, ...orderData }
+      success:   true,
+      message:   "تم التحقق من الطلب وتسليمه بنجاح!",
+      orderData: result.data?.orderData || null,
     };
-
   } catch (error) {
-    console.error("Error in handleQRScan:", error);
+    // HttpsError من Firebase تحمل error.code
+    const code = error?.code?.replace("functions/", "") || "";
+    const messages = {
+      "not-found":          "عذراً، هذا الرمز غير موجود في النظام",
+      "permission-denied":  "هذا الطلب يخص فرعاً آخر، لا يمكن إتمامه هنا",
+      "already-exists":     "تم تسليم هذا الطلب مسبقاً",
+      "failed-precondition":"يجب تجهيز الطلب أولاً قبل مسح الرمز",
+      "unauthenticated":    "يرجى تسجيل الدخول أولاً",
+    };
     return {
       success: false,
-      message: "حدث خطأ تقني أثناء محاولة معالجة الطلب"
+      message: messages[code] || "حدث خطأ تقني أثناء محاولة معالجة الطلب",
     };
   }
 };
 
 /**
- * وظيفة لتحديث حالة الطلب يدوياً (قبول/رفض)
+ * تحديث حالة الطلب يدوياً — عبر Cloud Function
+ * @param {string} orderId
+ * @param {string} newStatus
  */
 export const updateOrderStatus = async (orderId, newStatus) => {
   try {
-    const orderRef = doc(db, "orders", orderId);
-    await updateDoc(orderRef, {
-      status: newStatus,
-      updatedAt: serverTimestamp()
-    });
+    const result = await updateOrderStatusFn({ orderId, status: newStatus });
+    if (!result.data?.success) throw new Error(result.data?.message || "فشل التحديث");
     return { success: true };
   } catch (error) {
-    console.error("Error updating order status:", error);
+    console.error("updateOrderStatus:", error);
     throw error;
   }
 };

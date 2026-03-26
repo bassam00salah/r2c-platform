@@ -1,34 +1,54 @@
-import React, { useState } from 'react';
-import { db } from "@r2c/shared/firebase";
-import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
-import { ORDER_STATUS } from "@r2c/shared/constants/orderStatus";
+/**
+ * OrderCard — مُصلَح أمنياً
+ *
+ * الإصلاحات:
+ *  1. [أمان] جميع تغييرات الحالة (قبول/رفض/جاهز) تمر عبر Cloud Function
+ *            بدلاً من updateDoc مباشر من العميل
+ *  2. [جودة] رسائل خطأ أوضح مع تمييز بين خطأ صلاحية وخطأ شبكة
+ */
 
-const OrderCard = ({ order, onAccept, onReject, onReady, onView, showToast }) => {
+import React, { useState } from 'react';
+import { functions } from '@r2c/shared/firebase';
+import { httpsCallable } from 'firebase/functions';
+import { ORDER_STATUS } from '@r2c/shared/constants/orderStatus';
+
+// Callable مُعرَّف خارج المكوّن لتفادي إعادة الإنشاء عند كل render
+const updateOrderStatusFn = httpsCallable(
+  // نمرر functions من shared — إن لم يكن متاحاً مباشرةً نستورده هنا
+  functions,
+  'updateOrderStatus'
+);
+
+const OrderCard = ({ order, onView, showToast }) => {
   const [loading, setLoading] = useState(false);
 
+  /**
+   * [إصلاح أمني] تمرير التحديث عبر Cloud Function وليس مباشرة لـ Firestore
+   * الـ Function تتحقق من:
+   *   - هوية الشخص المُحدِّث (Firebase Auth)
+   *   - ملكية الطلب للفرع
+   *   - صحة الانتقال بين الحالات (state machine)
+   */
   const handleStatusUpdate = async (newStatus) => {
+    if (!order?.id) return;
     setLoading(true);
     try {
-      if (!order?.id) return;
-      const timestamps = {
-        [ORDER_STATUS.ACCEPTED]: { acceptedAt: serverTimestamp() },
-        [ORDER_STATUS.REJECTED]: { rejectedAt: serverTimestamp() },
-        [ORDER_STATUS.READY]:    { readyAt:    serverTimestamp() },
-      };
-      await updateDoc(doc(db, "orders", order.id), {
-        status: newStatus,
-        updatedAt: serverTimestamp(),
-        ...timestamps[newStatus],
-      });
+      const result = await updateOrderStatusFn({ orderId: order.id, status: newStatus });
+      if (!result.data?.success) throw new Error(result.data?.message || 'فشل التحديث');
+
       const labels = {
         [ORDER_STATUS.ACCEPTED]: 'تم قبول الطلب',
         [ORDER_STATUS.REJECTED]: 'تم رفض الطلب',
         [ORDER_STATUS.READY]:    'تم تجهيز الطلب',
       };
-      showToast(labels[newStatus], newStatus === ORDER_STATUS.REJECTED ? 'error' : 'success');
+      showToast(labels[newStatus] ?? 'تم التحديث', newStatus === ORDER_STATUS.REJECTED ? 'error' : 'success');
     } catch (e) {
-      console.error("Firebase Update Error:", e);
-      showToast("خطأ في الاتصال بقاعدة البيانات", "error");
+      const isPermission = e?.message?.toLowerCase().includes('permission');
+      showToast(
+        isPermission ? 'ليس لديك صلاحية لتغيير هذا الطلب' : 'خطأ في الاتصال — حاول مجدداً',
+        'error'
+      );
+      console.error('OrderCard.handleStatusUpdate:', e);
     } finally {
       setLoading(false);
     }
@@ -41,12 +61,10 @@ const OrderCard = ({ order, onAccept, onReject, onReady, onView, showToast }) =>
 
   return (
     <div className="order-card-v2 animate-in fade-in zoom-in duration-300">
-      {/* كود الطلب */}
       <div className="absolute top-4 left-4 bg-[#063b33] text-[#14b8a6] px-2 py-0.5 rounded text-[10px] font-mono border border-[#14b8a6]/30">
         #{order.id ? order.id.slice(-5).toUpperCase() : 'XXXXX'}
       </div>
 
-      {/* شريط الحالة العلوي */}
       <div className="absolute top-4 right-4">
         {isPending  && <span className="bg-yellow-500/20 text-yellow-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-yellow-500/30">⏳ جديد</span>}
         {isAccepted && <span className="bg-blue-500/20 text-blue-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-blue-500/30">✅ مقبول</span>}
@@ -55,9 +73,7 @@ const OrderCard = ({ order, onAccept, onReject, onReady, onView, showToast }) =>
       </div>
 
       <div className="mt-6 text-center">
-        <h3 className="text-xl font-black text-white mb-2 leading-tight">
-          {order.offerName || '—'}
-        </h3>
+        <h3 className="text-xl font-black text-white mb-2 leading-tight">{order.offerName || '—'}</h3>
         <p className="text-[#ee7b26] text-sm font-bold flex items-center justify-center gap-1">
           <span className="text-xs">📍</span> {order.city || '—'}
         </p>
@@ -70,13 +86,10 @@ const OrderCard = ({ order, onAccept, onReject, onReady, onView, showToast }) =>
           </span>
         </div>
 
-        {/* الأزرار حسب الحالة */}
         <div className="pt-4 border-t border-[#14b8a6]/10">
           {isDone && (
             <div className="bg-green-500/10 py-2 rounded-xl">
-              <span className="text-green-400 text-xs font-bold flex items-center justify-center gap-1">
-                ✓ تم التسليم
-              </span>
+              <span className="text-green-400 text-xs font-bold flex items-center justify-center gap-1">✓ تم التسليم</span>
             </div>
           )}
 
@@ -109,10 +122,7 @@ const OrderCard = ({ order, onAccept, onReject, onReady, onView, showToast }) =>
                 {loading ? '⏳' : '🍽️ تم التجهيز'}
               </button>
               {onView && (
-                <button
-                  onClick={onView}
-                  className="px-4 py-3 bg-[#1e293b] text-gray-300 rounded-xl text-xs font-bold border border-slate-700"
-                >
+                <button onClick={onView} className="px-4 py-3 bg-[#1e293b] text-gray-300 rounded-xl text-xs font-bold border border-slate-700">
                   تفاصيل
                 </button>
               )}

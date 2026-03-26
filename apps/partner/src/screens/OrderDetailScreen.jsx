@@ -1,30 +1,47 @@
+/**
+ * OrderDetailScreen — مُصلَح أمنياً
+ *
+ * الإصلاحات:
+ *  1. [أمان] قبول/رفض الطلب عبر Cloud Function (updateOrderStatus)
+ *            بدلاً من updateDoc مباشر من الواجهة
+ *  2. [جودة] رسالة خطأ مفصَّلة حسب نوع الفشل
+ */
+
 import React, { useState } from 'react';
-import { db } from '@r2c/shared';
-import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { functions } from '@r2c/shared';
+import { httpsCallable } from 'firebase/functions';
 import { ORDER_STATUS } from '@r2c/shared/constants/orderStatus';
 import Logo from '../components/logo';
+
+const updateOrderStatusFn = httpsCallable(functions, 'updateOrderStatus');
 
 const OrderDetailScreen = ({ order, setCurrentScreen, showToast }) => {
   const [loading, setLoading] = useState(false);
   if (!order) return null;
 
+  /**
+   * [إصلاح أمني] التحديث عبر Cloud Function
+   * الـ Function تتحقق server-side من:
+   *   - المصادقة (Firebase Auth token)
+   *   - ملكية الفرع للطلب
+   *   - صحة الانتقال بين الحالات
+   */
   const handleAction = async (status) => {
     setLoading(true);
     try {
-      const updateData = {
-        status,
-        updatedAt: serverTimestamp(),
-        ...(status === ORDER_STATUS.ACCEPTED && { acceptedAt: serverTimestamp() }),
-        ...(status === ORDER_STATUS.REJECTED && { rejectedAt: serverTimestamp() }),
-      };
-      await updateDoc(doc(db, 'orders', order.id), updateData);
+      const result = await updateOrderStatusFn({ orderId: order.id, status });
+      if (!result.data?.success) throw new Error(result.data?.message || 'فشل التحديث');
+
       const message = status === ORDER_STATUS.ACCEPTED ? 'تم قبول الطلب بنجاح' : 'تم رفض الطلب';
-      const type    = status === ORDER_STATUS.ACCEPTED ? 'success' : 'error';
-      showToast(message, type);
+      showToast(message, status === ORDER_STATUS.ACCEPTED ? 'success' : 'error');
       setCurrentScreen('dashboard');
     } catch (err) {
-      console.error('Error updating order:', err);
-      showToast('حدث خطأ أثناء تحديث الطلب', 'error');
+      console.error('OrderDetailScreen.handleAction:', err);
+      const isPermission = err?.message?.toLowerCase().includes('permission');
+      showToast(
+        isPermission ? 'ليس لديك صلاحية لتغيير هذا الطلب' : 'حدث خطأ أثناء تحديث الطلب',
+        'error'
+      );
     } finally {
       setLoading(false);
     }
@@ -33,10 +50,7 @@ const OrderDetailScreen = ({ order, setCurrentScreen, showToast }) => {
   return (
     <div className="min-h-screen bg-[#110d35] p-6 text-right font-['Cairo'] text-white" dir="rtl">
       <div className="max-w-2xl mx-auto">
-        <button
-          onClick={() => setCurrentScreen('dashboard')}
-          className="text-[#ee7b26] mb-8 font-bold flex items-center gap-2"
-        >
+        <button onClick={() => setCurrentScreen('dashboard')} className="text-[#ee7b26] mb-8 font-bold flex items-center gap-2">
           <span>→</span> العودة للوحة التحكم
         </button>
 
@@ -45,9 +59,7 @@ const OrderDetailScreen = ({ order, setCurrentScreen, showToast }) => {
 
           <div className="flex justify-between items-center mb-8">
             <h2 className="text-3xl font-black">تفاصيل الطلب</h2>
-            <span className="bg-[#063b33] text-emerald-400 px-4 py-1.5 rounded-xl font-mono text-sm border border-emerald-500/20">
-              #{order.id}
-            </span>
+            <span className="bg-[#063b33] text-emerald-400 px-4 py-1.5 rounded-xl font-mono text-sm border border-emerald-500/20">#{order.id}</span>
           </div>
 
           <div className="space-y-6 mb-12">
@@ -69,7 +81,7 @@ const OrderDetailScreen = ({ order, setCurrentScreen, showToast }) => {
 
             <div className="bg-[#0a4f44]/20 p-5 rounded-2xl border border-emerald-500/10">
               <p className="text-xs text-emerald-400/60 mb-1">موقع العميل</p>
-              <p className="text-sm font-bold">📍 {order.city} — يبعد عنك {order.distanceToUser || order.distance || '—'} </p>
+              <p className="text-sm font-bold">📍 {order.city} — يبعد عنك {order.distanceToUser || order.distance || '—'}</p>
             </div>
           </div>
 

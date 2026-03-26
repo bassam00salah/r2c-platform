@@ -1,0 +1,121 @@
+# CI/CD Pipeline — R2C Platform
+# يعمل عند كل push على main أو pull request
+
+name: CI / Deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ─── 1. Lint ────────────────────────────────────────────────────────────
+  lint:
+    name: Lint (user / partner / admin)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install root deps
+        run: npm ci
+
+      - name: Lint user
+        run: npm run lint --workspace=apps/user
+
+      - name: Lint partner
+        run: npm run lint --workspace=apps/partner
+
+      - name: Lint admin
+        run: npm run lint --workspace=apps/admin
+
+  # ─── 2. Unit Tests ─────────────────────────────────────────────────────
+  test:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install root deps
+        run: npm ci
+
+      - name: Run functions tests
+        run: npm test --workspace=functions
+
+      - name: Run shared tests
+        run: npm test --workspace=packages/shared
+
+  # ─── 3. Build ──────────────────────────────────────────────────────────
+  build:
+    name: Build apps
+    runs-on: ubuntu-latest
+    needs: [lint, test]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install root deps
+        run: npm ci
+
+      - name: Build user
+        run: npm run build --workspace=apps/user
+
+      - name: Build partner
+        run: npm run build --workspace=apps/partner
+
+      - name: Build admin
+        run: npm run build --workspace=apps/admin
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-apps
+          path: |
+            apps/user/www
+            apps/partner/dist
+            apps/admin/dist
+          retention-days: 7
+
+  # ─── 4. Deploy (main only) ─────────────────────────────────────────────
+  deploy:
+    name: Deploy to Firebase
+    runs-on: ubuntu-latest
+    needs: [build]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install root deps
+        run: npm ci
+
+      - name: Install functions deps
+        run: npm ci --prefix functions
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist-apps
+
+      - name: Deploy Functions + Hosting + Firestore rules
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          channelId: live
+          projectId: ${{ secrets.FIREBASE_PROJECT_ID }}

@@ -10,7 +10,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useApp } from '../contexts'
 import { auth, db, functions } from '@r2c/shared'
-import { doc, updateDoc, serverTimestamp, onSnapshot } from 'firebase/firestore'
+import { doc, onSnapshot } from 'firebase/firestore'
 import { httpsCallable } from 'firebase/functions'
 
 export default function WaitingScreen() {
@@ -60,17 +60,17 @@ export default function WaitingScreen() {
 
   // ── إلغاء يدوي من المستخدم ───────────────────────────────────────────────
   const handleCancel = async () => {
-    const currentUser = auth.currentUser
-    if (currentOrderId && currentUser) {
+    if (currentOrderId && auth.currentUser) {
       try {
-        // [إصلاح] status: 'cancelled' وليس 'rejected'
-        await updateDoc(doc(db, 'orders', currentOrderId), {
-          status:       'cancelled',
-          cancelReason: 'user_cancelled',
-          cancelledAt:  serverTimestamp(),
-          updatedAt:    serverTimestamp(),
-        })
-      } catch { /* تجاهل — سيُلغى لاحقاً تلقائياً */ }
+        /*
+         * [إصلاح أمني] الإلغاء اليدوي عبر Cloud Function بدلاً من updateDoc مباشر:
+         *   ✅ الـ Function تتحقق من ملكية المستخدم للطلب
+         *   ✅ لا يستطيع أي مستخدم إلغاء طلب شخص آخر
+         *   ✅ cancelOrderOnTimeout تستخدم Transaction لتفادي race conditions
+         */
+        const cancelFn = httpsCallable(functions, 'cancelOrderOnTimeout')
+        await cancelFn({ orderId: currentOrderId })
+      } catch { /* تجاهل — سيُلغى تلقائياً بعد انتهاء المهلة */ }
     }
     setCurrentScreen('offerDetails')
   }

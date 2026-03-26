@@ -14,6 +14,25 @@ export default defineConfig({
     }
   },
   build: {
-    outDir: 'www'
-  }
+    outDir: 'www',
+    // [أداء] تقسيم الحزمة لتحسين التحميل الأولي
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Firebase في chunk منفصل — لا يتغير كثيراً
+          'vendor-firebase': [
+            'firebase/app',
+            'firebase/auth',
+            'firebase/firestore',
+            'firebase/functions',
+            'firebase/storage',
+          ],
+          // React core
+          'vendor-react': ['react', 'react-dom'],
+        },
+      },
+    },
+    // [أداء] تحذير عند تجاوز 500KB بدلاً من 1MB
+    chunkSizeWarningLimit: 500,
+  },
 })

@@ -1,115 +1,105 @@
+// Firestore Security Rules — R2C Platform (Production)
+//
+// مبدأ الحد الأدنى من الصلاحيات:
+//   - المستخدم: يقرأ فقط بياناته + العروض المتاحة + الفروع
+//   - الفرع (partner): يقرأ ويكتب طلباته فقط عبر Cloud Functions
+//   - الأدمن: يصل لكل شيء (مع التحقق من مستند admins)
+//   - تحديثات الطلبات الحساسة: ممنوعة من العميل — تمر عبر Cloud Functions فقط
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    function isSignedIn() {
+    // ─── Helper functions ────────────────────────────────────────────────
+    function isAuth() {
       return request.auth != null;
     }
-
+    function isUser(uid) {
+      return isAuth() && request.auth.uid == uid;
+    }
     function isAdmin() {
-      return isSignedIn()
-        && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+      return isAuth() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+    function isBranch(branchId) {
+      return isAuth() && request.auth.uid == branchId;
     }
 
-    function branchDoc(branchId) {
-      return get(/databases/$(database)/documents/branches/$(branchId));
+    // الحقول الحساسة التي يُمنع العميل من كتابتها مباشرة
+    function noSensitiveOrderFields() {
+      return !request.resource.data.keys().hasAny([
+        'status', 'price', 'qrCode', 'userId', 'branchId',
+        'completedAt', 'acceptedAt', 'rejectedAt', 'readyAt'
+      ]);
     }
 
-    function isBranchAccount(branchId) {
-      return isSignedIn() && request.auth.uid == branchId;
+    // ─── users ───────────────────────────────────────────────────────────
+    match /users/{uid} {
+      allow read:   if isUser(uid) || isAdmin();
+      allow create: if isUser(uid);
+      allow update: if isUser(uid) && noSensitiveOrderFields();
     }
 
-    function isBranchManager(branchId) {
-      return isSignedIn()
-        && branchDoc(branchId).data.managerUid == request.auth.uid;
-    }
-
-    function isBranchOwner(branchId) {
-      return isSignedIn()
-        && (
-          branchDoc(branchId).data.ownerUid == request.auth.uid
-          || branchDoc(branchId).data.partnerUid == request.auth.uid
-          || branchDoc(branchId).data.authUid == request.auth.uid
-          || branchDoc(branchId).data.userId == request.auth.uid
-        );
-    }
-
-    function isPartnerOfBranch(branchId) {
-      return isBranchAccount(branchId) || isBranchManager(branchId) || isBranchOwner(branchId);
-    }
-
-    function isOrderOwner() {
-      return isSignedIn() && resource.data.userId == request.auth.uid;
-    }
-
-    function isCreatingOwnOrder() {
-      return isSignedIn()
-        && request.resource.data.userId == request.auth.uid
-        && request.resource.data.status == 'pending';
-    }
-
-    function partnerOwnsOffer() {
-      return isSignedIn()
-        && request.resource.data.branchId is string
-        && isPartnerOfBranch(request.resource.data.branchId);
-    }
-
-    function onlyUpdating(fields) {
-      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(fields);
-    }
-
-    match /users/{userId} {
-      allow read, write: if isSignedIn() && request.auth.uid == userId;
-    }
-
-    match /restaurants/{restaurantId} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-
-    match /branches/{branchId} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-
-    match /offers/{offerId} {
-      allow read: if true;
-      allow create, update: if isAdmin() || partnerOwnsOffer();
-      allow delete: if isAdmin();
-    }
-
+    // ─── orders ──────────────────────────────────────────────────────────
     match /orders/{orderId} {
-      allow read: if isOrderOwner()
-                  || isPartnerOfBranch(resource.data.branchId)
-                  || isAdmin();
-      allow create: if isCreatingOwnOrder();
-      // Owner can set qrCode + orderCode once (only while still pending and those fields are currently empty).
-      allow update: if isAdmin()
-                    || (isOrderOwner()
-                        && resource.data.status == 'pending'
-                        && resource.data.qrCode == ''
-                        && onlyUpdating(['qrCode', 'orderCode', 'updatedAt']))
-                    || (isOrderOwner()
-                        && resource.data.status == 'pending'
-                        && request.resource.data.status == 'cancelled'
-                        && onlyUpdating(['status', 'cancelReason', 'cancelledAt', 'updatedAt']))
-                    || (isPartnerOfBranch(resource.data.branchId)
-                        && onlyUpdating(['status', 'updatedAt', 'acceptedAt', 'readyAt', 'rejectedAt', 'completedAt', 'cancelledAt', 'collected', 'rejectedReason', 'cancelReason']));
+      // القراءة: مالك الطلب أو الفرع المعيَّن أو الأدمن
+      allow read: if isAuth() && (
+        resource.data.userId == request.auth.uid ||
+        resource.data.branchId == request.auth.uid ||
+        isAdmin()
+      );
+
+      // الإنشاء: ممنوع من العميل — عبر createOrder Cloud Function فقط
+      allow create: if false;
+
+      // التحديث: ممنوع من العميل — عبر updateOrderStatus / cancelOrderOnTimeout فقط
+      allow update: if false;
+
+      // الحذف: الأدمن فقط
       allow delete: if isAdmin();
     }
 
-    match /admins/{adminId} {
-      allow read: if isAdmin();
+    // ─── branches ────────────────────────────────────────────────────────
+    match /branches/{branchId} {
+      // القراءة: أي مستخدم مسجَّل (لعرض الفروع القريبة)
+      allow read: if isAuth();
+
+      // الكتابة: ممنوع من العميل — عبر createBranchUser Cloud Function فقط
       allow write: if false;
     }
 
-    match /influencers/{docId} {
-      allow read, write: if isAdmin();
+    // ─── offers ──────────────────────────────────────────────────────────
+    match /offers/{offerId} {
+      allow read: if isAuth();
+      // الكتابة: الأدمن فقط (من لوحة الإدارة)
+      allow write: if isAdmin();
     }
 
-    match /system/{docId} {
-      allow read: if true;
+    // ─── restaurants ─────────────────────────────────────────────────────
+    match /restaurants/{restaurantId} {
+      allow read: if isAuth();
       allow write: if isAdmin();
+    }
+
+    // ─── restaurantOwners ────────────────────────────────────────────────
+    match /restaurantOwners/{uid} {
+      allow read: if isUser(uid) || isAdmin();
+      allow write: if false; // عبر createOwnerUser Cloud Function فقط
+    }
+
+    // ─── admins ──────────────────────────────────────────────────────────
+    match /admins/{uid} {
+      allow read: if isUser(uid) || isAdmin();
+      allow write: if false; // يُكتب يدوياً في Firebase Console فقط
+    }
+
+    // ─── _rateLimits ─────────────────────────────────────────────────────
+    match /_rateLimits/{docId} {
+      allow read, write: if false; // Cloud Functions فقط
+    }
+
+    // ─── منع أي وصول غير مُعرَّف ─────────────────────────────────────────
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }

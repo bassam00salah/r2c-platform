@@ -10,5 +10,22 @@ export default defineConfig({
       '@r2c/shared': path.resolve(__dirname, '../../packages/shared/src')
     }
   },
-  server: { port: 3002 }
+  server: { port: 3002 },
+  build: {
+    // [أداء] تقسيم الحزمة — كان ~813KB monolith
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-firebase': [
+            'firebase/app',
+            'firebase/auth',
+            'firebase/firestore',
+            'firebase/functions',
+          ],
+          'vendor-react': ['react', 'react-dom'],
+        },
+      },
+    },
+    chunkSizeWarningLimit: 500,
+  },
 })
