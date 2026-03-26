@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import { auth, db } from '@r2c/shared/firebase/config';
+import { auth, db } from '@r2c/shared';
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { collection, onSnapshot, query, orderBy, limit, doc, getDoc, where } from 'firebase/firestore';
 
@@ -105,6 +105,10 @@ export function AppProvider({ children }) {
     return () => unsubs.forEach(u => u());
   }, [adminUser, userRole, ownedRestaurant]);
 
+  const login = async (email, password) => {
+    await signInWithEmailAndPassword(auth, email, password);
+  };
+
   const logout = async () => {
     await signOut(auth);
     setAdminUser(null);
@@ -116,7 +120,7 @@ export function AppProvider({ children }) {
     <AppContext.Provider value={{
       adminUser, userRole, ownedRestaurant,
       loading, restaurants, branches, offers, orders, influencers,
-      currentPage, setCurrentPage, toast, showToast, logout,
+      currentPage, setCurrentPage, toast, showToast, login, logout,
     }}>
       {children}
     </AppContext.Provider>

@@ -1,6 +1,7 @@
 import { useState, useEffect }                            from 'react'
-import { auth }                                           from '@r2c/shared'
+import { auth, db }                                       from '@r2c/shared'
 import { onAuthStateChanged, signInWithEmailAndPassword } from 'firebase/auth'
+import { collection, query, where, getDocs }              from 'firebase/firestore'
 import LoginScreen       from './screens/Loginscreen'
 import SetupScreen       from './screens/Setupscreen'
 import DashboardScreen   from './screens/DashboardScreen'
@@ -18,11 +19,36 @@ export default function App() {
   const [authLoading,   setAuthLoading]   = useState(true)
   const [toast,         setToast]         = useState(null)
   const [user,          setUser]          = useState(null)
+  const [branchId,      setBranchId]      = useState(null) // ✅ الـ ID الحقيقي للفرع
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (u) => {
+    const unsub = onAuthStateChanged(auth, async (u) => {
       setUser(u)
-      setCurrentScreen(u ? 'dashboard' : 'login')
+      if (u) {
+        // ✅ نجلب الفرع عبر branchEmail المطابق لإيميل المستخدم
+        try {
+          const q = query(
+            collection(db, 'branches'),
+            where('branchEmail', '==', u.email)
+          )
+          const snap = await getDocs(q)
+          if (!snap.empty) {
+            setBranchId(snap.docs[0].id)
+            setCurrentScreen('dashboard')
+          } else {
+            // لا يوجد فرع مرتبط بهذا الإيميل — اعرض شاشة الإعداد
+            setBranchId(null)
+            setCurrentScreen('setup')
+          }
+        } catch (err) {
+          console.error('خطأ في جلب الفرع:', err)
+          setBranchId(null)
+          setCurrentScreen('dashboard')
+        }
+      } else {
+        setBranchId(null)
+        setCurrentScreen('login')
+      }
       setAuthLoading(false)
     })
     return unsub
@@ -62,7 +88,7 @@ export default function App() {
     }
   }
 
-  const commonProps = { setCurrentScreen: nav, showToast, branchId: user?.uid }
+  const commonProps = { setCurrentScreen: nav, showToast, branchId } // ✅ branchId الحقيقي
 
   return (
     <div className="relative">

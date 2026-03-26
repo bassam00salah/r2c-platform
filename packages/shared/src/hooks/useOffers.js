@@ -8,10 +8,16 @@ export function useOffers() {
 
   useEffect(() => {
     const q = query(collection(db, 'offers'), where('status', '==', 'active'))
-    const unsub = onSnapshot(q, snap => {
-      setOffers(snap.docs.map(d => ({ id: d.id, ...d.data() })))
-      setLoading(false)
-    })
+    const unsub = onSnapshot(q,
+      snap => {
+        setOffers(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+        setLoading(false)
+      },
+      error => {
+        console.error('useOffers error:', error)
+        setLoading(false) // ✅ أوقف loading حتى لو فشل
+      }
+    )
     return () => unsub()
   }, [])
 

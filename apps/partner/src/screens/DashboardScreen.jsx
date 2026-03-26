@@ -36,34 +36,36 @@ const DashboardScreen = ({ branchId, setCurrentScreen, showToast }) => {
   const [partnerProfile, setPartnerProfile] = useState(null);
 
   // ── تتبع الطلبات الجديدة للتنبيه الصوتي ─────────────────────────────────
-  const seenOrdersRef = useRef(new Set());   // الطلبات التي رأيناها من قبل
-  const isFirstLoadRef = useRef(true);        // تجاهل الـ snapshot الأول
+  const seenOrdersRef = useRef(new Set());
+  const isFirstLoadRef = useRef(true);
 
-  useEffect(() => {
+ useEffect(() => {
     if (!branchId) return;
-    getDoc(doc(db, "partners", branchId)).then(snap => {
-      if (snap.exists()) setPartnerProfile(snap.data());
-    });
+    // تم تغيير partners إلى branches ليتطابق مع قاعدة بياناتك
+    getDoc(doc(db, "branches", branchId)).then(snap => {
+      if (snap.exists()) {
+        setPartnerProfile(snap.data());
+      } else {
+        console.warn("وثيقة الفرع غير موجودة في قاعدة البيانات لهذا الـ branchId");
+      }
+    }).catch(err => console.error("خطأ في جلب بيانات الفرع:", err));
   }, [branchId]);
 
   useEffect(() => {
     if (loading) return;
 
-    // الـ snapshot الأول: نسجّل الطلبات الموجودة بدون تنبيه
     if (isFirstLoadRef.current) {
       orders.forEach(o => seenOrdersRef.current.add(o.id));
       isFirstLoadRef.current = false;
       return;
     }
 
-    // أي طلب pending جديد لم نره من قبل → نُنبّه
     orders.forEach(o => {
       if (o.status === ORDER_STATUS.PENDING && !seenOrdersRef.current.has(o.id)) {
         seenOrdersRef.current.add(o.id);
         playAlertSound();
         showToast('🔔 طلب جديد وارد!', 'success');
       }
-      // نسجّل كل الطلبات حتى لو غير pending
       if (!seenOrdersRef.current.has(o.id)) {
         seenOrdersRef.current.add(o.id);
       }
@@ -92,66 +94,86 @@ const DashboardScreen = ({ branchId, setCurrentScreen, showToast }) => {
   }
 
   return (
-    <div className="min-h-screen p-4 md:p-6 pb-24" dir="rtl">
-      {/* Header */}
-      <div className="flex justify-between items-center mb-5">
-        <div className="flex items-center gap-3">
-          <Logo className="h-7" />
-          <div>
+    <div className="min-h-screen bg-gray-50 p-4 md:p-6 pb-24 font-sans text-gray-800" dir="rtl">
+
+      {/* ── Header ────────────────────────────────────────────────────── */}
+      <div className="flex justify-between items-start mb-6 bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+
+        {/* الجانب الأيمن: اللوجو والبيانات */}
+        <div className="flex flex-col">
+          {/* الصف الأول: اللوجو وعنوان طلبات اليوم */}
+          <div className="flex items-center gap-3 mb-2">
+            <div dir="ltr" className="flex items-center">
+              <Logo className="h-8" />
+            </div>
+            <span className="text-gray-300 mx-1">|</span>
             <h1 className="text-xl font-bold text-[#ee7b26]">طلبات اليوم</h1>
-            {partnerProfile?.restaurantName && (
-              <p className="text-gray-300 text-xs font-bold">
-                {partnerProfile.restaurantName} - {partnerProfile.name}
-              </p>
-            )}
-            {partnerProfile?.city && (
-              <p className="text-gray-400 text-xs">📍 {partnerProfile.city}</p>
-            )}
-            <div className="flex items-center gap-1 mt-1">
-              <span style={{
-                width: 8, height: 8, borderRadius: "50%", display: "inline-block",
-                background: isListening ? "#10b981" : "#ef4444",
-                boxShadow: isListening ? "0 0 6px #10b981" : "0 0 6px #ef4444"
-              }}></span>
-              <span style={{ fontSize: 10, color: isListening ? "#10b981" : "#ef4444", fontWeight: 700 }}>
+          </div>
+
+          {/* الصف الثاني: اسم المطعم والفرع ثم حالة الاتصال */}
+          <div className="pr-1">
+
+            {/* التعديل هنا: إضافة نصوص بديلة لاكتشاف المشكلة */}
+            <p className="text-[#1e2337] font-bold text-lg mb-1 min-h-[28px]">
+              {!partnerProfile ? (
+                <span className="text-gray-400 text-sm">⏳ جاري تحميل بيانات المطعم...</span>
+              ) : (
+                <>
+                  {partnerProfile.restaurantName || <span className="text-red-400 text-sm">⚠️ (اسم المطعم مفقود)</span>}
+                  <span className="text-gray-500 font-normal text-sm mx-2">
+                    ({partnerProfile.name || "الفرع مفقود"})
+                  </span>
+                </>
+              )}
+            </p>
+
+            <div className="flex items-center gap-1.5 mt-1">
+              <span className="relative flex h-2.5 w-2.5">
+                {isListening && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#10b981] opacity-75"></span>}
+                <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${isListening ? "bg-[#10b981]" : "bg-[#ef4444]"}`}></span>
+              </span>
+              <span className={`text-xs font-bold ${isListening ? "text-[#10b981]" : "text-[#ef4444]"}`}>
                 {isListening ? "مُتصل — يستقبل الطلبات" : "غير متصل"}
               </span>
             </div>
           </div>
         </div>
+
+        {/* الجانب الأيسر: الأزرار */}
         <div className="flex gap-2">
           <button onClick={() => setCurrentScreen("settings")}
-            className="bg-[#1e293b] border border-slate-700 text-white px-3 py-2 rounded-xl text-sm">
+            className="bg-[#1e2337] hover:bg-gray-800 transition-colors text-white px-4 py-2 rounded-xl text-sm font-medium flex items-center gap-2 shadow-sm">
             ⚙ الإعدادات
           </button>
           <button onClick={() => setCurrentScreen("reports")}
-            className="bg-[#1e293b] border border-slate-700 text-white px-3 py-2 rounded-xl text-sm">
+            className="bg-[#1e2337] hover:bg-gray-800 transition-colors text-white px-4 py-2 rounded-xl text-sm font-medium flex items-center gap-2 shadow-sm">
             📊 التقارير
           </button>
         </div>
       </div>
+      {/* ──────────────────────────────────────────────────────────────── */}
 
       {/* Tabs */}
       <div className="flex gap-3 mb-5 flex-wrap">
         <button onClick={() => setActiveTab("new")}
-          className={`flex-1 py-3 rounded-2xl font-black text-sm transition-all
-            ${activeTab === "new" ? "bg-red-600 text-white" : "bg-[#1e293b] text-gray-400"}`}>
+          className={`flex-1 py-3 rounded-2xl font-black text-sm transition-all shadow-sm
+            ${activeTab === "new" ? "bg-red-600 text-white" : "bg-[#1e2337] text-gray-300 hover:bg-gray-800"}`}>
           جديدة {newCount > 0 && (
             <span className="bg-white text-red-600 rounded-full px-2 mr-1 text-xs font-bold">{newCount}</span>
           )}
         </button>
         <button onClick={() => setActiveTab("accepted")}
-          className={`flex-1 py-3 rounded-2xl font-black text-sm transition-all
-            ${activeTab === "accepted" ? "bg-blue-700 text-white" : "bg-[#1e293b] text-gray-400"}`}>
+          className={`flex-1 py-3 rounded-2xl font-black text-sm transition-all shadow-sm
+            ${activeTab === "accepted" ? "bg-[#1e2337] text-white ring-2 ring-offset-2 ring-[#1e2337]" : "bg-[#1e2337] text-gray-300 hover:bg-gray-800"}`}>
           مقبولة {acceptedCount > 0 && `(${acceptedCount})`}
         </button>
         <button onClick={() => setActiveTab("completed")}
-          className={`flex-1 py-3 rounded-2xl font-black text-sm transition-all
-            ${activeTab === "completed" ? "bg-green-700 text-white" : "bg-[#1e293b] text-gray-400"}`}>
+          className={`flex-1 py-3 rounded-2xl font-black text-sm transition-all shadow-sm
+            ${activeTab === "completed" ? "bg-[#1e2337] text-white ring-2 ring-offset-2 ring-[#1e2337]" : "bg-[#1e2337] text-gray-300 hover:bg-gray-800"}`}>
           مُسلَّمة {completedCount > 0 && `(${completedCount})`}
         </button>
         <button onClick={() => setCurrentScreen("qrScanner")}
-          className="bg-green-600 text-white px-5 rounded-2xl font-black text-sm">
+          className="bg-green-500 hover:bg-green-600 transition-colors text-white px-5 rounded-2xl font-black text-sm shadow-sm flex items-center gap-1">
           ⚡ مسح QR
         </button>
       </div>
@@ -161,7 +183,7 @@ const DashboardScreen = ({ branchId, setCurrentScreen, showToast }) => {
         {filteredOrders.length === 0 ? (
           <div className="col-span-full text-center py-20">
             <div className="text-6xl mb-4">📭</div>
-            <p className="text-gray-400 text-xl">لا توجد طلبات في هذا القسم</p>
+            <p className="text-gray-400 text-xl font-medium">لا توجد طلبات في هذا القسم</p>
           </div>
         ) : filteredOrders.map(order => (
           <OrderCard

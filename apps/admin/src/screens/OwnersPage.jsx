@@ -2,11 +2,32 @@ import { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { db, auth } from '@r2c/shared/firebase/config';
 import {
-  collection, onSnapshot, doc, setDoc, deleteDoc, serverTimestamp, getDoc
+  collection, onSnapshot, doc, setDoc, deleteDoc, serverTimestamp,
 } from 'firebase/firestore';
-import {
-  createUserWithEmailAndPassword, fetchSignInMethodsForEmail
-} from 'firebase/auth';
+import { createUserWithEmailAndPassword, signOut as firebaseSignOut } from 'firebase/auth';
+import { initializeApp, getApps } from 'firebase/app';
+import { getAuth } from 'firebase/auth';
+
+// ── إنشاء مستخدم بدون المساس بـ session الـ admin الحالي ──────────────────
+// نستخدم secondary app ثابت (لا نحذفه) لتجنب تعارض Firestore internal state
+async function createOwnerAccount(email, password) {
+  const firebaseConfig = auth.app.options;
+
+  // نعيد استخدام نفس الـ instance إن وُجد (لا نُنشئ جديداً في كل مرة)
+  const secondaryAppName = 'r2c-secondary';
+  const existing = getApps().find(a => a.name === secondaryAppName);
+  const secondaryApp  = existing ?? initializeApp(firebaseConfig, secondaryAppName);
+  const secondaryAuth = getAuth(secondaryApp);
+
+  // إنشاء الحساب
+  const cred = await createUserWithEmailAndPassword(secondaryAuth, email, password);
+  const uid  = cred.user.uid;
+
+  // تسجيل خروج من الـ secondary فقط (لا نحذف الـ app)
+  await firebaseSignOut(secondaryAuth);
+
+  return uid;
+}
 
 export default function OwnersPage() {
   const { restaurants, showToast } = useApp();
@@ -35,11 +56,8 @@ export default function OwnersPage() {
 
     setLoading(true);
     try {
-      // إنشاء حساب Auth
-      const cred = await createUserWithEmailAndPassword(auth, form.email, form.password);
-      const uid  = cred.user.uid;
+      const uid = await createOwnerAccount(form.email, form.password);
 
-      // حفظ في restaurantOwners
       await setDoc(doc(db, 'restaurantOwners', uid), {
         email:        form.email,
         name:         form.name,
@@ -47,7 +65,7 @@ export default function OwnersPage() {
         createdAt:    serverTimestamp(),
       });
 
-      showToast('تم إنشاء حساب المالك بنجاح');
+      showToast('تم إنشاء حساب المالك بنجاح ✅');
       resetForm();
     } catch (err) {
       if (err.code === 'auth/email-already-in-use')
@@ -63,7 +81,7 @@ export default function OwnersPage() {
     if (!confirm(`هل تريد حذف حساب "${ownerEmail}"؟`)) return;
     try {
       await deleteDoc(doc(db, 'restaurantOwners', ownerId));
-      showToast('تم حذف المالك من قاعدة البيانات (يجب حذف حساب Auth يدوياً من Firebase Console)');
+      showToast('تم حذف المالك ✅  (احذف حساب Auth يدوياً من Firebase Console إن أردت)');
     } catch (e) {
       showToast('حدث خطأ أثناء الحذف', 'error');
     }
