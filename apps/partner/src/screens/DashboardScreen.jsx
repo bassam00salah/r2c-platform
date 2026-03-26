@@ -5,6 +5,103 @@ import { doc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import OrderCard from "../components/OrderCard";
 import Logo from "../components/logo";
 
+// ── قائمة الأقسام الجانبية ──────────────────────────────────────────────────
+function OrdersMenuDrawer({ isOpen, onClose, counts, activeTab, onSelectTab }) {
+  const tabs = [
+    { key: "new",       label: "جديدة",   icon: "🆕", color: "bg-red-500",    count: counts.new },
+    { key: "accepted",  label: "مقبولة",  icon: "✅", color: "bg-blue-500",   count: counts.accepted },
+    { key: "completed", label: "مُسلَّمة", icon: "📦", color: "bg-green-500",  count: counts.completed },
+  ];
+
+  return (
+    <>
+      {/* Overlay */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 transition-opacity"
+          onClick={onClose}
+        />
+      )}
+
+      {/* Drawer */}
+      <div
+        className={`fixed top-0 right-0 h-full w-72 bg-white z-50 shadow-2xl transform transition-transform duration-300 ease-in-out
+          ${isOpen ? "translate-x-0" : "translate-x-full"}`}
+        dir="rtl"
+      >
+        {/* Header */}
+        <div className="bg-[#1e2337] text-white p-5 flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-black">📋 أقسام الطلبات</h2>
+            <p className="text-xs text-gray-400 mt-0.5">اختر القسم للعرض</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-lg transition-colors"
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Tabs List */}
+        <div className="p-4 space-y-3">
+          {tabs.map(tab => (
+            <button
+              key={tab.key}
+              onClick={() => { onSelectTab(tab.key); onClose(); }}
+              className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all border-2
+                ${activeTab === tab.key
+                  ? "border-[#ee7b26] bg-[#ee7b26]/10"
+                  : "border-gray-100 bg-gray-50 hover:bg-gray-100"}`}
+            >
+              <div className={`w-10 h-10 rounded-xl ${tab.color} flex items-center justify-center text-white text-lg shadow-sm flex-shrink-0`}>
+                {tab.icon}
+              </div>
+              <div className="flex-1 text-right">
+                <div className={`font-black text-base ${activeTab === tab.key ? "text-[#ee7b26]" : "text-[#1e2337]"}`}>
+                  {tab.label}
+                </div>
+                <div className="text-xs text-gray-400 mt-0.5">
+                  {tab.count} {tab.count === 1 ? "طلب" : "طلبات"}
+                </div>
+              </div>
+              {tab.count > 0 && (
+                <span className={`${tab.color} text-white text-xs font-bold px-2.5 py-1 rounded-full min-w-[28px] text-center`}>
+                  {tab.count}
+                </span>
+              )}
+              {activeTab === tab.key && (
+                <span className="text-[#ee7b26] text-lg">◀</span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* Summary */}
+        <div className="mx-4 mt-2 bg-gray-50 rounded-2xl p-4 border border-gray-100">
+          <div className="text-xs text-gray-500 font-bold mb-2">ملخص اليوم</div>
+          <div className="flex justify-between text-center">
+            <div>
+              <div className="text-2xl font-black text-red-500">{counts.new}</div>
+              <div className="text-xs text-gray-400">جديدة</div>
+            </div>
+            <div className="w-px bg-gray-200"></div>
+            <div>
+              <div className="text-2xl font-black text-blue-500">{counts.accepted}</div>
+              <div className="text-xs text-gray-400">مقبولة</div>
+            </div>
+            <div className="w-px bg-gray-200"></div>
+            <div>
+              <div className="text-2xl font-black text-green-500">{counts.completed}</div>
+              <div className="text-xs text-gray-400">مُسلَّمة</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
 // ── تشغيل صوت تنبيه عند ورود طلب جديد ──────────────────────────────────────
 function playAlertSound() {
   try {
@@ -34,6 +131,7 @@ const DashboardScreen = ({ branchId, setCurrentScreen, showToast }) => {
   const { orders = [], loading = false } = usePartnerOrders(branchId) || {};
   const [activeTab, setActiveTab]           = useState("new");
   const [partnerProfile, setPartnerProfile] = useState(null);
+  const [drawerOpen, setDrawerOpen]         = useState(false);
 
   // ── تتبع الطلبات الجديدة للتنبيه الصوتي ─────────────────────────────────
   const seenOrdersRef = useRef(new Set());
@@ -96,6 +194,15 @@ const DashboardScreen = ({ branchId, setCurrentScreen, showToast }) => {
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-6 pb-24 font-sans text-gray-800" dir="rtl">
 
+      {/* ── Drawer القائمة الجانبية ─────────────────────────────────────── */}
+      <OrdersMenuDrawer
+        isOpen={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        counts={{ new: newCount, accepted: acceptedCount, completed: completedCount }}
+        activeTab={activeTab}
+        onSelectTab={setActiveTab}
+      />
+
       {/* ── Header ────────────────────────────────────────────────────── */}
       <div className="flex justify-between items-start mb-6 bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
 
@@ -141,6 +248,15 @@ const DashboardScreen = ({ branchId, setCurrentScreen, showToast }) => {
 
         {/* الجانب الأيسر: الأزرار */}
         <div className="flex gap-2">
+          <button onClick={() => setDrawerOpen(true)}
+            className="relative bg-[#ee7b26] hover:bg-[#d96b1a] transition-colors text-white px-4 py-2 rounded-xl text-sm font-medium flex items-center gap-2 shadow-sm">
+            ☰ القائمة
+            {newCount > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 bg-red-600 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center">
+                {newCount}
+              </span>
+            )}
+          </button>
           <button onClick={() => setCurrentScreen("settings")}
             className="bg-[#1e2337] hover:bg-gray-800 transition-colors text-white px-4 py-2 rounded-xl text-sm font-medium flex items-center gap-2 shadow-sm">
             ⚙ الإعدادات

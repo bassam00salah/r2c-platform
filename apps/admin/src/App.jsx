@@ -6,6 +6,7 @@ import BranchesPage   from './screens/BranchesPage';
 import OffersPage     from './screens/OffersPage';
 import OrdersPage     from './screens/OrdersPage';
 import OwnersPage     from './screens/OwnersPage';
+import ReportsPage    from './screens/ReportsPage';
 import { InfluencersPage, SettingsPage } from './screens/OtherPages';
 import Sidebar        from './components/Sidebar';
 
@@ -23,7 +24,6 @@ function AdminApp() {
 
   if (!adminUser) return <LoginScreen />;
 
-  // الصفحات المتاحة للسوبر أدمن
   const superAdminPages = {
     overview:    <OverviewPage />,
     restaurants: <RestaurantsPage />,
@@ -31,18 +31,17 @@ function AdminApp() {
     offers:      <OffersPage />,
     orders:      <OrdersPage />,
     influencers: <InfluencersPage />,
-    reports:     <OverviewPage />,
+    reports:     <ReportsPage />,
     owners:      <OwnersPage />,
     settings:    <SettingsPage />,
   };
 
-  // الصفحات المتاحة لمالك المطعم
   const ownerPages = {
     overview: <OverviewPage />,
     branches: <BranchesPage readOnly />,
     offers:   <OffersPage />,
     orders:   <OrdersPage />,
-    reports:  <OverviewPage />,
+    reports:  <ReportsPage />,
   };
 
   const pages = userRole === 'superAdmin' ? superAdminPages : ownerPages;

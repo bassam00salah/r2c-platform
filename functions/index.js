@@ -132,7 +132,51 @@ exports.processCancelOrder = onRequest(async (req, res) => {
   res.status(200).json({ cancelled, orderId });
 });
 
-// ─── 3. Callable: client triggers cancellation on their own order ────────────
+// ─── 3. Callable: Admin creates a restaurant owner account ──────────────────
+// يُنشئ حساب Auth جديد بدون المساس بـ session الأدمن الحالي
+exports.createOwnerUser = onCall(async (request) => {
+  const { auth, data } = request;
+  if (!auth) {
+    throw new HttpsError("unauthenticated", "Authentication is required.");
+  }
+
+  // تحقق أن المستدعي هو superAdmin
+  const adminDoc = await db.collection("admins").doc(auth.uid).get();
+  if (!adminDoc.exists) {
+    throw new HttpsError("permission-denied", "Only super admins can create owner accounts.");
+  }
+
+  const { email, password, name, restaurantId } = data || {};
+  if (!email || !password || !name || !restaurantId) {
+    throw new HttpsError("invalid-argument", "email, password, name, and restaurantId are required.");
+  }
+  if (password.length < 6) {
+    throw new HttpsError("invalid-argument", "Password must be at least 6 characters.");
+  }
+
+  try {
+    // إنشاء المستخدم عبر Admin SDK (لا يؤثر على session الأدمن)
+    const userRecord = await admin.auth().createUser({ email, password });
+    const uid = userRecord.uid;
+
+    // حفظ بيانات المالك في Firestore
+    await db.collection("restaurantOwners").doc(uid).set({
+      email,
+      name,
+      restaurantId,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+
+    return { uid, success: true };
+  } catch (err) {
+    if (err.code === "auth/email-already-exists") {
+      throw new HttpsError("already-exists", "هذا البريد الإلكتروني مستخدم بالفعل.");
+    }
+    throw new HttpsError("internal", err.message);
+  }
+});
+
+// ─── 4. Callable: client triggers cancellation on their own order ────────────
 exports.cancelOrderOnTimeout = onCall(async (request) => {
   const { auth, data } = request;
   if (!auth) {
