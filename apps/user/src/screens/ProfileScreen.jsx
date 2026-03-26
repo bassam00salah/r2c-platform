@@ -1,4 +1,4 @@
-import { useApp } from '../context/AppContext'
+import { useApp } from '../contexts'
 import { auth } from '@r2c/shared'
 import { signOut } from 'firebase/auth'
 

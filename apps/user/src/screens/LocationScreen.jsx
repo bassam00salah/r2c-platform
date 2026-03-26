@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useApp } from '../context/AppContext'
+import { useApp } from '../contexts'
 
 export default function LocationScreen() {
   const { setCurrentScreen, setUserLocation } = useApp()

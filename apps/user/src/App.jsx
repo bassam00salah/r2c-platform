@@ -1,4 +1,4 @@
-import { useApp } from './context/AppContext'
+import { useApp } from './contexts'
 
 // Screens
 import AuthScreen              from './screens/AuthScreen'

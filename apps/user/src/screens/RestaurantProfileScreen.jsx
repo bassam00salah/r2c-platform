@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useApp } from '../context/AppContext'
+import { useApp } from '../contexts'
 import OfferImage from '../components/OfferImage'
 import { db } from '@r2c/shared'
 import { collection, query, where, limit, getDocs } from 'firebase/firestore'

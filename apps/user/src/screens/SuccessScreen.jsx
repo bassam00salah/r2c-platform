@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { useApp } from '../context/AppContext'
+import { useApp } from '../contexts'
 // ✅ إصلاح: Firebase modular بدل db.collection()
 import { db } from '@r2c/shared'
 import { doc, onSnapshot } from 'firebase/firestore'

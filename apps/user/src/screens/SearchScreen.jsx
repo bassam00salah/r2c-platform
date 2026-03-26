@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { useApp } from '../context/AppContext'
+import { useApp } from '../contexts'
 import OfferImage from '../components/OfferImage'
 
 const ORANGE = '#ee7b26'

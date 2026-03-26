@@ -8,7 +8,7 @@
  */
 
 import { useState, useEffect, useRef } from 'react'
-import { useApp } from '../context/AppContext'
+import { useApp } from '../contexts'
 import { auth, db, functions } from '@r2c/shared'
 import { doc, updateDoc, serverTimestamp, onSnapshot } from 'firebase/firestore'
 import { httpsCallable } from 'firebase/functions'

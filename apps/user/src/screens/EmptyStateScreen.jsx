@@ -1,4 +1,4 @@
-import { useApp } from '../context/AppContext'
+import { useApp } from '../contexts'
 
 export default function EmptyStateScreen() {
     const { setCurrentScreen } = useApp()

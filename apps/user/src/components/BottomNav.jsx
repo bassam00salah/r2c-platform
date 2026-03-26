@@ -1,4 +1,4 @@
-import { useApp } from '../context/AppContext'
+import { useApp } from '../contexts'
 
 export default function BottomNav() {
     const { bottomNav, setBottomNav, setCurrentScreen, setViewMode, orders } = useApp()

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useApp } from '../context/AppContext'
+import { useApp } from '../contexts'
 import { auth } from '@r2c/shared'
 import { GoogleAuthProvider, signInWithCredential, signInWithPopup } from 'firebase/auth'
 

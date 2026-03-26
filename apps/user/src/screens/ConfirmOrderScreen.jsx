@@ -8,7 +8,7 @@
  */
 
 import { useState, useEffect } from 'react'
-import { useApp } from '../context/AppContext'
+import { useApp } from '../contexts'
 import { functions } from '@r2c/shared'
 import { httpsCallable } from 'firebase/functions'
 import { db } from '@r2c/shared'
