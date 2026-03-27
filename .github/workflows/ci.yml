@@ -113,16 +113,11 @@ jobs:
         with:
           name: dist-apps
 
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-
       - name: Install Firebase CLI
         run: npm install -g firebase-tools
 
       - name: Deploy admin hosting only
-        run: firebase deploy --project "${{ secrets.FIREBASE_PROJECT_ID }}" --only hosting:admin
+        run: firebase deploy --project "${{ secrets.FIREBASE_PROJECT_ID }}" --only hosting:admin --token "${{ secrets.FIREBASE_TOKEN }}"
 
   deploy-backend:
     name: Deploy Functions and Firestore
@@ -144,13 +139,8 @@ jobs:
       - name: Install functions deps
         run: npm ci --prefix functions
 
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-
       - name: Install Firebase CLI
         run: npm install -g firebase-tools
 
       - name: Deploy functions, firestore rules, and indexes
-        run: firebase deploy --project "${{ secrets.FIREBASE_PROJECT_ID }}" --only functions,firestore:rules,firestore:indexes
+        run: firebase deploy --project "${{ secrets.FIREBASE_PROJECT_ID }}" --only functions,firestore:rules,firestore:indexes --token "${{ secrets.FIREBASE_TOKEN }}"
