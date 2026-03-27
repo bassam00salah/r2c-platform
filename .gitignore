@@ -6,3 +6,23 @@ www/
 android/
 ios/
 *.keystore
+# local firebase cache
+.firebase/
+
+# IDE files
+.idea/
+**/.idea/
+
+# build outputs
+dist/
+build/
+www/
+coverage/
+
+# android generated assets/build
+android/app/build/
+android/app/src/main/assets/public/assets/
+
+# temp / fix files
+README-FIXES.md
+firestore.rules.save

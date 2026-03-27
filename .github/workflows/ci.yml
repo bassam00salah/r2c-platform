@@ -6,12 +6,17 @@ on:
   pull_request:
     branches: [main]
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   lint:
     name: Lint (user / partner / admin)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -20,14 +25,21 @@ jobs:
       - name: Install root deps
         run: npm ci
 
-      - name: Run root lint
-        run: npm run lint
+      - name: Lint user
+        run: npm run lint --workspace=apps/user
+
+      - name: Lint partner
+        run: npm run lint --workspace=apps/partner
+
+      - name: Lint admin
+        run: npm run lint --workspace=apps/admin
 
   test:
     name: Unit Tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -40,10 +52,10 @@ jobs:
         run: npm ci --prefix functions
 
       - name: Run functions tests
-        run: npm --prefix functions test
+        run: npm test --prefix functions
 
       - name: Run shared tests
-        run: npm -w packages/shared run test
+        run: npm test --workspace=packages/shared
 
   build:
     name: Build apps
@@ -51,6 +63,7 @@ jobs:
     needs: [lint, test]
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -59,27 +72,67 @@ jobs:
       - name: Install root deps
         run: npm ci
 
-      - name: Run root build
-        run: npm run build
+      - name: Build user
+        run: npm run build --workspace=apps/user
+
+      - name: Build partner
+        run: npm run build --workspace=apps/partner
+
+      - name: Build admin
+        run: npm run build --workspace=apps/admin
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
           name: dist-apps
           path: |
-            apps/user/www
+            apps/user/dist
             apps/partner/dist
             apps/admin/dist
           retention-days: 7
 
-  deploy:
-    name: Deploy to Firebase
+  deploy-admin-hosting:
+    name: Deploy Admin Hosting
     runs-on: ubuntu-latest
     needs: [build]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     environment: production
     steps:
       - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install root deps
+        run: npm ci
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist-apps
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
+
+      - name: Deploy admin hosting only
+        run: firebase deploy --project "${{ secrets.FIREBASE_PROJECT_ID }}" --only hosting:admin
+
+  deploy-backend:
+    name: Deploy Functions and Firestore
+    runs-on: ubuntu-latest
+    needs: [build]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -91,15 +144,13 @@ jobs:
       - name: Install functions deps
         run: npm ci --prefix functions
 
-      - name: Download build artifacts
-        uses: actions/download-artifact@v4
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
         with:
-          name: dist-apps
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
 
-      - name: Deploy Functions + Hosting + Firestore rules
-        uses: FirebaseExtended/action-hosting-deploy@v0
-        with:
-          repoToken: ${{ secrets.GITHUB_TOKEN }}
-          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          channelId: live
-          projectId: ${{ secrets.FIREBASE_PROJECT_ID }}
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
+
+      - name: Deploy functions, firestore rules, and indexes
+        run: firebase deploy --project "${{ secrets.FIREBASE_PROJECT_ID }}" --only functions,firestore:rules,firestore:indexes

@@ -14,7 +14,7 @@ export default defineConfig({
     }
   },
   build: {
-    outDir: 'www',
+    outDir: 'dist',
     rollupOptions: {
       output: {
         manualChunks: {
