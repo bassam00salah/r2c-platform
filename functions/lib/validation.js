@@ -51,7 +51,7 @@ function assertCoordinates(lat, lng) {
 }
 
 function assertOrderStatus(value) {
-  const allowed = ["pending", "accepted", "ready", "completed", "cancelled"];
+  const allowed = ["pending", "accepted", "ready", "completed", "cancelled", "rejected"];
   if (!allowed.includes(value)) {
     throw new Error("status is invalid");
   }
