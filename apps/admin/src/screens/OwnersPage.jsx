@@ -62,7 +62,7 @@ export default function OwnersPage() {
     try {
       await deleteDoc(doc(db, 'restaurantOwners', ownerId));
       showToast('تم حذف المالك ✅  (احذف حساب Auth يدوياً من Firebase Console إن أردت)');
-    } catch (e) {
+    } catch {
       showToast('حدث خطأ أثناء الحذف', 'error');
     }
   };

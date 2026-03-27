@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { usePartnerOrders, db } from "@r2c/shared";
 import { ORDER_STATUS } from "@r2c/shared/constants/orderStatus";
-import { doc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
 import OrderCard from "../components/OrderCard";
 import Logo from "../components/logo";
 
@@ -168,7 +168,7 @@ const DashboardScreen = ({ branchId, setCurrentScreen, showToast }) => {
         seenOrdersRef.current.add(o.id);
       }
     });
-  }, [orders, loading]);
+  }, [orders, loading, showToast]);
 
   const newCount       = orders.filter(o => o.status === ORDER_STATUS.PENDING).length;
   const acceptedCount  = orders.filter(o => o.status === ORDER_STATUS.ACCEPTED).length;

@@ -396,6 +396,70 @@ exports.cancelOrderOnTimeout = onCall(async (request) => {
 });
 
 // ───────────────────────────────────────────────────────────────────────────
+// حذف فرع — Callable [أمان: يتحقق من صلاحيات الأدمن]
+// يحذف مستند branches ويُعطّل حساب Firebase Auth للفرع
+// ───────────────────────────────────────────────────────────────────────────
+exports.deleteBranch = onCall(async (request) => {
+  const { auth, data } = request;
+  if (!auth) throw new HttpsError("unauthenticated", "Authentication is required.");
+
+  const adminDoc = await db.collection("admins").doc(auth.uid).get();
+  if (!adminDoc.exists) throw new HttpsError("permission-denied", "Only super admins can delete branches.");
+
+  const { branchId } = data || {};
+  if (!branchId || typeof branchId !== "string")
+    throw new HttpsError("invalid-argument", "branchId is required.");
+
+  const branchRef = db.collection("branches").doc(branchId);
+  const branchSnap = await branchRef.get();
+  if (!branchSnap.exists) throw new HttpsError("not-found", "Branch not found.");
+
+  // تعطيل حساب Auth للفرع ثم حذف مستند Firestore
+  try {
+    await admin.auth().updateUser(branchId, { disabled: true });
+  } catch (err) {
+    // قد لا يوجد حساب Auth — نكمل الحذف على أي حال
+    logger.warn("deleteBranch: auth user not found or already disabled", { branchId });
+  }
+
+  await branchRef.delete();
+
+  logger.info("deleteBranch: success", { branchId, deletedBy: auth.uid });
+  return { success: true, branchId };
+});
+
+// ───────────────────────────────────────────────────────────────────────────
+// حذف مالك مطعم — Callable [أمان: يتحقق من صلاحيات الأدمن]
+// يحذف مستند restaurantOwners ويُعطّل حساب Firebase Auth
+// ───────────────────────────────────────────────────────────────────────────
+exports.deleteOwner = onCall(async (request) => {
+  const { auth, data } = request;
+  if (!auth) throw new HttpsError("unauthenticated", "Authentication is required.");
+
+  const adminDoc = await db.collection("admins").doc(auth.uid).get();
+  if (!adminDoc.exists) throw new HttpsError("permission-denied", "Only super admins can delete owners.");
+
+  const { ownerId } = data || {};
+  if (!ownerId || typeof ownerId !== "string")
+    throw new HttpsError("invalid-argument", "ownerId is required.");
+
+  const ownerRef = db.collection("restaurantOwners").doc(ownerId);
+  const ownerSnap = await ownerRef.get();
+  if (!ownerSnap.exists) throw new HttpsError("not-found", "Owner not found.");
+
+  try {
+    await admin.auth().updateUser(ownerId, { disabled: true });
+  } catch (err) {
+    logger.warn("deleteOwner: auth user not found or already disabled", { ownerId });
+  }
+
+  await ownerRef.delete();
+
+  logger.info("deleteOwner: success", { ownerId, deletedBy: auth.uid });
+  return { success: true, ownerId };
+});
+
+// ───────────────────────────────────────────────────────────────────────────
 // 8. مسح رمز QR وإكمال الطلب — Callable [إصلاح orderHandlers.js]
 //
 //    يُستدعى من: partner/QRScannerScreen

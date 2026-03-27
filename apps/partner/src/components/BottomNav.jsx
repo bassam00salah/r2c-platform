@@ -9,15 +9,15 @@ export default function BottomNav({ currentScreen, setCurrentScreen }) {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-[#110d35] border-t border-white/10 flex z-40">
-      {items.map(({ screen, icon: Icon, label }) => (
+      {items.map((item) => (
         <button
-          key={screen}
-          onClick={() => setCurrentScreen(screen)}
+          key={item.screen}
+          onClick={() => setCurrentScreen(item.screen)}
           className={`flex-1 flex flex-col items-center py-3 gap-1 text-xs
-            ${currentScreen === screen ? 'text-[#ee7b26]' : 'text-white/50'}`}
+            ${currentScreen === item.screen ? 'text-[#ee7b26]' : 'text-white/50'}`}
         >
-          <Icon size={20} />
-          <span>{label}</span>
+          <item.icon size={20} />
+          <span>{item.label}</span>
         </button>
       ))}
     </nav>

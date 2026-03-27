@@ -10,7 +10,10 @@
     "dev:partner": "npm -w apps/partner run dev",
     "dev:admin": "npm -w apps/admin run dev",
     "build:user": "npm -w apps/user run build",
-    "build:all": "npm -w apps/user run build && npm -w apps/partner run build && npm -w apps/admin run build"
+    "build:all": "npm -w apps/user run build && npm -w apps/partner run build && npm -w apps/admin run build",
+    "lint": "npm -w apps/user run lint && npm -w apps/partner run lint && npm -w apps/admin run lint",
+    "build": "npm run build:all",
+    "test": "npm --prefix functions test && npm -w packages/shared run test"
   },
   "dependencies": {
     "html5-qrcode": "^2.3.8"

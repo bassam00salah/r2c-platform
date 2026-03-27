@@ -7,11 +7,10 @@
  *  2. [جودة] رسالة خطأ مفصَّلة حسب نوع الفشل
  */
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { functions } from '@r2c/shared';
 import { httpsCallable } from 'firebase/functions';
 import { ORDER_STATUS } from '@r2c/shared/constants/orderStatus';
-import Logo from '../components/logo';
 
 const updateOrderStatusFn = httpsCallable(functions, 'updateOrderStatus');
 

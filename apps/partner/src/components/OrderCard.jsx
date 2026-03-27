@@ -7,7 +7,7 @@
  *  2. [جودة] رسائل خطأ أوضح مع تمييز بين خطأ صلاحية وخطأ شبكة
  */
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { functions } from '@r2c/shared/firebase';
 import { httpsCallable } from 'firebase/functions';
 import { ORDER_STATUS } from '@r2c/shared/constants/orderStatus';

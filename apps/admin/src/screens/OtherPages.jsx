@@ -110,7 +110,7 @@ export function SettingsPage() {
     try {
       await setDoc(doc(db, 'system', 'settings'), settings, { merge: true });
       showToast('تم حفظ الإعدادات ✅');
-    } catch (e) {
+    } catch {
       showToast('حدث خطأ أثناء الحفظ', 'error');
     } finally {
       setSaving(false);

@@ -19,7 +19,6 @@ function MapPicker({ lat, lng, onLocationChange }) {
   const mapInstanceRef = useRef(null);
   const markerRef = useRef(null);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   const initMap = () => {
     if (mapInstanceRef.current) return;
     const L = window.L;

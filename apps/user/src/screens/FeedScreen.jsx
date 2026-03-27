@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { useApp } from '../contexts'
-import OfferImage from '../components/OfferImage'
 
 export default function FeedScreen() {
     const {

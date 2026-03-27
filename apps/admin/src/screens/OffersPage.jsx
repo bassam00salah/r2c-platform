@@ -44,7 +44,7 @@ export default function OffersPage() {
         showToast('تم إضافة العرض');
       }
       resetForm();
-    } catch (e) { showToast('حدث خطأ', 'error'); }
+    } catch { showToast('حدث خطأ', 'error'); }
   };
 
   const handleDelete = async (id, name) => {

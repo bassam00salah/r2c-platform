@@ -1,47 +1,40 @@
-import { useState, useEffect }                            from 'react'
-import { auth, db }                                       from '@r2c/shared'
+import { useState, useEffect, useCallback } from 'react'
+import { auth, db } from '@r2c/shared'
 import { onAuthStateChanged, signInWithEmailAndPassword } from 'firebase/auth'
-import { collection, query, where, getDocs }              from 'firebase/firestore'
-import LoginScreen       from './screens/Loginscreen'
-import SetupScreen       from './screens/Setupscreen'
-import DashboardScreen   from './screens/DashboardScreen'
+import { collection, query, where, getDocs } from 'firebase/firestore'
+import LoginScreen from './screens/Loginscreen'
+import SetupScreen from './screens/Setupscreen'
+import DashboardScreen from './screens/DashboardScreen'
 import OrderDetailScreen from './screens/OrderDetailScreen'
-import ReportsScreen     from './screens/ReportsScreen'
-import SettingScreen     from './screens/SettingScreen'
-import QRScannerScreen   from './screens/QRScannerScreen'
-import BottomNav         from './components/BottomNav'
+import ReportsScreen from './screens/ReportsScreen'
+import SettingScreen from './screens/SettingScreen'
+import QRScannerScreen from './screens/QRScannerScreen'
+import BottomNav from './components/BottomNav'
 
 const WITH_NAV = ['dashboard', 'reports', 'settings']
 
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState('login')
-  const [currentOrder,  setCurrentOrder]  = useState(null)
-  const [authLoading,   setAuthLoading]   = useState(true)
-  const [toast,         setToast]         = useState(null)
-  const [user,          setUser]          = useState(null)
-  const [branchId,      setBranchId]      = useState(null) // ✅ الـ ID الحقيقي للفرع
+  const [currentOrder, setCurrentOrder] = useState(null)
+  const [authLoading, setAuthLoading] = useState(true)
+  const [toast, setToast] = useState(null)
+  const [branchId, setBranchId] = useState(null)
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (u) => {
-      setUser(u)
-      if (u) {
-        // ✅ نجلب الفرع عبر branchEmail المطابق لإيميل المستخدم
+    const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
         try {
-          const q = query(
-            collection(db, 'branches'),
-            where('branchEmail', '==', u.email)
-          )
+          const q = query(collection(db, 'branches'), where('branchEmail', '==', firebaseUser.email))
           const snap = await getDocs(q)
           if (!snap.empty) {
             setBranchId(snap.docs[0].id)
             setCurrentScreen('dashboard')
           } else {
-            // لا يوجد فرع مرتبط بهذا الإيميل — اعرض شاشة الإعداد
             setBranchId(null)
             setCurrentScreen('setup')
           }
-        } catch (err) {
-          console.error('خطأ في جلب الفرع:', err)
+        } catch (error) {
+          console.error('خطأ في جلب الفرع:', error)
           setBranchId(null)
           setCurrentScreen('dashboard')
         }
@@ -54,62 +47,47 @@ export default function App() {
     return unsub
   }, [])
 
-  const showToast = (msg, type = 'success') => {
+  const showToast = useCallback((msg, type = 'success') => {
     setToast({ msg, type })
     setTimeout(() => setToast(null), 3000)
-  }
+  }, [])
 
-  const nav = (screen, order = null) => {
+  const nav = useCallback((screen, order = null) => {
     if (order) setCurrentOrder(order)
     setCurrentScreen(screen)
-  }
+  }, [])
 
   const onLogin = async ({ email, password }) => {
     try {
       await signInWithEmailAndPassword(auth, email, password)
-    } catch (err) {
+    } catch {
       showToast('البريد أو كلمة المرور غير صحيحة', 'error')
     }
-  }
-
-  if (authLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#110d35]">
-        <div className="w-12 h-12 border-4 border-[#ee7b26] border-t-transparent rounded-full animate-spin" />
-      </div>
-    )
   }
 
   const handleLogout = async () => {
     try {
       await auth.signOut()
-    } catch (err) {
+    } catch {
       showToast('حدث خطأ أثناء تسجيل الخروج', 'error')
     }
   }
 
-  const commonProps = { setCurrentScreen: nav, showToast, branchId } // ✅ branchId الحقيقي
+  if (authLoading) return <div className="min-h-screen flex items-center justify-center bg-[#110d35]"><div className="w-12 h-12 border-4 border-[#ee7b26] border-t-transparent rounded-full animate-spin" /></div>
+
+  const commonProps = { setCurrentScreen: nav, showToast, branchId }
 
   return (
     <div className="relative">
-      {currentScreen === 'login'       && <LoginScreen       onLogin={onLogin} showToast={showToast} />}
-      {currentScreen === 'setup'       && <SetupScreen       {...commonProps} />}
-      {currentScreen === 'dashboard'   && <DashboardScreen   {...commonProps} />}
+      {currentScreen === 'login' && <LoginScreen onLogin={onLogin} showToast={showToast} />}
+      {currentScreen === 'setup' && <SetupScreen {...commonProps} />}
+      {currentScreen === 'dashboard' && <DashboardScreen {...commonProps} />}
       {currentScreen === 'orderDetail' && <OrderDetailScreen {...commonProps} order={currentOrder} />}
-      {currentScreen === 'reports'     && <ReportsScreen     {...commonProps} />}
-      {currentScreen === 'settings'    && <SettingScreen     {...commonProps} onLogout={handleLogout} />}
-      {currentScreen === 'qrScanner'   && <QRScannerScreen   {...commonProps} />}
-
-      {WITH_NAV.includes(currentScreen) && (
-        <BottomNav currentScreen={currentScreen} setCurrentScreen={nav} />
-      )}
-
-      {toast && (
-        <div className={`fixed bottom-20 left-1/2 -translate-x-1/2 px-4 py-2 rounded-lg text-white text-sm z-50
-          ${toast.type === 'error' ? 'bg-red-500' : 'bg-green-600'}`}>
-          {toast.msg}
-        </div>
-      )}
+      {currentScreen === 'reports' && <ReportsScreen {...commonProps} />}
+      {currentScreen === 'settings' && <SettingScreen {...commonProps} onLogout={handleLogout} />}
+      {currentScreen === 'qrScanner' && <QRScannerScreen {...commonProps} />}
+      {WITH_NAV.includes(currentScreen) && <BottomNav currentScreen={currentScreen} setCurrentScreen={nav} />}
+      {toast && <div className={`fixed bottom-20 left-1/2 -translate-x-1/2 px-4 py-2 rounded-lg text-white text-sm z-50 ${toast.type === 'error' ? 'bg-red-500' : 'bg-green-600'}`}>{toast.msg}</div>}
     </div>
   )
 }

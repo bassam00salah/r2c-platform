@@ -13,7 +13,7 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       await login(email, password);
-    } catch (e) {
+    } catch {
       setError('بيانات الدخول غير صحيحة');
     }
     setLoading(false);

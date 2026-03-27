@@ -38,7 +38,7 @@ export default function RestaurantsPage() {
         showToast('تم إضافة المطعم');
       }
       resetForm();
-    } catch (e) { showToast('حدث خطأ', 'error'); }
+    } catch { showToast('حدث خطأ', 'error'); }
   };
 
   const handleDelete = async (id, name) => {

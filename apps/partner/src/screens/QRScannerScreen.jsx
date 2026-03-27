@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Html5QrcodeScanner, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { handleQRScan } from '@r2c/shared/utils/orderHandlers';
 
@@ -88,7 +88,7 @@ const QRScannerScreen = ({ setCurrentScreen, showToast, branchId }) => {
         scannerInstanceRef.current = null;
       }
     };
-  }, [branchId]);
+  }, [branchId, scannerStatus, setCurrentScreen, showToast]);
 
   const handleManualSubmit = async () => {
     const code = manualCode.trim();

@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "main": "./src/index.js",
+  "scripts": {
+    "test": "node -e \"console.log('No shared tests yet')\""
+  },
   "dependencies": {
     "firebase": "^11.10.0"
   }

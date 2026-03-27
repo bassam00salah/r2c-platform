@@ -45,9 +45,15 @@ export default function RestaurantProfileScreen() {
   )
 
   useEffect(() => {
-    if (!selectedRestaurant?.id) return
-    setBranchStatus(null)
-    setNearestBranch(null)
+    let cancelled = false
+    if (!selectedRestaurant?.id) return undefined
+
+    const resetId = setTimeout(() => {
+      if (!cancelled) {
+        setBranchStatus(null)
+        setNearestBranch(null)
+      }
+    }, 0)
 
     const q = query(
       collection(db, 'branches'),
@@ -57,13 +63,20 @@ export default function RestaurantProfileScreen() {
     )
 
     getDocs(q).then(snap => {
+      if (cancelled) return
       const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }))
       const anyOpen = docs.some(d => d.settings?.acceptingOrders !== false)
-      setBranchStatus(anyOpen)
-      // أول فرع له إحداثيات
       const withCoords = docs.find(d => d.latitude && d.longitude)
-      if (withCoords) setNearestBranch(withCoords)
-    }).catch(() => setBranchStatus(null))
+      setBranchStatus(anyOpen)
+      setNearestBranch(withCoords || null)
+    }).catch(() => {
+      if (!cancelled) setBranchStatus(null)
+    })
+
+    return () => {
+      cancelled = true
+      clearTimeout(resetId)
+    }
   }, [selectedRestaurant?.id])
 
   return (

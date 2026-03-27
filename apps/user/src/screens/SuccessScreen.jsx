@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useApp } from '../contexts'
 // ✅ إصلاح: Firebase modular بدل db.collection()
 import { db } from '@r2c/shared'
@@ -88,7 +88,7 @@ export default function SuccessScreen() {
             }
         })
         return () => unsub()
-    }, [currentOrderId])
+    }, [currentOrderId, setBottomNav, setCurrentOrderId, setCurrentScreen])
 
     // العد التنازلي
     useEffect(() => {
@@ -101,6 +101,12 @@ export default function SuccessScreen() {
 
     const minutes = timeRemaining !== null ? Math.floor(timeRemaining / 60) : 0
     const seconds = timeRemaining !== null ? timeRemaining % 60 : 0
+    const confettiPieces = useMemo(() => Array.from({ length: 20 }, (_, i) => ({
+        id: i,
+        left: `${(i * 37) % 100}%`,
+        animationDelay: `${(i % 6) * 0.35}s`,
+        background: i % 2 === 0 ? '#ee7b26' : '#d96b1a'
+    })), [])
 
     // شاشة التسليم الناجح
     if (delivered) {
@@ -121,14 +127,14 @@ export default function SuccessScreen() {
 
     return (
         <div className="min-h-screen bg-white relative overflow-hidden">
-            {[...Array(20)].map((_, i) => (
+            {confettiPieces.map((piece) => (
                 <div
-                    key={i}
+                    key={piece.id}
                     className="confetti"
                     style={{
-                        left: `${Math.random() * 100}%`,
-                        animationDelay: `${Math.random() * 3}s`,
-                        background: i % 2 === 0 ? '#ee7b26' : '#d96b1a'
+                        left: piece.left,
+                        animationDelay: piece.animationDelay,
+                        background: piece.background
                     }}
                 />
             ))}

@@ -36,12 +36,14 @@ function StatCard({ icon, label, value, sub, color = '#15487d' }) {
 export default function ReportsPage() {
   const { orders, restaurants, offers, branches } = useApp();
 
-  const now       = new Date();
-  const today     = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const weekAgo   = new Date(today); weekAgo.setDate(weekAgo.getDate() - 7);
-  const monthAgo  = new Date(today); monthAgo.setMonth(monthAgo.getMonth() - 1);
-
   const stats = useMemo(() => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const weekAgo = new Date(today);
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    const monthAgo = new Date(today);
+    monthAgo.setMonth(monthAgo.getMonth() - 1);
+
     const completed = orders.filter(o => o.status === 'completed');
     const cancelled = orders.filter(o => o.status === 'cancelled');
     const todayOrders = orders.filter(o => { const d = parseDate(o.createdAt || o.timestamp); return d && d >= today; });
