@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useApp } from '../contexts'
 import { functions, db, haversineKm } from '@r2c/shared'
+import OfferImage from '../components/OfferImage'
 import { httpsCallable } from 'firebase/functions'
 import { collection, query, where, getDocs } from 'firebase/firestore'
 

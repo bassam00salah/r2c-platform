@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useApp } from '../contexts'
 import { db } from '@r2c/shared'
+import OfferImage from '../components/OfferImage'
 import { collection, query, where, limit, getDocs, doc, getDoc } from 'firebase/firestore'
 
 function BranchMap({ lat, lng, name }) {

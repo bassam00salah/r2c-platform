@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useApp } from '../contexts'
+import OfferImage from '../components/OfferImage'
 
 export default function GridScreen() {
     // ✅ إصلاح: كان يستخدم mockOffers (غير موجود) → offers
