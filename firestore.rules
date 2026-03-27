@@ -34,10 +34,26 @@ service cloud.firestore {
 
     // ─── users ───────────────────────────────────────────────────────────
     match /users/{uid} {
-      allow read:   if isUser(uid) || isAdmin();
-      allow create: if isUser(uid);
-      allow update: if isUser(uid) && noSensitiveOrderFields();
-    }
+  allow read: if request.auth != null && request.auth.uid == uid;
+
+  allow create: if request.auth != null
+                && request.auth.uid == uid
+                && request.resource.data.keys().hasOnly(['name', 'email', 'photoURL', 'createdAt'])
+                && (!('name' in request.resource.data) || (request.resource.data.name is string && request.resource.data.name.size() <= 100))
+                && (!('email' in request.resource.data) || (request.resource.data.email is string && request.resource.data.email.size() <= 320))
+                && (!('photoURL' in request.resource.data) || (request.resource.data.photoURL is string && request.resource.data.photoURL.size() <= 1000))
+                && ('createdAt' in request.resource.data);
+
+  allow update: if request.auth != null
+                && request.auth.uid == uid
+                && request.resource.data.keys().hasOnly(['name', 'email', 'photoURL', 'createdAt'])
+                && request.resource.data.createdAt == resource.data.createdAt
+                && (!('name' in request.resource.data) || (request.resource.data.name is string && request.resource.data.name.size() <= 100))
+                && (!('email' in request.resource.data) || (request.resource.data.email is string && request.resource.data.email.size() <= 320))
+                && (!('photoURL' in request.resource.data) || (request.resource.data.photoURL is string && request.resource.data.photoURL.size() <= 1000));
+
+  allow delete: if false;
+}
 
     // ─── orders ──────────────────────────────────────────────────────────
     match /orders/{orderId} {

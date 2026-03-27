@@ -1,22 +1,29 @@
-import { initializeApp, getApps } from 'firebase/app'
-import { getFirestore }           from 'firebase/firestore'
-import { getAuth }                from 'firebase/auth'
-import { getStorage }             from 'firebase/storage'
-import { getFunctions }           from 'firebase/functions'
+import { initializeApp, getApps, getApp } from 'firebase/app'
+import { getAuth } from 'firebase/auth'
+import { getFirestore } from 'firebase/firestore'
+import { initializeAppCheck, ReCaptchaV3Provider } from 'firebase/app-check'
+import { getFunctions } from 'firebase/functions'
 
 const firebaseConfig = {
-  apiKey:            import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain:        import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId:         import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket:     import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId:             import.meta.env.VITE_FIREBASE_APP_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
 }
 
-// تجنب إنشاء app مكرر عند HMR
-const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig)
+const app = getApps().length ? getApp() : initializeApp(firebaseConfig)
 
-export const db        = getFirestore(app)
-export const auth      = getAuth(app)
-export const storage   = getStorage(app)
-export const functions = getFunctions(app)
+if (typeof window !== 'undefined' && import.meta.env.VITE_RECAPTCHA_SITE_KEY) {
+  initializeAppCheck(app, {
+    provider: new ReCaptchaV3Provider(import.meta.env.VITE_RECAPTCHA_SITE_KEY),
+    isTokenAutoRefreshEnabled: true,
+  })
+}
+
+const auth = getAuth(app)
+const db = getFirestore(app)
+const functions = getFunctions(app)
+
+export { app, auth, db, functions }

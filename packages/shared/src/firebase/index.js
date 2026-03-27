@@ -1,1 +1,1 @@
-export { db, auth, storage, functions } from './config'
+export * from './config'
