@@ -8,8 +8,8 @@ const NAVY   = '#110d35'
 const CUSTOM_CATEGORIES = [
     { id: 'family',   label: 'عروض عائلية',  emoji: '🍗' },
     { id: 'birthday', label: 'أعياد ميلاد',  emoji: '🎂' },
-    { id: 'halls',    label: 'عروض مناقق',   emoji: '🏛️' },
-    { id: 'trips',    label: 'رحلات بحرية',  emoji: '🚢' },
+    { id: 'grills',   label: 'مشاوي',        emoji: '🔥' },
+    { id: 'sweets',   label: 'حلويات',       emoji: '🍰' },
 ]
 
 export default function SearchScreen() {
@@ -158,7 +158,7 @@ export default function SearchScreen() {
                         }} />
                         <div style={{ zIndex: 1 }}>
                             <p style={{ color: '#fff',    fontSize: 24, fontWeight: 900, margin: 0, lineHeight: 1.25 }}>مشكوك</p>
-                            <p style={{ color: '#f5c842', fontSize: 24, fontWeight: 900, margin: 0, lineHeight: 1.25 }}>خبارك. أول</p>
+                            <p style={{ color: '#f5c842', fontSize: 24, fontWeight: 900, margin: 0, lineHeight: 1.25 }}>خيارك الأول</p>
                         </div>
                         <div style={{ zIndex: 1, textAlign: 'center' }}>
                             <img

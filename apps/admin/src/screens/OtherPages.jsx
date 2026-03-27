@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { db } from '@r2c/shared/firebase/config';
-import { collection, addDoc, doc, deleteDoc, setDoc, onSnapshot, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, doc, deleteDoc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 
 export function InfluencersPage() {
   const { influencers, showToast } = useApp();
@@ -88,21 +88,22 @@ export function SettingsPage() {
   const [loadingData, setLoadingData] = useState(true);
   const [saving, setSaving]     = useState(false);
 
-  // ── جلب الإعدادات من Firestore عند التحميل ────────────────────────────
+  // ── جلب الإعدادات من Firestore مرة واحدة عند التحميل (getDoc بدل onSnapshot) ──
   useEffect(() => {
-    const unsub = onSnapshot(doc(db, 'system', 'settings'), (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        setSettings(prev => ({
-          commission:     data.commission     ?? prev.commission,
-          autoAcceptTime: data.autoAcceptTime ?? prev.autoAcceptTime,
-          cities:         Array.isArray(data.cities) && data.cities.length > 0 ? data.cities : prev.cities,
-          toggles:        { ...prev.toggles, ...(data.toggles || {}) },
-        }));
-      }
-      setLoadingData(false);
-    }, () => setLoadingData(false));
-    return unsub;
+    getDoc(doc(db, 'system', 'settings'))
+      .then(docSnap => {
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          setSettings(prev => ({
+            commission:     data.commission     ?? prev.commission,
+            autoAcceptTime: data.autoAcceptTime ?? prev.autoAcceptTime,
+            cities:         Array.isArray(data.cities) && data.cities.length > 0 ? data.cities : prev.cities,
+            toggles:        { ...prev.toggles, ...(data.toggles || {}) },
+          }));
+        }
+      })
+      .catch(err => console.error('خطأ في تحميل الإعدادات:', err))
+      .finally(() => setLoadingData(false));
   }, []);
 
   const handleSave = async () => {

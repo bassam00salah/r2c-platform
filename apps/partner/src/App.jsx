@@ -88,7 +88,7 @@ export default function App() {
   }
 >
   {currentScreen === 'login'       && <LoginScreen       onLogin={onLogin} showToast={showToast} />}
-  {currentScreen === 'setup'       && <SetupScreen       {...commonProps} />}
+  {currentScreen === 'setup'       && <SetupScreen       onComplete={() => nav('settings')} showToast={showToast} />}
   {currentScreen === 'dashboard'   && <DashboardScreen   {...commonProps} />}
   {currentScreen === 'orderDetail' && <OrderDetailScreen {...commonProps} order={currentOrder} />}
   {currentScreen === 'reports'     && <ReportsScreen     {...commonProps} />}

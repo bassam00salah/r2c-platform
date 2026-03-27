@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Html5QrcodeScanner, Html5QrcodeSupportedFormats } from 'html5-qrcode';
+import { Html5Qrcode } from 'html5-qrcode';
 import { handleQRScan } from '@r2c/shared/utils/orderHandlers';
 
 const QRScannerScreen = ({ setCurrentScreen, showToast, branchId }) => {
@@ -20,11 +20,10 @@ const QRScannerScreen = ({ setCurrentScreen, showToast, branchId }) => {
 
       // ── 1. طلب إذن الكاميرا يدوياً أولاً (ضروري لـ Capacitor/Android) ──
       try {
-        await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
-          .then(stream => {
-            // نوقف الـ stream فوراً — Html5QrcodeScanner سيفتحه هو بعدين
-            stream.getTracks().forEach(t => t.stop());
-          });
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment' },
+        });
+        stream.getTracks().forEach(t => t.stop());
       } catch (err) {
         console.error('Camera permission denied:', err);
         if (mountedRef.current) setScannerStatus('error');
@@ -34,47 +33,34 @@ const QRScannerScreen = ({ setCurrentScreen, showToast, branchId }) => {
       if (!mountedRef.current) return;
       setScannerStatus('starting');
 
-      // ── 2. تشغيل الماسح بعد الحصول على الإذن ──
+      // ── 2. تشغيل Html5Qrcode مباشرةً (بدون UI خاص به) ──
       try {
-        const scanner = new Html5QrcodeScanner(
-          'qr-reader',
-          {
-            fps: 10,
-            qrbox: { width: 250, height: 250 },
-            aspectRatio: 1.0,
-            formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
-            showTorchButtonIfSupported: true,
-          },
-          false
-        );
-
+        const scanner = new Html5Qrcode('qr-reader', { verbose: false });
         scannerInstanceRef.current = scanner;
 
-        scanner.render(
+        await scanner.start(
+          { facingMode: 'environment' },
+          { fps: 10, qrbox: { width: 250, height: 250 } },
           async (decodedText) => {
+            // ── نجاح: تم قراءة QR ──
             if (!mountedRef.current) return;
-
             const result = await handleQRScan(decodedText, branchId);
-
             if (result.success) {
               setScannerStatus('success');
               showToast(result.message, 'success');
-              if (mountedRef.current) {
-                setTimeout(() => setCurrentScreen('dashboard'), 2000);
-              }
+              if (mountedRef.current) setTimeout(() => setCurrentScreen('dashboard'), 2000);
             } else {
               showToast(result.message, 'error');
             }
           },
-          () => {
-            // أخطاء الإطارات الفردية — نتجاهلها
-            if (mountedRef.current && scannerStatus !== 'active') {
-              setScannerStatus('active');
-            }
-          }
+          () => { /* أخطاء الإطارات الفردية — طبيعية، نتجاهلها */ }
         );
+
+        // ✅ start() انتهى = الكاميرا تعمل فعلاً الآن
+        if (mountedRef.current) setScannerStatus('active');
+
       } catch (err) {
-        console.error("Scanner Start Error:", err);
+        console.error('Scanner Start Error:', err);
         if (mountedRef.current) setScannerStatus('error');
       }
     };
@@ -83,12 +69,16 @@ const QRScannerScreen = ({ setCurrentScreen, showToast, branchId }) => {
 
     return () => {
       mountedRef.current = false;
-      if (scannerInstanceRef.current) {
-        scannerInstanceRef.current.clear().catch(() => {});
+      const scanner = scannerInstanceRef.current;
+      if (scanner) {
+        scanner.stop().catch(() => {}).finally(() => {
+          scanner.clear().catch(() => {});
+        });
         scannerInstanceRef.current = null;
       }
     };
-  }, [branchId, scannerStatus, setCurrentScreen, showToast]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [branchId]);
 
   const handleManualSubmit = async () => {
     const code = manualCode.trim();
