@@ -21,7 +21,7 @@ export default function OverviewPage() {
 
   const totalRevenue = orders
     .filter(o => o.status === 'completed')
-    .reduce((sum, o) => sum + (o.finalPrice || 0), 0);
+    .reduce((sum, o) => sum + (o.price || o.finalPrice || 0), 0);
 
   // ✅ يدعم createdAt و timestamp معاً
   const todayOrders = orders.filter(o => {
