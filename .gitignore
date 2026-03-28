@@ -3,7 +3,6 @@ node_modules/
 .env.local
 dist/
 www/
-android/
 ios/
 *.keystore
 # local firebase cache
