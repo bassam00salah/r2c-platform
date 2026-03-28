@@ -1,5 +1,12 @@
 {
-  "appId": "com.r2c.userapp",
+  "appId": "com.r2c.user",
   "appName": "R2C",
-  "webDir": "dist"
+  "webDir": "dist",
+  "plugins": {
+    "GoogleAuth": {
+      "scopes": ["profile", "email"],
+      "serverClientId": "907964191277-0angci6kbvebt9vl57u7qipr77o0uicl.apps.googleusercontent.com",
+      "forceCodeForRefreshToken": true
+    }
+  }
 }

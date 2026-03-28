@@ -73,7 +73,14 @@ export default function OverviewPage() {
             </tr>
           </thead>
           <tbody>
-            {orders.slice(0, 10).map(o => {
+            {[...orders]
+  .sort((a, b) => {
+    const da = parseDate(a.createdAt || a.timestamp) || new Date(0)
+    const db = parseDate(b.createdAt || b.timestamp) || new Date(0)
+    return db - da
+  })
+  .slice(0, 10)
+  .map(o => {
               const s = STATUS_MAP[o.status] || { label: o.status, color: '#6b7280' };
               // ✅ يدعم createdAt و timestamp معاً
               const date = parseDate(o.createdAt || o.timestamp);

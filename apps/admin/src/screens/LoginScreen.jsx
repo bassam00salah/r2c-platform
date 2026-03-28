@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
+import logoSrc from '../assets/logo.png';
 
 export default function LoginScreen() {
   const { login } = useApp();
@@ -23,7 +24,7 @@ export default function LoginScreen() {
     <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #15487d 0%, #1a5c9e 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
       <div style={{ background: 'white', borderRadius: '20px', padding: '48px', width: '100%', maxWidth: '440px', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
         <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-          <div style={{ width: '80px', height: '80px', background: 'linear-gradient(135deg, #ee7b26, #ff9a4a)', borderRadius: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '36px', margin: '0 auto 16px' }}>⚡</div>
+          <img src={logoSrc} alt="R2C" style={{ width: '140px', height: 'auto', margin: '0 auto 16px', display: 'block' }} />
           <h1 style={{ fontSize: '28px', fontWeight: 'bold', color: '#1a1a2e', marginBottom: '8px' }}>لوحة الإدارة</h1>
           <p style={{ color: '#666' }}>منصة R2C</p>
         </div>

@@ -14,6 +14,11 @@ export default function AuthScreen() {
 
       if (Capacitor.isNativePlatform()) {
         const { GoogleAuth } = await import('@codetrix-studio/capacitor-google-auth')
+        await GoogleAuth.initialize({
+    clientId: '907964191277-0angci6kbvebt9vl57u7qipr77o0uicl.apps.googleusercontent.com',
+    scopes: ['profile', 'email'],
+    grantOfflineAccess: true,
+  })
         const result = await GoogleAuth.signIn()
         const credential = GoogleAuthProvider.credential(result.authentication.idToken)
         await signInWithCredential(auth, credential)

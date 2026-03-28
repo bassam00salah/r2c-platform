@@ -9,6 +9,7 @@ import OwnersPage     from './screens/OwnersPage';
 import ReportsPage    from './screens/ReportsPage';
 import { InfluencersPage, SettingsPage } from './screens/OtherPages';
 import Sidebar        from './components/Sidebar';
+import logoSrc        from './assets/logo.png';
 
 function AdminApp() {
   const { adminUser, userRole, loading, currentPage, toast } = useApp();
@@ -16,7 +17,7 @@ function AdminApp() {
   if (loading) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div style={{ textAlign: 'center' }}>
-        <div style={{ fontSize: '48px' }}>⚡</div>
+        <img src={logoSrc} alt="R2C" style={{ width: '120px', height: 'auto', marginBottom: '16px' }} />
         <div style={{ color: '#6b7280' }}>جاري التحميل...</div>
       </div>
     </div>

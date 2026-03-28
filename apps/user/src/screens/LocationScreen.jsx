@@ -6,20 +6,46 @@ export default function LocationScreen() {
   const [locating, setLocating] = useState(false)
   const [denied, setDenied]     = useState(false)
 
-  const requestLocation = () => {
+  const requestLocation = async () => {
     setLocating(true)
     setDenied(false)
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
+
+    try {
+      const { Capacitor } = await import('@capacitor/core')
+
+      if (Capacitor.isNativePlatform()) {
+        const { Geolocation } = await import('@capacitor/geolocation')
+        const permission = await Geolocation.requestPermissions()
+
+        if (permission.location !== 'granted') {
+          setLocating(false)
+          setDenied(true)
+          return
+        }
+
+        const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true })
         setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude })
         setLocating(false)
         setCurrentScreen('feed')
-      },
-      () => {
-        setLocating(false)
-        setDenied(true)
+
+      } else {
+        // web / browser fallback
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude })
+            setLocating(false)
+            setCurrentScreen('feed')
+          },
+          () => {
+            setLocating(false)
+            setDenied(true)
+          }
+        )
       }
-    )
+    } catch {
+      setLocating(false)
+      setDenied(true)
+    }
   }
 
   // طلب الموقع تلقائياً عند فتح الشاشة

@@ -38,7 +38,13 @@ export default function OrdersPage() {
 
   const activeDateFn = dateFilters.find(f => f.label === dateFilter)?.fn || (() => true);
 
-  const filtered = orders.filter(o => {
+  const filtered = [...orders]
+  .sort((a, b) => {
+    const da = parseDate(a.createdAt || a.timestamp) || new Date(0)
+    const db = parseDate(b.createdAt || b.timestamp) || new Date(0)
+    return db - da
+  })
+  .filter(o => {
     const matchSearch =
       o.userName?.includes(search) ||
       o.offerName?.includes(search) ||

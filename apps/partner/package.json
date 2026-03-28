@@ -10,8 +10,12 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@capacitor/android": "^8.3.0",
+    "@capacitor/camera": "^8.0.2",
+    "@capacitor/core": "^8.3.0",
     "@r2c/shared": "*",
     "@tailwindcss/vite": "^4.2.1",
+    "html5-qrcode": "^2.3.8",
     "lucide-react": "^0.577.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
