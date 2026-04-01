@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, lazy, Suspense } from 'react'
-import { auth, db }                                    from '@r2c/shared'
+import { auth, db, usePartnerOrders } from '@r2c/shared'
 import { onAuthStateChanged, signInWithEmailAndPassword } from 'firebase/auth'
-import { collection, query, where, getDocs }           from 'firebase/firestore'
+import { collection, query, where, getDocs, doc, setDoc } from 'firebase/firestore'
 import BottomNav                                       from './components/BottomNav'
 
 const LoginScreen       = lazy(() => import('./screens/Loginscreen'))
@@ -20,6 +20,9 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(true)
   const [toast, setToast] = useState(null)
   const [branchId, setBranchId] = useState(null)
+
+  // ── الـ listener يعيش في App طوال الجلسة ولا يُلغى عند التنقل بين الشاشات ──
+  const { orders, loading: ordersLoading } = usePartnerOrders(branchId)
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -89,7 +92,7 @@ export default function App() {
 >
   {currentScreen === 'login'       && <LoginScreen       onLogin={onLogin} showToast={showToast} />}
   {currentScreen === 'setup'       && <SetupScreen       onComplete={() => nav('settings')} showToast={showToast} />}
-  {currentScreen === 'dashboard'   && <DashboardScreen   {...commonProps} />}
+  {currentScreen === 'dashboard'   && <DashboardScreen   {...commonProps} orders={orders} ordersLoading={ordersLoading} />}
   {currentScreen === 'orderDetail' && <OrderDetailScreen {...commonProps} order={currentOrder} />}
   {currentScreen === 'reports'     && <ReportsScreen     {...commonProps} />}
   {currentScreen === 'settings'    && <SettingScreen     {...commonProps} onLogout={handleLogout} />}

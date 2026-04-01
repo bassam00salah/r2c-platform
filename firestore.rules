@@ -22,6 +22,11 @@ service cloud.firestore {
         exists(/databases/$(database)/documents/restaurantOwners/$(request.auth.uid));
     }
 
+    function isBranchPartner() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/branchUsers/$(request.auth.uid));
+    }
+
     function isOptionalString(value, maxLen) {
       return !(value is string) || value.size() <= maxLen;
     }
@@ -65,7 +70,7 @@ service cloud.firestore {
     }
 
     match /orders/{orderId} {
-  allow list: if isAdmin() || isRestaurantOwner();
+      allow list: if isAdmin() || isRestaurantOwner() || isBranchPartner();
 
   allow get: if isSignedIn() && (
     resource.data.userId == request.auth.uid ||
@@ -82,6 +87,14 @@ service cloud.firestore {
   allow update: if false;
   allow delete: if false;
 }
+
+    match /branchUsers/{uid} {
+      // يُسمح للـ partner بكتابة سجل هويته فقط عند تسجيل الدخول
+      allow read:  if isSignedIn() && request.auth.uid == uid;
+      allow write: if isSignedIn() && request.auth.uid == uid
+                   && request.resource.data.keys().hasOnly(['branchId'])
+                   && request.resource.data.branchId is string;
+    }
 
     match /branches/{branchId} {
       allow read: if isSignedIn();

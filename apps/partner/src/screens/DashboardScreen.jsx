@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { usePartnerOrders, db } from "@r2c/shared";
+import { db } from "@r2c/shared";
 import { ORDER_STATUS } from "@r2c/shared/constants/orderStatus";
 import { doc, getDoc } from "firebase/firestore";
 import OrderCard from "../components/OrderCard";
@@ -127,8 +127,7 @@ function playAlertSound() {
   }
 }
 
-const DashboardScreen = ({ branchId, setCurrentScreen, showToast }) => {
-  const { orders = [], loading = false } = usePartnerOrders(branchId) || {};
+const DashboardScreen = ({ branchId, setCurrentScreen, showToast, orders = [], ordersLoading: loading = false }) => {
   const [activeTab, setActiveTab]           = useState("new");
   const [partnerProfile, setPartnerProfile] = useState(null);
   const [drawerOpen, setDrawerOpen]         = useState(false);
