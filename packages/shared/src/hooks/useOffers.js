@@ -4,12 +4,21 @@ import { db } from '../firebase/config'
 
 const OFFERS_PAGE_SIZE = 50
 
-export function useOffers() {
+export function useOffers(user, authLoading) {
   const [offers, setOffers]   = useState([])
   const [loading, setLoading] = useState(true)
   const [hasMore, setHasMore] = useState(false)
 
   useEffect(() => {
+    // انتظر حتى يكتمل تحميل الـ auth
+    if (authLoading) return
+    // لا تبدأ الـ listener إذا لم يكن المستخدم مسجلاً
+    if (!user) {
+      setOffers([])
+      setLoading(false)
+      return
+    }
+
     const q = query(
       collection(db, 'offers'),
       where('status', '==', 'active'),
@@ -27,7 +36,7 @@ export function useOffers() {
       }
     )
     return () => unsub()
-  }, [])
+  }, [user, authLoading])
 
   return { offers, loading, hasMore }
 }

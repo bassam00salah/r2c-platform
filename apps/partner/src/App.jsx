@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, lazy, Suspense } from 'react'
 import { auth, db, usePartnerOrders } from '@r2c/shared'
 import { onAuthStateChanged, signInWithEmailAndPassword } from 'firebase/auth'
-import { collection, query, where, getDocs, doc, setDoc } from 'firebase/firestore'
+import { collection, query, where, getDocs, doc, setDoc, serverTimestamp } from 'firebase/firestore'
 import BottomNav                                       from './components/BottomNav'
 
 const LoginScreen       = lazy(() => import('./screens/Loginscreen'))
@@ -31,7 +31,18 @@ export default function App() {
           const q = query(collection(db, 'branches'), where('branchEmail', '==', firebaseUser.email))
           const snap = await getDocs(q)
           if (!snap.empty) {
-            setBranchId(snap.docs[0].id)
+            const resolvedBranchId = snap.docs[0].id
+            // اكتب سجل branchUsers حتى تنجح قواعد Firestore isBranchPartner()
+            try {
+              await setDoc(
+                doc(db, 'branchUsers', firebaseUser.uid),
+                { branchId: resolvedBranchId },
+                { merge: true }
+              )
+            } catch (e) {
+              console.warn('branchUsers write failed (non-critical):', e)
+            }
+            setBranchId(resolvedBranchId)
             setCurrentScreen('dashboard')
           } else {
             setBranchId(null)

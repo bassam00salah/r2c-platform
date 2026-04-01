@@ -15,6 +15,14 @@
 
 const { onDocumentCreated } = require("firebase-functions/v2/firestore");
 const { onRequest, onCall, HttpsError } = require("firebase-functions/v2/https");
+
+// خيارات مشتركة لجميع Callable Functions
+const CALL_OPTIONS = {
+  region: "us-central1",
+  cors: true,
+  // السماح بطلبات بدون App Check token (مفيد في localhost / dev)
+  allowInvalidAppCheckToken: true,
+};
 const { logger } = require("firebase-functions");
 const admin = require("firebase-admin");
 const { getFirestore, FieldValue } = require("firebase-admin/firestore");
@@ -104,7 +112,7 @@ function generateQRCode() {
 // ───────────────────────────────────────────────────────────────────────────
 // 1. إنشاء الطلب — Callable
 // ───────────────────────────────────────────────────────────────────────────
-exports.createOrder = onCall(async (request) => {
+exports.createOrder = onCall(CALL_OPTIONS, async (request) => {
   const { auth, data } = request;
 
   if (!auth) {
@@ -220,7 +228,7 @@ exports.createOrder = onCall(async (request) => {
 // ───────────────────────────────────────────────────────────────────────────
 // 2. تحديث حالة الطلب — Callable
 // ───────────────────────────────────────────────────────────────────────────
-exports.updateOrderStatus = onCall(async (request) => {
+exports.updateOrderStatus = onCall(CALL_OPTIONS, async (request) => {
   const { auth, data } = request;
 
   if (!auth) {
@@ -287,7 +295,7 @@ exports.updateOrderStatus = onCall(async (request) => {
 // ───────────────────────────────────────────────────────────────────────────
 // 3. إنشاء حساب فرع — Callable
 // ───────────────────────────────────────────────────────────────────────────
-exports.createBranchUser = onCall(async (request) => {
+exports.createBranchUser = onCall(CALL_OPTIONS, async (request) => {
   const { auth, data } = request;
 
   if (!auth) {
@@ -348,7 +356,7 @@ exports.createBranchUser = onCall(async (request) => {
 // ───────────────────────────────────────────────────────────────────────────
 // 4. إنشاء حساب مالك مطعم — Callable
 // ───────────────────────────────────────────────────────────────────────────
-exports.createOwnerUser = onCall(async (request) => {
+exports.createOwnerUser = onCall(CALL_OPTIONS, async (request) => {
   const { auth, data } = request;
 
   if (!auth) {
@@ -478,7 +486,7 @@ exports.processCancelOrder = onRequest(async (req, res) => {
 // ───────────────────────────────────────────────────────────────────────────
 // 7. Callable: المستخدم يلغي طلبه
 // ───────────────────────────────────────────────────────────────────────────
-exports.cancelOrderOnTimeout = onCall(async (request) => {
+exports.cancelOrderOnTimeout = onCall(CALL_OPTIONS, async (request) => {
   const { auth, data } = request;
 
   if (!auth) {
@@ -512,7 +520,7 @@ exports.cancelOrderOnTimeout = onCall(async (request) => {
 // ───────────────────────────────────────────────────────────────────────────
 // حذف فرع — Callable
 // ───────────────────────────────────────────────────────────────────────────
-exports.deleteBranch = onCall(async (request) => {
+exports.deleteBranch = onCall(CALL_OPTIONS, async (request) => {
   const { auth, data } = request;
 
   if (!auth) {
@@ -550,7 +558,7 @@ exports.deleteBranch = onCall(async (request) => {
 // ───────────────────────────────────────────────────────────────────────────
 // حذف مالك مطعم — Callable
 // ───────────────────────────────────────────────────────────────────────────
-exports.deleteOwner = onCall(async (request) => {
+exports.deleteOwner = onCall(CALL_OPTIONS, async (request) => {
   const { auth, data } = request;
 
   if (!auth) {
@@ -588,7 +596,7 @@ exports.deleteOwner = onCall(async (request) => {
 // ───────────────────────────────────────────────────────────────────────────
 // 8. مسح رمز QR وإكمال الطلب — Callable
 // ───────────────────────────────────────────────────────────────────────────
-exports.completeOrderByQR = onCall(async (request) => {
+exports.completeOrderByQR = onCall(CALL_OPTIONS, async (request) => {
   const { auth, data } = request;
 
   if (!auth) {

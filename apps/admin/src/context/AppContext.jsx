@@ -23,7 +23,7 @@ import {
 
 const AppContext = createContext(null)
 
-const ORDERS_PAGE_SIZE = 50 // [أداء] بدلاً من limit(200)
+const ORDERS_PAGE_SIZE = 200 // [أداء] بدلاً من limit(200)
 
 export function AppProvider({ children }) {
   const [adminUser,       setAdminUser]       = useState(null)
@@ -123,10 +123,11 @@ export function AppProvider({ children }) {
         limit(ORDERS_PAGE_SIZE)
       )
       unsubs.push(onSnapshot(ordersQ, snap => {
+        console.log('Admin orders snap:', snap.docs.length)
         setOrders(snap.docs.map(d => ({ id: d.id, ...d.data() })))
         setHasMoreOrders(snap.docs.length === ORDERS_PAGE_SIZE)
         setLastOrderDoc(snap.docs[snap.docs.length - 1] || null)
-      }))
+      }, err => console.error('Admin orders error:', err)))
 
     } else {
       // مالك المطعم — يرى بيانات مطعمه فقط

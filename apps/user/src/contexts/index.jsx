@@ -20,7 +20,8 @@ export function useAuthCtx() {
 }
 
 export function OfferDataProvider({ children }) {
-  const { offers, loading: loadingOffers } = useOffers()
+  const { user, authLoading } = useContext(AuthContext)
+  const { offers, loading: loadingOffers } = useOffers(user, authLoading)
   const [selectedOffer, setSelectedOffer] = useState(null)
   const [selectedRestaurant, setSelectedRestaurant] = useState(null)
 

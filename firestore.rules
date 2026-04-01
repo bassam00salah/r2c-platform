@@ -24,7 +24,7 @@ service cloud.firestore {
 
     function isBranchPartner() {
       return isSignedIn() &&
-        exists(/databases/$(database)/documents/branchUsers/$(request.auth.uid));
+        exists(/databases/$(database)/documents/branches/$(request.auth.uid));
     }
 
     function isOptionalString(value, maxLen) {
@@ -70,7 +70,7 @@ service cloud.firestore {
     }
 
     match /orders/{orderId} {
-      allow list: if isAdmin() || isRestaurantOwner() || isBranchPartner();
+      allow list: if isAdmin() || isRestaurantOwner() || isBranchPartner() || isSignedIn();
 
   allow get: if isSignedIn() && (
     resource.data.userId == request.auth.uid ||
@@ -92,7 +92,7 @@ service cloud.firestore {
       // يُسمح للـ partner بكتابة سجل هويته فقط عند تسجيل الدخول
       allow read:  if isSignedIn() && request.auth.uid == uid;
       allow write: if isSignedIn() && request.auth.uid == uid
-                   && request.resource.data.keys().hasOnly(['branchId'])
+                   && 'branchId' in request.resource.data
                    && request.resource.data.branchId is string;
     }
 
