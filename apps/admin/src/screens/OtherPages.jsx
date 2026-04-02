@@ -82,13 +82,17 @@ const DEFAULT_SETTINGS = {
 };
 
 export function SettingsPage() {
-  const { showToast } = useApp();
+  const { showToast, restaurants } = useApp();
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [newCity, setNewCity]   = useState('');
   const [loadingData, setLoadingData] = useState(true);
   const [saving, setSaving]     = useState(false);
 
-  // ── جلب الإعدادات من Firestore مرة واحدة عند التحميل (getDoc بدل onSnapshot) ──
+  // إعدادات البانر الإعلاني
+  const [bannerRestaurantId,   setBannerRestaurantId]   = useState('');
+  const [bannerRestaurantName, setBannerRestaurantName] = useState('');
+  const [bannerText,           setBannerText]           = useState('');
+
   useEffect(() => {
     getDoc(doc(db, 'system', 'settings'))
       .then(docSnap => {
@@ -100,18 +104,34 @@ export function SettingsPage() {
             cities:         Array.isArray(data.cities) && data.cities.length > 0 ? data.cities : prev.cities,
             toggles:        { ...prev.toggles, ...(data.toggles || {}) },
           }));
+          if (data.bannerRestaurantId)   setBannerRestaurantId(data.bannerRestaurantId);
+          if (data.bannerRestaurantName) setBannerRestaurantName(data.bannerRestaurantName);
+          if (data.bannerText)           setBannerText(data.bannerText);
         }
       })
       .catch(err => console.error('خطأ في تحميل الإعدادات:', err))
       .finally(() => setLoadingData(false));
   }, []);
 
+  const handleBannerRestaurantChange = (e) => {
+    const id = e.target.value;
+    setBannerRestaurantId(id);
+    const rest = (restaurants || []).find(r => r.id === id);
+    setBannerRestaurantName(rest ? rest.name : '');
+  };
+
   const handleSave = async () => {
     setSaving(true);
     try {
-      await setDoc(doc(db, 'system', 'settings'), settings, { merge: true });
+      await setDoc(doc(db, 'system', 'settings'), {
+        ...settings,
+        bannerRestaurantId:   bannerRestaurantId   || null,
+        bannerRestaurantName: bannerRestaurantName || null,
+        bannerText:           bannerText           || null,
+      }, { merge: true });
       showToast('تم حفظ الإعدادات ✅');
-    } catch {
+    } catch (err) {
+      console.error(err);
       showToast('حدث خطأ أثناء الحفظ', 'error');
     } finally {
       setSaving(false);
@@ -226,6 +246,61 @@ export function SettingsPage() {
           </div>
         </div>
 
+        {/* ── البانر الإعلاني ── */}
+        <div style={{ background: 'white', borderRadius: '12px', padding: '24px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
+          <h3 style={{ fontWeight: 'bold', marginBottom: '6px' }}>📢 البانر الإعلاني — الصفحة الرئيسية</h3>
+          <p style={{ color: '#6b7280', fontSize: '13px', marginBottom: '16px', marginTop: 0 }}>
+            حدد المطعم الذي يُفتح عند ضغط المستخدم على البانر الكبير في الصفحة الرئيسية.
+          </p>
+          <div style={{ display: 'grid', gap: '14px' }}>
+
+            <div>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', fontSize: '14px' }}>🏪 المطعم المرتبط بالبانر</label>
+              <select
+                value={bannerRestaurantId}
+                onChange={handleBannerRestaurantChange}
+                style={{ width: '100%', padding: '10px 14px', border: '2px solid #e5e7eb', borderRadius: '8px', fontSize: '15px', background: '#fff', cursor: 'pointer', boxSizing: 'border-box' }}
+              >
+                <option value="">— بدون ربط (البانر غير قابل للضغط) —</option>
+                {(restaurants || []).map(r => (
+                  <option key={r.id} value={r.id}>{r.name}{r.city ? ' · ' + r.city : ''}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', fontSize: '14px' }}>✏️ نص البانر (اختياري)</label>
+              <input
+                type="text"
+                value={bannerText}
+                onChange={e => setBannerText(e.target.value)}
+                placeholder="مثال: مشكوك — خيارك الأول  (إذا تُرك فارغاً يُستخدم النص الافتراضي)"
+                style={{ width: '100%', padding: '10px 14px', border: '2px solid #e5e7eb', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }}
+              />
+            </div>
+
+            {bannerRestaurantId && (
+              <div style={{ borderRadius: 10, overflow: 'hidden', background: 'linear-gradient(135deg, #1a0800, #5c2200, #c45000)', padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div>
+                  {bannerText ? (
+                    <p style={{ color: '#fff', fontSize: 15, fontWeight: 900, margin: 0 }}>{bannerText}</p>
+                  ) : (
+                    <>
+                      <p style={{ color: '#fff',    fontSize: 15, fontWeight: 900, margin: 0 }}>مشكوك</p>
+                      <p style={{ color: '#f5c842', fontSize: 15, fontWeight: 900, margin: 0 }}>خيارك الأول</p>
+                    </>
+                  )}
+                  <div style={{ marginTop: 6, display: 'inline-flex', alignItems: 'center', gap: 5, background: 'rgba(255,255,255,0.15)', borderRadius: 20, padding: '3px 10px', fontSize: 11, color: 'rgba(255,255,255,0.9)' }}>
+                    🏪 {bannerRestaurantName}
+                  </div>
+                </div>
+                <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, letterSpacing: 1 }}>معاينة</span>
+              </div>
+            )}
+
+          </div>
+        </div>
+
         <button
           onClick={handleSave}
           disabled={saving}
@@ -233,6 +308,7 @@ export function SettingsPage() {
         >
           {saving ? '⏳ جاري الحفظ...' : '💾 حفظ الإعدادات'}
         </button>
+
       </div>
     </div>
   );

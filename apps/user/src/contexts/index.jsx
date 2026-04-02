@@ -67,7 +67,7 @@ export function NavigationProvider({ children }) {
 
   useEffect(() => {
     if (authLoading) return undefined
-    const targetScreen = user ? 'location' : 'auth'
+    const targetScreen = user ? 'search' : 'auth'
     const syncId = setTimeout(() => {
       setCurrentScreenRaw((prev) => (prev === targetScreen ? prev : targetScreen))
     }, 0)
