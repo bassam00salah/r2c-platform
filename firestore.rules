@@ -3,7 +3,8 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helpers
+    // ── Helpers ────────────────────────────────────────────────────────────
+
     function isSignedIn() {
       return request.auth != null;
     }
@@ -22,6 +23,7 @@ service cloud.firestore {
         exists(/databases/$(database)/documents/restaurantOwners/$(request.auth.uid));
     }
 
+    // الـ Cloud Function تحفظ branches/{uid} — نتحقق مباشرةً بدون collection وسيطة
     function isBranchPartner() {
       return isSignedIn() &&
         exists(/databases/$(database)/documents/branches/$(request.auth.uid));
@@ -33,10 +35,7 @@ service cloud.firestore {
 
     function userCreateSchemaIsValid() {
       return request.resource.data.keys().hasOnly([
-        'name',
-        'email',
-        'photoURL',
-        'createdAt'
+        'name', 'email', 'photoURL', 'createdAt'
       ])
       && (!('name' in request.resource.data) || isOptionalString(request.resource.data.name, 100))
       && (!('email' in request.resource.data) || isOptionalString(request.resource.data.email, 320))
@@ -46,10 +45,7 @@ service cloud.firestore {
 
     function userUpdateSchemaIsValid() {
       return request.resource.data.keys().hasOnly([
-        'name',
-        'email',
-        'photoURL',
-        'createdAt'
+        'name', 'email', 'photoURL', 'createdAt'
       ])
       && request.resource.data.createdAt == resource.data.createdAt
       && (!('name' in request.resource.data) || isOptionalString(request.resource.data.name, 100))
@@ -57,43 +53,33 @@ service cloud.firestore {
       && (!('photoURL' in request.resource.data) || isOptionalString(request.resource.data.photoURL, 1000));
     }
 
+    // ── Collections ────────────────────────────────────────────────────────
+
     match /users/{uid} {
       allow read: if isUser(uid);
-
-      allow create: if isUser(uid)
-                    && userCreateSchemaIsValid();
-
-      allow update: if isUser(uid)
-                    && userUpdateSchemaIsValid();
-
+      allow create: if isUser(uid) && userCreateSchemaIsValid();
+      allow update: if isUser(uid) && userUpdateSchemaIsValid();
       allow delete: if false;
     }
 
     match /orders/{orderId} {
-      allow list: if isAdmin() || isRestaurantOwner() || isBranchPartner() || isSignedIn();
+      // الـ partner يقرأ فقط طلبات فرعه — branchId في المستند = uid الـ partner
+      allow list: if isAdmin() || isRestaurantOwner() || isBranchPartner();
 
-  allow get: if isSignedIn() && (
-    resource.data.userId == request.auth.uid ||
-    resource.data.branchId == request.auth.uid ||
-    isAdmin() ||
-    (
-      isRestaurantOwner() &&
-      resource.data.restaurantId ==
-        get(/databases/$(database)/documents/restaurantOwners/$(request.auth.uid)).data.restaurantId
-    )
-  );
+      allow get: if isSignedIn() && (
+        resource.data.userId == request.auth.uid ||
+        resource.data.branchId == request.auth.uid ||
+        isAdmin() ||
+        (
+          isRestaurantOwner() &&
+          resource.data.restaurantId ==
+            get(/databases/$(database)/documents/restaurantOwners/$(request.auth.uid)).data.restaurantId
+        )
+      );
 
-  allow create: if false;
-  allow update: if false;
-  allow delete: if false;
-}
-
-    match /branchUsers/{uid} {
-      // يُسمح للـ partner بكتابة سجل هويته فقط عند تسجيل الدخول
-      allow read:  if isSignedIn() && request.auth.uid == uid;
-      allow write: if isSignedIn() && request.auth.uid == uid
-                   && 'branchId' in request.resource.data
-                   && request.resource.data.branchId is string;
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
     }
 
     match /branches/{branchId} {
@@ -108,7 +94,6 @@ service cloud.firestore {
         request.auth.uid == ownerId ||
         isAdmin()
       );
-
       allow create: if false;
       allow update: if false;
       allow delete: if false;
@@ -119,7 +104,6 @@ service cloud.firestore {
         request.auth.uid == adminId ||
         isAdmin()
       );
-
       allow create: if false;
       allow update: if false;
       allow delete: if false;
