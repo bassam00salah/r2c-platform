@@ -62,7 +62,7 @@ export default function SearchScreen() {
     const [showNotifs, setShowNotifs] = useState(false)
     const [seenKeys, setSeenKeys]     = useState(() => {
         try { return new Set(JSON.parse(localStorage.getItem('r2c_seen') || '[]')) }
-        catch (e) { return new Set() }
+        catch { return new Set() }
     })
     const notifsRef = useRef(null)
 
@@ -84,7 +84,7 @@ export default function SearchScreen() {
         const keys = notifOrders.map(o => o.id + '_' + o.status)
         const next = new Set([...seenKeys, ...keys])
         setSeenKeys(next)
-        try { localStorage.setItem('r2c_seen', JSON.stringify([...next])) } catch (e) { /* ignore */ }
+        try { localStorage.setItem('r2c_seen', JSON.stringify([...next])) } catch { /* ignore */ }
     }
 
     useEffect(() => {

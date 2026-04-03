@@ -63,12 +63,12 @@ export function NavigationProvider({ children }) {
   //    لكن userLocation = null دائماً عند بداية الجلسة
   //    المنطق: إذا لم يكن هناك موقع في هذه الجلسة → اذهب لشاشة الموقع دائماً
   const [locationAsked, setLocationAsked] = useState(() => {
-    try { return !!localStorage.getItem('r2c_location_asked') } catch (e) { return false }
+    try { return !!localStorage.getItem('r2c_location_asked') } catch { return false }
   })
 
   const markLocationAsked = useCallback(() => {
     setLocationAsked(true)
-    try { localStorage.setItem('r2c_location_asked', '1') } catch (e) { /* ignore */ }
+    try { localStorage.setItem('r2c_location_asked', '1') } catch { /* ignore */ }
   }, [])
 
   const setCurrentScreen = useCallback((screen) => {
