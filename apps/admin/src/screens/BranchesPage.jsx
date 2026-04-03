@@ -9,7 +9,7 @@
  */
 
 import { useState, useRef } from 'react';
-import { useApp } from '../context/AppContext';
+import { useApp } from '../contexts/AppContext';
 import { db, functions } from '@r2c/shared/firebase/config';
 import { doc, deleteDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';

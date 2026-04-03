@@ -1,3 +1,4 @@
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useApp } from './contexts'
 
 // Screens
@@ -18,26 +19,8 @@ import EmptyStateScreen from './screens/EmptyStateScreen'
 // Components
 import BottomNav from './components/BottomNav'
 
-const SCREENS = {
-  auth: AuthScreen,
-  location: LocationScreen,
-  feed: FeedScreen,
-  grid: GridScreen,
-  search: SearchScreen,
-  restaurantProfile: RestaurantProfileScreen,
-  offerDetails: OfferDetailsScreen,
-  confirmOrder: ConfirmOrderScreen,
-  waiting: WaitingScreen,
-  success: SuccessScreen,
-  orders: OrdersScreen,
-  profile: ProfileScreen,
-  empty: EmptyStateScreen,
-}
-
-const WITH_NAV = ['feed', 'grid', 'search', 'restaurantProfile', 'orders', 'profile']
-
-export default function App() {
-  const { currentScreen, authLoading } = useApp()
+function AppRoutes() {
+  const { user, authLoading, userLocation } = useApp()
 
   if (authLoading) {
     return (
@@ -47,12 +30,50 @@ export default function App() {
     )
   }
 
-  const Screen = SCREENS[currentScreen] ?? SCREENS.auth
+  if (!user) {
+    return (
+      <Routes>
+        <Route path="/auth" element={<AuthScreen />} />
+        <Route path="*" element={<Navigate to="/auth" replace />} />
+      </Routes>
+    )
+  }
+
+  if (!userLocation) {
+    return (
+      <Routes>
+        <Route path="/location" element={<LocationScreen />} />
+        <Route path="*" element={<Navigate to="/location" replace />} />
+      </Routes>
+    )
+  }
 
   return (
-    <>
-      <Screen />
-      {WITH_NAV.includes(currentScreen) && <BottomNav />}
-    </>
+    <div className="pb-20">
+      <Routes>
+        <Route path="/" element={<Navigate to="/feed" replace />} />
+        <Route path="/feed" element={<FeedScreen />} />
+        <Route path="/grid" element={<GridScreen />} />
+        <Route path="/search" element={<SearchScreen />} />
+        <Route path="/restaurant/:id" element={<RestaurantProfileScreen />} />
+        <Route path="/offer/:id" element={<OfferDetailsScreen />} />
+        <Route path="/confirm" element={<ConfirmOrderScreen />} />
+        <Route path="/waiting/:id" element={<WaitingScreen />} />
+        <Route path="/success" element={<SuccessScreen />} />
+        <Route path="/orders" element={<OrdersScreen />} />
+        <Route path="/profile" element={<ProfileScreen />} />
+        <Route path="/empty" element={<EmptyStateScreen />} />
+        <Route path="*" element={<Navigate to="/feed" replace />} />
+      </Routes>
+      <BottomNav />
+    </div>
+  )
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <AppRoutes />
+    </BrowserRouter>
   )
 }

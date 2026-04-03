@@ -28,7 +28,7 @@ const SettingsScreen = ({ branchId, setCurrentScreen, onLogout, showToast }) => 
         try {
           const rSnap = await getDoc(doc(db, 'restaurants', data.restaurantId))
           if (rSnap.exists()) setRestaurantName(rSnap.data().name || '')
-        } catch {}
+        } catch (e) { /* ignore */ }
       }
     }).catch(err => console.error(err))
     .finally(() => setLoading(false))

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useApp } from '../context/AppContext';
+import { useApp } from '../contexts/AppContext';
 import { db } from '@r2c/shared/firebase/config';
 import { collection, addDoc, doc, deleteDoc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 
