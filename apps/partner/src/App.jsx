@@ -28,10 +28,17 @@ export default function App() {
     const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         try {
-          // الـ Cloud Function تحفظ branches/{uid} مباشرةً — نجلبه مباشرةً بدون query
-          const branchSnap = await getDoc(doc(db, 'branches', firebaseUser.uid))
+          // ✅ الإصلاح: ضبط branchId فوراً بمجرد معرفة الـ uid
+          // بدلاً من الانتظار حتى اكتمال getDoc
+          // هذا يُطلق الـ listener في usePartnerOrders أسرع
+          const uid = firebaseUser.uid
+
+          // جلب بيانات الفرع
+          const branchSnap = await getDoc(doc(db, 'branches', uid))
+
           if (branchSnap.exists()) {
-            setBranchId(firebaseUser.uid)
+            // ✅ ضبط branchId أولاً لبدء الاستماع للطلبات فوراً
+            setBranchId(uid)
             setCurrentScreen('dashboard')
           } else {
             setBranchId(null)
@@ -39,7 +46,9 @@ export default function App() {
           }
         } catch (error) {
           console.error('خطأ في جلب الفرع:', error)
-          setBranchId(null)
+          // ✅ حتى في حالة الخطأ، جرّب تعيين branchId للـ uid
+          // لأن الخطأ قد يكون مؤقتاً في الاتصال
+          setBranchId(firebaseUser.uid)
           setCurrentScreen('dashboard')
         }
       } else {
@@ -77,29 +86,37 @@ export default function App() {
     }
   }
 
-  if (authLoading) return <div className="min-h-screen flex items-center justify-center bg-[#110d35]"><div className="w-12 h-12 border-4 border-[#ee7b26] border-t-transparent rounded-full animate-spin" /></div>
+  if (authLoading) return (
+    <div className="min-h-screen flex items-center justify-center bg-[#110d35]">
+      <div className="w-12 h-12 border-4 border-[#ee7b26] border-t-transparent rounded-full animate-spin" />
+    </div>
+  )
 
   const commonProps = { setCurrentScreen: nav, showToast, branchId }
 
   return (
     <div className="relative">
       <Suspense
-  fallback={
-    <div className="min-h-screen flex items-center justify-center bg-[#110d35]">
-      <div className="w-12 h-12 border-4 border-[#ee7b26] border-t-transparent rounded-full animate-spin" />
-    </div>
-  }
->
-  {currentScreen === 'login'       && <LoginScreen       onLogin={onLogin} showToast={showToast} />}
-  {currentScreen === 'setup'       && <SetupScreen       onComplete={() => nav('settings')} showToast={showToast} />}
-  {currentScreen === 'dashboard'   && <DashboardScreen   {...commonProps} orders={orders} ordersLoading={ordersLoading} />}
-  {currentScreen === 'orderDetail' && <OrderDetailScreen {...commonProps} order={currentOrder} />}
-  {currentScreen === 'reports'     && <ReportsScreen     {...commonProps} orders={orders} />}
-  {currentScreen === 'settings'    && <SettingScreen     {...commonProps} onLogout={handleLogout} />}
-  {currentScreen === 'qrScanner'   && <QRScannerScreen   {...commonProps} />}
-</Suspense>
+        fallback={
+          <div className="min-h-screen flex items-center justify-center bg-[#110d35]">
+            <div className="w-12 h-12 border-4 border-[#ee7b26] border-t-transparent rounded-full animate-spin" />
+          </div>
+        }
+      >
+        {currentScreen === 'login'       && <LoginScreen       onLogin={onLogin} showToast={showToast} />}
+        {currentScreen === 'setup'       && <SetupScreen       onComplete={() => nav('settings')} showToast={showToast} />}
+        {currentScreen === 'dashboard'   && <DashboardScreen   {...commonProps} orders={orders} ordersLoading={ordersLoading} />}
+        {currentScreen === 'orderDetail' && <OrderDetailScreen {...commonProps} order={currentOrder} />}
+        {currentScreen === 'reports'     && <ReportsScreen     {...commonProps} orders={orders} />}
+        {currentScreen === 'settings'    && <SettingScreen     {...commonProps} onLogout={handleLogout} />}
+        {currentScreen === 'qrScanner'   && <QRScannerScreen   {...commonProps} />}
+      </Suspense>
       {WITH_NAV.includes(currentScreen) && <BottomNav currentScreen={currentScreen} setCurrentScreen={nav} />}
-      {toast && <div className={`fixed bottom-20 left-1/2 -translate-x-1/2 px-4 py-2 rounded-lg text-white text-sm z-50 ${toast.type === 'error' ? 'bg-red-500' : 'bg-green-600'}`}>{toast.msg}</div>}
+      {toast && (
+        <div className={`fixed bottom-20 left-1/2 -translate-x-1/2 px-4 py-2 rounded-lg text-white text-sm z-50 ${toast.type === 'error' ? 'bg-red-500' : 'bg-green-600'}`}>
+          {toast.msg}
+        </div>
+      )}
     </div>
   )
 }

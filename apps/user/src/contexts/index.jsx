@@ -53,12 +53,15 @@ export function useOrderData() {
 export function NavigationProvider({ children }) {
   const { user, authLoading } = useContext(AuthContext)
   const [currentScreen, setCurrentScreenRaw] = useState('auth')
+  // ✅ الإصلاح: الموقع يبدأ null في كل جلسة — يُحفظ فقط في الذاكرة لا localStorage
   const [userLocation, setUserLocation]       = useState(null)
   const [viewMode, setViewMode]               = useState('feed')
   const [bottomNav, setBottomNav]             = useState('home')
   const [activeOrdersTab, setActiveOrdersTab] = useState('current')
 
-  // تتبع إذا طُلب الموقع من قبل
+  // ✅ الإصلاح: locationAsked = هل طُلب الإذن قبلاً (مخزّن)
+  //    لكن userLocation = null دائماً عند بداية الجلسة
+  //    المنطق: إذا لم يكن هناك موقع في هذه الجلسة → اذهب لشاشة الموقع دائماً
   const [locationAsked, setLocationAsked] = useState(() => {
     try { return !!localStorage.getItem('r2c_location_asked') } catch { return false }
   })
@@ -80,17 +83,22 @@ export function NavigationProvider({ children }) {
       return undefined
     }
 
-    // المستخدم مسجّل — هل طُلب الموقع من قبل؟
+    // ✅ الإصلاح الرئيسي:
+    // - إذا لم يكن هناك موقع في هذه الجلسة → اذهب لشاشة الموقع دائماً
+    //   (سواء طُلب الإذن من قبل أم لا)
+    // - هذا يضمن طلب الموقع في كل مرة يفتح فيها التطبيق
     const syncId = setTimeout(() => {
-      if (!locationAsked) {
-        // أول مرة: اطلب الموقع
+      if (!userLocation) {
+        // لا يوجد موقع في هذه الجلسة → اطلبه
         setCurrentScreenRaw('location')
       } else {
         setCurrentScreenRaw('search')
       }
     }, 0)
     return () => clearTimeout(syncId)
-  }, [user, authLoading, locationAsked])
+  }, [user, authLoading, userLocation])
+  // ✅ التغيير: أضفنا userLocation للـ dependency array
+  // وأزلنا locationAsked من الشرط
 
   const value = useMemo(() => ({
     currentScreen, setCurrentScreen,
