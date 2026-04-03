@@ -2,9 +2,15 @@ import { useState } from 'react'
 import { useApp } from '../contexts'
 
 export default function LocationScreen() {
-  const { setCurrentScreen, setUserLocation } = useApp()
+  const { setCurrentScreen, setUserLocation, markLocationAsked } = useApp()
   const [locating, setLocating] = useState(false)
   const [denied, setDenied]     = useState(false)
+
+  const finish = (location) => {
+    markLocationAsked()          // سجّل أن الإذن طُلب
+    if (location) setUserLocation(location)
+    setCurrentScreen('search')
+  }
 
   const requestLocation = async () => {
     setLocating(true)
@@ -24,22 +30,18 @@ export default function LocationScreen() {
         }
 
         const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true })
-        setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude })
-        setLocating(false)
-        setCurrentScreen('feed')
-
+        finish({ lat: pos.coords.latitude, lng: pos.coords.longitude })
       } else {
-        // web / browser fallback
         navigator.geolocation.getCurrentPosition(
           (pos) => {
-            setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude })
             setLocating(false)
-            setCurrentScreen('feed')
+            finish({ lat: pos.coords.latitude, lng: pos.coords.longitude })
           },
           () => {
             setLocating(false)
             setDenied(true)
-          }
+          },
+          { enableHighAccuracy: true }
         )
       }
     } catch {
@@ -48,14 +50,14 @@ export default function LocationScreen() {
     }
   }
 
-  // طلب الموقع تلقائياً عند فتح الشاشة
+  // طلب تلقائي عند فتح الشاشة
   useState(() => { requestLocation() }, [])
 
   return (
     <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6 text-center">
       <div className="text-7xl mb-6">📍</div>
-      <h2 className="text-2xl font-black mb-3" style={{color:'#15487d'}}>تحديد موقعك</h2>
-      <p className="text-gray-500 mb-8">نحتاج موقعك لعرض أقرب العروض إليك</p>
+      <h2 className="text-2xl font-black mb-3" style={{ color: '#15487d' }}>تحديد موقعك</h2>
+      <p className="text-gray-500 mb-8">نحتاج موقعك لعرض أقرب العروض والمطاعم إليك</p>
 
       {locating && (
         <div className="flex flex-col items-center gap-4">
@@ -68,17 +70,17 @@ export default function LocationScreen() {
         <div className="w-full">
           <div className="bg-red-50 border border-red-200 rounded-2xl p-4 mb-6">
             <p className="text-red-600 font-bold mb-1">لم نتمكن من تحديد موقعك</p>
-            <p className="text-red-400 text-sm">يرجى السماح بالوصول للموقع</p>
+            <p className="text-red-400 text-sm">يرجى السماح بالوصول للموقع من إعدادات الجهاز</p>
           </div>
           <button
             onClick={requestLocation}
             className="w-full py-4 rounded-2xl font-bold text-white text-lg mb-3"
-            style={{background:'#ee7b26'}}
+            style={{ background: '#ee7b26' }}
           >
             حاول مرة أخرى
           </button>
           <button
-            onClick={() => setCurrentScreen('feed')}
+            onClick={() => finish(null)}
             className="w-full py-4 rounded-2xl font-bold text-gray-500 text-lg border border-gray-200"
           >
             تخطي الآن

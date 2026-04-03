@@ -136,15 +136,26 @@ const DashboardScreen = ({ branchId, setCurrentScreen, showToast, orders = [], o
   const seenOrdersRef = useRef(new Set());
   const isFirstLoadRef = useRef(true);
 
- useEffect(() => {
+  useEffect(() => {
     if (!branchId) return;
-    // تم تغيير partners إلى branches ليتطابق مع قاعدة بياناتك
-    getDoc(doc(db, "branches", branchId)).then(snap => {
-      if (snap.exists()) {
-        setPartnerProfile(snap.data());
-      } else {
-        console.warn("وثيقة الفرع غير موجودة في قاعدة البيانات لهذا الـ branchId");
+    getDoc(doc(db, "branches", branchId)).then(async snap => {
+      if (!snap.exists()) {
+        console.warn("وثيقة الفرع غير موجودة:", branchId);
+        return;
       }
+      const branchData = snap.data();
+      // إذا كان اسم المطعم غير محفوظ في الفرع، نجلبه من restaurants
+      if (!branchData.restaurantName && branchData.restaurantId) {
+        try {
+          const restSnap = await getDoc(doc(db, "restaurants", branchData.restaurantId));
+          if (restSnap.exists()) {
+            branchData.restaurantName = restSnap.data().name || "";
+          }
+        } catch (e) {
+          console.warn("تعذّر جلب اسم المطعم:", e);
+        }
+      }
+      setPartnerProfile(branchData);
     }).catch(err => console.error("خطأ في جلب بيانات الفرع:", err));
   }, [branchId]);
 

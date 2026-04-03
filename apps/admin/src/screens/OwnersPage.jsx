@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { db } from '@r2c/shared/firebase/config';
 import { getFunctions, httpsCallable } from 'firebase/functions';
-import { collection, onSnapshot, doc, deleteDoc } from 'firebase/firestore';
+import { collection, onSnapshot } from 'firebase/firestore';
 import { auth } from '@r2c/shared/firebase/config';
 
 export default function OwnersPage() {
@@ -32,7 +32,6 @@ export default function OwnersPage() {
 
     setLoading(true);
     try {
-      // ✅ استخدام Cloud Function لإنشاء المالك
       const functions = getFunctions(auth.app);
       const createOwnerUser = httpsCallable(functions, 'createOwnerUser');
 
@@ -60,10 +59,15 @@ export default function OwnersPage() {
   const handleDelete = async (ownerId, ownerEmail) => {
     if (!confirm(`هل تريد حذف حساب "${ownerEmail}"؟`)) return;
     try {
-      await deleteDoc(doc(db, 'restaurantOwners', ownerId));
-      showToast('تم حذف المالك ✅  (احذف حساب Auth يدوياً من Firebase Console إن أردت)');
-    } catch {
-      showToast('حدث خطأ أثناء الحذف', 'error');
+      // ✅ إصلاح: استخدام deleteOwner Cloud Function بدلاً من deleteDoc مباشرة
+      // تُعطّل حساب Auth أولاً ثم تحذف وثيقة Firestore
+      const functions = getFunctions(auth.app);
+      const deleteOwner = httpsCallable(functions, 'deleteOwner');
+      await deleteOwner({ ownerId });
+      showToast('تم حذف المالك وتعطيل حسابه بنجاح ✅');
+    } catch (err) {
+      const msg = err?.details || err?.message || 'حدث خطأ غير متوقع';
+      showToast('حدث خطأ أثناء الحذف: ' + msg, 'error');
     }
   };
 

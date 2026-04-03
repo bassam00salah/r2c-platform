@@ -101,6 +101,19 @@ export default function ConfirmOrderScreen() {
 
   return (
     <div className="min-h-screen bg-white p-6 pb-24">
+      {/* زر العودة */}
+      <button
+        onClick={() => setCurrentScreen('offerDetails')}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 6,
+          background: 'none', border: 'none', cursor: 'pointer',
+          color: '#6b7280', fontSize: 15, fontWeight: 700,
+          marginBottom: 16, fontFamily: 'inherit', padding: 0,
+        }}
+      >
+        <span style={{ fontSize: 20 }}>→</span>
+        <span>رجوع</span>
+      </button>
       <h1 className="text-2xl font-bold mb-4">تأكيد الطلب</h1>
       <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden mb-4">
         <OfferImage offer={selectedOffer} />

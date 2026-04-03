@@ -94,7 +94,7 @@ export default function App() {
   {currentScreen === 'setup'       && <SetupScreen       onComplete={() => nav('settings')} showToast={showToast} />}
   {currentScreen === 'dashboard'   && <DashboardScreen   {...commonProps} orders={orders} ordersLoading={ordersLoading} />}
   {currentScreen === 'orderDetail' && <OrderDetailScreen {...commonProps} order={currentOrder} />}
-  {currentScreen === 'reports'     && <ReportsScreen     {...commonProps} />}
+  {currentScreen === 'reports'     && <ReportsScreen     {...commonProps} orders={orders} />}
   {currentScreen === 'settings'    && <SettingScreen     {...commonProps} onLogout={handleLogout} />}
   {currentScreen === 'qrScanner'   && <QRScannerScreen   {...commonProps} />}
 </Suspense>
