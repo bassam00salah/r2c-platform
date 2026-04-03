@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, lazy, Suspense } from 'react'
-import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { auth, db, usePartnerOrders }                  from '@r2c/shared'
 import { onAuthStateChanged, signInWithEmailAndPassword } from 'firebase/auth'
 import { doc, getDoc }                                 from 'firebase/firestore'
@@ -20,7 +20,6 @@ function PartnerRoutes() {
   const [user, setUser] = useState(null)
   const [isSetup, setIsSetup] = useState(true)
 
-  const navigate = useNavigate()
   const location = useLocation()
 
   const { orders, loading: ordersLoading } = usePartnerOrders(branchId)
@@ -60,7 +59,7 @@ function PartnerRoutes() {
   const onLogin = async ({ email, password }) => {
     try {
       await signInWithEmailAndPassword(auth, email, password)
-    } catch {
+    } catch (e) {
       showToast('البريد أو كلمة المرور غير صحيحة', 'error')
     }
   }
@@ -68,7 +67,7 @@ function PartnerRoutes() {
   const handleLogout = async () => {
     try {
       await auth.signOut()
-    } catch {
+    } catch (e) {
       showToast('حدث خطأ أثناء تسجيل الخروج', 'error')
     }
   }
