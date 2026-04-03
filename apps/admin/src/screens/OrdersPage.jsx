@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useApp } from '../context/AppContext';
+import { useApp } from '../contexts/AppContext';
 
 const STATUS_MAP = {
   pending:   { label: 'انتظار',       color: '#f59e0b' },

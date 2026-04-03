@@ -1,4 +1,4 @@
-import { useApp } from '../context/AppContext';
+import { useApp } from '../contexts/AppContext';
 
 // ── تحويل التاريخ بشكل صحيح سواء كان Timestamp أو string ─────────────────
 function parseDate(val) {

@@ -1,4 +1,5 @@
-import { AppProvider, useApp } from './context/AppContext';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
+import { AppProvider, useApp } from './contexts/AppContext';
 import LoginScreen    from './screens/LoginScreen';
 import OverviewPage   from './screens/OverviewPage';
 import RestaurantsPage from './screens/RestaurantsPage';
@@ -11,50 +12,48 @@ import { InfluencersPage, SettingsPage } from './screens/OtherPages';
 import Sidebar        from './components/Sidebar';
 import logoSrc        from './assets/logo.png';
 
-function AdminApp() {
-  const { adminUser, userRole, loading, currentPage, toast } = useApp();
+function AdminRoutes() {
+  const { adminUser, userRole, loading, toast } = useApp();
+  const location = useLocation();
 
   if (loading) return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ textAlign: 'center' }}>
-        <img src={logoSrc} alt="R2C" style={{ width: '120px', height: 'auto', marginBottom: '16px' }} />
-        <div style={{ color: '#6b7280' }}>جاري التحميل...</div>
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="text-center">
+        <img src={logoSrc} alt="R2C" className="w-32 h-auto mb-4 mx-auto" />
+        <div className="text-gray-500 animate-pulse font-medium">جاري التحميل...</div>
       </div>
     </div>
   );
 
   if (!adminUser) return <LoginScreen />;
 
-  const superAdminPages = {
-    overview:    <OverviewPage />,
-    restaurants: <RestaurantsPage />,
-    branches:    <BranchesPage />,
-    offers:      <OffersPage />,
-    orders:      <OrdersPage />,
-    influencers: <InfluencersPage />,
-    reports:     <ReportsPage />,
-    owners:      <OwnersPage />,
-    settings:    <SettingsPage />,
-  };
-
-  const ownerPages = {
-    overview: <OverviewPage />,
-    branches: <BranchesPage readOnly />,
-    offers:   <OffersPage />,
-    orders:   <OrdersPage />,
-    reports:  <ReportsPage />,
-  };
-
-  const pages = userRole === 'superAdmin' ? superAdminPages : ownerPages;
+  const isSuperAdmin = userRole === 'superAdmin';
 
   return (
-    <div style={{ direction: 'rtl', fontFamily: "'Segoe UI', Tahoma, sans-serif", background: '#f3f4f6', minHeight: '100vh' }}>
+    <div className="min-h-screen bg-gray-100 font-sans" dir="rtl">
       <Sidebar />
-      <main style={{ marginRight: '240px', padding: '32px', minHeight: '100vh' }}>
-        {pages[currentPage] || <OverviewPage />}
+      <main className="mr-60 p-8 min-h-screen transition-all duration-300">
+        <div className="max-w-7xl mx-auto">
+          <Routes>
+            <Route path="/" element={<OverviewPage />} />
+            <Route path="/restaurants" element={isSuperAdmin ? <RestaurantsPage /> : <Navigate to="/" replace />} />
+            <Route path="/branches" element={<BranchesPage readOnly={!isSuperAdmin} />} />
+            <Route path="/offers" element={<OffersPage />} />
+            <Route path="/orders" element={<OrdersPage />} />
+            <Route path="/influencers" element={isSuperAdmin ? <InfluencersPage /> : <Navigate to="/" replace />} />
+            <Route path="/reports" element={<ReportsPage />} />
+            <Route path="/owners" element={isSuperAdmin ? <OwnersPage /> : <Navigate to="/" replace />} />
+            <Route path="/settings" element={isSuperAdmin ? <SettingsPage /> : <Navigate to="/" replace />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </div>
       </main>
       {toast && (
-        <div style={{ position: 'fixed', bottom: '24px', left: '50%', transform: 'translateX(-50%)', background: toast.type === 'error' ? '#ef4444' : '#10b981', color: 'white', padding: '12px 24px', borderRadius: '10px', fontWeight: '600', zIndex: 9999 }}>
+        <div
+          className={`fixed bottom-6 left-1/2 -translate-x-1/2 px-6 py-3 rounded-xl font-bold shadow-lg z-[9999] animate-bounce text-white ${
+            toast.type === 'error' ? 'bg-red-500' : 'bg-emerald-500'
+          }`}
+        >
           {toast.message}
         </div>
       )}
@@ -63,5 +62,11 @@ function AdminApp() {
 }
 
 export default function App() {
-  return <AppProvider><AdminApp /></AppProvider>;
+  return (
+    <AppProvider>
+      <BrowserRouter>
+        <AdminRoutes />
+      </BrowserRouter>
+    </AppProvider>
+  );
 }

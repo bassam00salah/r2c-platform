@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useApp } from '../context/AppContext';
+import { useApp } from '../contexts/AppContext';
 import logoSrc from '../assets/logo.png';
 
 export default function LoginScreen() {

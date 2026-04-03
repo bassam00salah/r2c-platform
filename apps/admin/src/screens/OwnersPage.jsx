@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useApp } from '../context/AppContext';
+import { useApp } from '../contexts/AppContext';
 import { db } from '@r2c/shared/firebase/config';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { collection, onSnapshot } from 'firebase/firestore';
