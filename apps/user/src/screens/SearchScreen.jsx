@@ -62,7 +62,7 @@ export default function SearchScreen() {
     const [showNotifs, setShowNotifs] = useState(false)
     const [seenKeys, setSeenKeys]     = useState(() => {
         try { return new Set(JSON.parse(localStorage.getItem('r2c_seen') || '[]')) }
-        catch { return new Set() }
+        catch (e) { return new Set() }
     })
     const notifsRef = useRef(null)
 
@@ -84,7 +84,7 @@ export default function SearchScreen() {
         const keys = notifOrders.map(o => o.id + '_' + o.status)
         const next = new Set([...seenKeys, ...keys])
         setSeenKeys(next)
-        try { localStorage.setItem('r2c_seen', JSON.stringify([...next])) } catch {}
+        try { localStorage.setItem('r2c_seen', JSON.stringify([...next])) } catch (e) { /* ignore */ }
     }
 
     useEffect(() => {
@@ -167,12 +167,12 @@ export default function SearchScreen() {
     [offers])
 
     // كلمات مفتاحية لكل فئة
-    const CATEGORY_KEYWORDS = {
+    const CATEGORY_KEYWORDS = useMemo(() => ({
         family:   ['عائلي', 'عائلة', 'وجبة', 'عيلة'],
         birthday: ['ميلاد', 'عيد', 'كيك', 'تورتة', 'حفلة'],
         grills:   ['مشوي', 'مشاوي', 'كباب', 'شيش', 'تكا', 'برجر', 'لحم'],
         sweets:   ['حلو', 'حلويات', 'كيك', 'بسبوسة', 'كنافة'],
-    }
+    }), [])
 
     // IDs المطاعم التي لها عروض في الفئة المختارة
     const restaurantsInCategory = useMemo(() => {
@@ -187,7 +187,7 @@ export default function SearchScreen() {
             }
         })
         return ids
-    }, [activeCategory, offers])
+    }, [activeCategory, offers, CATEGORY_KEYWORDS])
 
     const filteredRestaurants = useMemo(() => {
         const q = searchQuery.trim()

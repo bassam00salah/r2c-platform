@@ -63,12 +63,12 @@ export function NavigationProvider({ children }) {
   //    لكن userLocation = null دائماً عند بداية الجلسة
   //    المنطق: إذا لم يكن هناك موقع في هذه الجلسة → اذهب لشاشة الموقع دائماً
   const [locationAsked, setLocationAsked] = useState(() => {
-    try { return !!localStorage.getItem('r2c_location_asked') } catch { return false }
+    try { return !!localStorage.getItem('r2c_location_asked') } catch (e) { return false }
   })
 
   const markLocationAsked = useCallback(() => {
     setLocationAsked(true)
-    try { localStorage.setItem('r2c_location_asked', '1') } catch {}
+    try { localStorage.setItem('r2c_location_asked', '1') } catch (e) { /* ignore */ }
   }, [])
 
   const setCurrentScreen = useCallback((screen) => {
@@ -78,16 +78,12 @@ export function NavigationProvider({ children }) {
   useEffect(() => {
     if (authLoading) return undefined
 
-    if (!user) {
-      setCurrentScreenRaw('auth')
-      return undefined
-    }
-
-    // ✅ الإصلاح الرئيسي:
-    // - إذا لم يكن هناك موقع في هذه الجلسة → اذهب لشاشة الموقع دائماً
-    //   (سواء طُلب الإذن من قبل أم لا)
-    // - هذا يضمن طلب الموقع في كل مرة يفتح فيها التطبيق
     const syncId = setTimeout(() => {
+      if (!user) {
+        setCurrentScreenRaw('auth')
+        return
+      }
+
       if (!userLocation) {
         // لا يوجد موقع في هذه الجلسة → اطلبه
         setCurrentScreenRaw('location')
@@ -95,10 +91,9 @@ export function NavigationProvider({ children }) {
         setCurrentScreenRaw('search')
       }
     }, 0)
+
     return () => clearTimeout(syncId)
   }, [user, authLoading, userLocation])
-  // ✅ التغيير: أضفنا userLocation للـ dependency array
-  // وأزلنا locationAsked من الشرط
 
   const value = useMemo(() => ({
     currentScreen, setCurrentScreen,
