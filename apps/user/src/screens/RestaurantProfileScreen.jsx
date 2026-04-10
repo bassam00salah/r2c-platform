@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useApp } from '../contexts'
 import OfferImage from '../components/OfferImage'
 import { db } from '@r2c/shared'
-import { collection, query, where, limit, getDocs } from 'firebase/firestore'
+import { collection, query, where, limit, getDocs, doc, getDoc } from 'firebase/firestore'
 
 // ── خريطة OpenStreetMap عبر iframe ───────────────────────────────────────────
 function BranchMap({ lat, lng, name }) {
@@ -38,6 +38,16 @@ export default function RestaurantProfileScreen() {
   const { offers, selectedRestaurant, setSelectedOffer, setCurrentScreen, viewMode } = useApp()
   const [branchStatus, setBranchStatus] = useState(null)
   const [nearestBranch, setNearestBranch] = useState(null)
+  const [restaurantData, setRestaurantData] = useState(null)
+
+  // جلب بيانات المطعم الكاملة (imageUrl وغيرها)
+  useEffect(() => {
+    if (!selectedRestaurant?.id) return
+    setRestaurantData(null)
+    getDoc(doc(db, 'restaurants', selectedRestaurant.id)).then(snap => {
+      if (snap.exists()) setRestaurantData({ id: snap.id, ...snap.data() })
+    }).catch(() => {})
+  }, [selectedRestaurant?.id])
 
   const restaurantOffers = (offers || []).filter(o =>
     o.restaurantId === selectedRestaurant?.id ||
@@ -89,7 +99,18 @@ export default function RestaurantProfileScreen() {
 
       {/* معلومات المطعم */}
       <div className="p-8 bg-gray-50 flex flex-col items-center">
-        <div className="w-24 h-24 bg-[#ee7b26]/10 border-2 border-[#ee7b26]/20 rounded-full flex items-center justify-center text-5xl mb-4">🏪</div>
+        <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-[#ee7b26]/30 mb-4 flex items-center justify-center bg-[#ee7b26]/10"
+          style={{ boxShadow: '0 4px 16px rgba(238,123,38,0.15)' }}>
+          {restaurantData?.imageUrl ? (
+            <img
+              src={restaurantData.imageUrl}
+              alt={selectedRestaurant?.name}
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              onError={e => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex' }}
+            />
+          ) : null}
+          <span style={{ fontSize: '2.5rem', display: restaurantData?.imageUrl ? 'none' : 'flex' }}>🏪</span>
+        </div>
         <h2 className="text-2xl font-bold">{selectedRestaurant?.name}</h2>
         <p className="text-gray-500 font-semibold mt-1">📍 {selectedRestaurant?.city}</p>
         <div className="flex gap-2 mt-4">

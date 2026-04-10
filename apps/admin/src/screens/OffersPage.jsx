@@ -12,7 +12,7 @@ export default function OffersPage() {
   const [form, setForm] = useState({
     name: '', restaurantId: '', discount: 30,
     originalPrice: 100, finalPrice: 70,
-    description: '', mediaUrl: '', videoUrl: '', mediaType: 'image'
+    description: '', imageUrl: '', videoUrl: '', mediaType: 'image'
   });
 
   const filtered = offers.filter(o => {
@@ -22,7 +22,7 @@ export default function OffersPage() {
   });
 
   const resetForm = () => {
-    setForm({ name: '', restaurantId: '', discount: 30, originalPrice: 100, finalPrice: 70, description: '', mediaUrl: '', videoUrl: '', mediaType: 'image' });
+    setForm({ name: '', restaurantId: '', discount: 30, originalPrice: 100, finalPrice: 70, description: '', imageUrl: '', videoUrl: '', mediaType: 'image' });
     setEditing(null);
     setShowForm(false);
   };
@@ -59,7 +59,7 @@ export default function OffersPage() {
       name: o.name||'', restaurantId: o.restaurantId||'',
       discount: o.discount||30, originalPrice: o.originalPrice||100,
       finalPrice: o.finalPrice||70, description: o.description||'',
-      mediaUrl: o.mediaUrl||'', videoUrl: o.videoUrl||'',
+      imageUrl: o.imageUrl||'', videoUrl: o.videoUrl||'',
       mediaType: o.mediaType||'image'
     });
     setShowForm(true);
@@ -126,19 +126,19 @@ export default function OffersPage() {
                 {form.mediaType === 'image' ? 'رابط الصورة' : 'رابط الفيديو'}
               </label>
               <input
-                value={form.mediaType === 'image' ? form.mediaUrl : form.videoUrl}
-                onChange={e => setForm({...form, [form.mediaType === 'image' ? 'mediaUrl' : 'videoUrl']: e.target.value})}
+                value={form.mediaType === 'image' ? form.imageUrl : form.videoUrl}
+                onChange={e => setForm({...form, [form.mediaType === 'image' ? 'imageUrl' : 'videoUrl']: e.target.value})}
                 placeholder={form.mediaType === 'image' ? 'https://example.com/image.jpg' : 'https://example.com/video.mp4'}
                 style={{ width: '100%', padding: '8px 12px', border: '1px solid #e5e7eb', borderRadius: '8px', boxSizing: 'border-box' }}
               />
             </div>
 
             {/* معاينة الميديا */}
-            {(form.mediaUrl || form.videoUrl) && (
+            {(form.imageUrl || form.videoUrl) && (
               <div style={{ gridColumn: '1 / -1' }}>
                 <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '600' }}>معاينة</label>
-                {form.mediaType === 'image' && form.mediaUrl && (
-                  <img src={form.mediaUrl} alt="preview" style={{ width: '100%', maxHeight: '200px', objectFit: 'cover', borderRadius: '8px' }} onError={e => e.target.style.display='none'} />
+                {form.mediaType === 'image' && form.imageUrl && (
+                  <img src={form.imageUrl} alt="preview" style={{ width: '100%', maxHeight: '200px', objectFit: 'cover', borderRadius: '8px' }} onError={e => e.target.style.display='none'} />
                 )}
                 {form.mediaType === 'video' && form.videoUrl && (
                   <video src={form.videoUrl} controls style={{ width: '100%', maxHeight: '200px', borderRadius: '8px' }} />

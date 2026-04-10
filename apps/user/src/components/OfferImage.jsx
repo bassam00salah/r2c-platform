@@ -1,4 +1,7 @@
+import { useState } from 'react'
+
 export default function OfferImage({ offer, size = 'medium', showWatermark = false }) {
+    const [videoLoaded, setVideoLoaded] = useState(false)
     const sizes = {
         small:      'w-24 h-24',
         medium:     'w-full h-48',
@@ -7,9 +10,13 @@ export default function OfferImage({ offer, size = 'medium', showWatermark = fal
     }
     const cls = sizes[size] || sizes.medium
 
+    // الأدمن يحفظ الصورة في mediaUrl والفيديو في videoUrl
+    const imageUrl = offer?.imageUrl || offer?.mediaUrl || null
+    const videoUrl = offer?.videoUrl || (offer?.mediaType === 'video' ? offer?.mediaUrl : null) || null
+
     const isVideo =
-        offer?.videoUrl ||
-        offer?.imageUrl?.match(/\.(mp4|webm|mov)(\?.*)?$/i)
+        videoUrl ||
+        imageUrl?.match(/\.(mp4|webm|mov)(\?.*)?$/i)
 
     // ✅ العلامة المائية بألوان اللوجو الطبيعية (بدون filter)
     const watermark = (size === 'fullscreen' || showWatermark) && (
@@ -34,22 +41,39 @@ export default function OfferImage({ offer, size = 'medium', showWatermark = fal
     if (isVideo) {
         return (
             <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+                {/* Placeholder يظهر قبل تحميل الفيديو */}
+                {!videoLoaded && (
+                    <div style={{
+                        position: 'absolute', inset: 0, zIndex: 2,
+                        background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                        <img
+                            src="/logo.png"
+                            alt=""
+                            style={{ width: 80, opacity: 0.6, animation: 'r2c-pulse 1.5s ease-in-out infinite' }}
+                            onError={(e) => { e.target.style.display = 'none' }}
+                        />
+                        <style>{`@keyframes r2c-pulse { 0%,100%{opacity:0.35} 50%{opacity:0.75} }`}</style>
+                    </div>
+                )}
                 <video
-                    src={offer.videoUrl || offer.imageUrl}
+                    src={videoUrl || imageUrl}
                     className={cls}
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                     autoPlay muted loop playsInline
+                    onCanPlay={() => setVideoLoaded(true)}
                 />
                 {watermark}
             </div>
         )
     }
 
-    if (offer?.imageUrl) {
+    if (imageUrl) {
         return (
             <div style={{ position: 'relative', width: '100%', height: '100%' }}>
                 <img
-                    src={offer.imageUrl}
+                    src={imageUrl}
                     alt={offer.name || 'عرض'}
                     className={cls}
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}

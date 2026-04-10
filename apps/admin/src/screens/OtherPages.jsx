@@ -92,6 +92,8 @@ export function SettingsPage() {
   const [bannerRestaurantId,   setBannerRestaurantId]   = useState('');
   const [bannerRestaurantName, setBannerRestaurantName] = useState('');
   const [bannerText,           setBannerText]           = useState('');
+  const [bannerImageUrl,       setBannerImageUrl]       = useState('');   // البانر 1
+  const [banner2ImageUrl,      setBanner2ImageUrl]      = useState('');   // البانر 2
 
   useEffect(() => {
     getDoc(doc(db, 'system', 'settings'))
@@ -107,6 +109,8 @@ export function SettingsPage() {
           if (data.bannerRestaurantId)   setBannerRestaurantId(data.bannerRestaurantId);
           if (data.bannerRestaurantName) setBannerRestaurantName(data.bannerRestaurantName);
           if (data.bannerText)           setBannerText(data.bannerText);
+          if (data.bannerImageUrl)       setBannerImageUrl(data.bannerImageUrl);
+          if (data.banner2ImageUrl)      setBanner2ImageUrl(data.banner2ImageUrl);
         }
       })
       .catch(err => console.error('خطأ في تحميل الإعدادات:', err))
@@ -128,6 +132,8 @@ export function SettingsPage() {
         bannerRestaurantId:   bannerRestaurantId   || null,
         bannerRestaurantName: bannerRestaurantName || null,
         bannerText:           bannerText           || null,
+        bannerImageUrl:       bannerImageUrl       || null,
+        banner2ImageUrl:      banner2ImageUrl      || null,
       }, { merge: true });
       showToast('تم حفظ الإعدادات ✅');
     } catch (err) {
@@ -246,16 +252,51 @@ export function SettingsPage() {
           </div>
         </div>
 
-        {/* ── البانر الإعلاني ── */}
+        {/* ── البانر الأول ── */}
         <div style={{ background: 'white', borderRadius: '12px', padding: '24px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
-          <h3 style={{ fontWeight: 'bold', marginBottom: '6px' }}>📢 البانر الإعلاني — الصفحة الرئيسية</h3>
+          <h3 style={{ fontWeight: 'bold', marginBottom: '4px' }}>📢 البانر الأول — أعلى الصفحة الرئيسية</h3>
           <p style={{ color: '#6b7280', fontSize: '13px', marginBottom: '16px', marginTop: 0 }}>
-            حدد المطعم الذي يُفتح عند ضغط المستخدم على البانر الكبير في الصفحة الرئيسية.
+            المقاس الموصى به: <strong>800 × 356 بكسل</strong> (نسبة 2.25:1) — PNG أو JPG
           </p>
           <div style={{ display: 'grid', gap: '14px' }}>
 
             <div>
-              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', fontSize: '14px' }}>🏪 المطعم المرتبط بالبانر</label>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', fontSize: '14px' }}>🖼️ رابط صورة البانر</label>
+              <input
+                type="url"
+                value={bannerImageUrl}
+                onChange={e => setBannerImageUrl(e.target.value)}
+                placeholder="https://example.com/banner1.jpg"
+                style={{ width: '100%', padding: '10px 14px', border: '2px solid #e5e7eb', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }}
+              />
+              {bannerImageUrl && (
+                <div style={{ marginTop: 10, borderRadius: 12, overflow: 'hidden', height: 100, background: '#f3f4f6', position: 'relative' }}>
+                  <img
+                    src={bannerImageUrl}
+                    alt="معاينة البانر 1"
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    onError={e => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex' }}
+                  />
+                  <div style={{ display: 'none', position: 'absolute', inset: 0, alignItems: 'center', justifyContent: 'center', color: '#ef4444', fontSize: 13, fontWeight: 600 }}>
+                    ⚠️ تعذّر تحميل الصورة — تحقق من الرابط
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', fontSize: '14px' }}>✏️ نص البانر (اختياري)</label>
+              <input
+                type="text"
+                value={bannerText}
+                onChange={e => setBannerText(e.target.value)}
+                placeholder="مثال: تميز أكثر — واطلب أسرع  (فارغ = النص الافتراضي)"
+                style={{ width: '100%', padding: '10px 14px', border: '2px solid #e5e7eb', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }}
+              />
+            </div>
+
+            <div>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', fontSize: '14px' }}>🏪 المطعم المرتبط (يُفتح عند الضغط)</label>
               <select
                 value={bannerRestaurantId}
                 onChange={handleBannerRestaurantChange}
@@ -268,36 +309,37 @@ export function SettingsPage() {
               </select>
             </div>
 
-            <div>
-              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', fontSize: '14px' }}>✏️ نص البانر (اختياري)</label>
-              <input
-                type="text"
-                value={bannerText}
-                onChange={e => setBannerText(e.target.value)}
-                placeholder="مثال: مشكوك — خيارك الأول  (إذا تُرك فارغاً يُستخدم النص الافتراضي)"
-                style={{ width: '100%', padding: '10px 14px', border: '2px solid #e5e7eb', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }}
-              />
-            </div>
+          </div>
+        </div>
 
-            {bannerRestaurantId && (
-              <div style={{ borderRadius: 10, overflow: 'hidden', background: 'linear-gradient(135deg, #1a0800, #5c2200, #c45000)', padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div>
-                  {bannerText ? (
-                    <p style={{ color: '#fff', fontSize: 15, fontWeight: 900, margin: 0 }}>{bannerText}</p>
-                  ) : (
-                    <>
-                      <p style={{ color: '#fff',    fontSize: 15, fontWeight: 900, margin: 0 }}>مشكوك</p>
-                      <p style={{ color: '#f5c842', fontSize: 15, fontWeight: 900, margin: 0 }}>خيارك الأول</p>
-                    </>
-                  )}
-                  <div style={{ marginTop: 6, display: 'inline-flex', alignItems: 'center', gap: 5, background: 'rgba(255,255,255,0.15)', borderRadius: 20, padding: '3px 10px', fontSize: 11, color: 'rgba(255,255,255,0.9)' }}>
-                    🏪 {bannerRestaurantName}
-                  </div>
+        {/* ── البانر الثاني ── */}
+        <div style={{ background: 'white', borderRadius: '12px', padding: '24px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
+          <h3 style={{ fontWeight: 'bold', marginBottom: '4px' }}>📣 البانر الثاني — قسم العروض المميزة</h3>
+          <p style={{ color: '#6b7280', fontSize: '13px', marginBottom: '16px', marginTop: 0 }}>
+            المقاس الموصى به: <strong>800 × 320 بكسل</strong> (نسبة 2.5:1) — PNG أو JPG
+          </p>
+          <div>
+            <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', fontSize: '14px' }}>🖼️ رابط صورة البانر</label>
+            <input
+              type="url"
+              value={banner2ImageUrl}
+              onChange={e => setBanner2ImageUrl(e.target.value)}
+              placeholder="https://example.com/banner2.jpg"
+              style={{ width: '100%', padding: '10px 14px', border: '2px solid #e5e7eb', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }}
+            />
+            {banner2ImageUrl && (
+              <div style={{ marginTop: 10, borderRadius: 12, overflow: 'hidden', height: 100, background: '#f3f4f6', position: 'relative' }}>
+                <img
+                  src={banner2ImageUrl}
+                  alt="معاينة البانر 2"
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  onError={e => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex' }}
+                />
+                <div style={{ display: 'none', position: 'absolute', inset: 0, alignItems: 'center', justifyContent: 'center', color: '#ef4444', fontSize: 13, fontWeight: 600 }}>
+                  ⚠️ تعذّر تحميل الصورة — تحقق من الرابط
                 </div>
-                <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, letterSpacing: 1 }}>معاينة</span>
               </div>
             )}
-
           </div>
         </div>
 

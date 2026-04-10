@@ -60,8 +60,28 @@ export default function WaitingScreen() {
     setCurrentScreen('offerDetails')
   }
 
-  if (rejectedMsg) return <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6 text-center"><div className="text-8xl mb-6">❌</div><h1 className="text-2xl font-bold text-red-500 mb-3">تم رفض الطلب</h1><p className="text-gray-500 mb-8 leading-relaxed">{rejectedMsg}</p><button onClick={() => setCurrentScreen('offerDetails')} className="w-full max-w-sm py-4 rounded-2xl text-white font-black text-xl" style={{ background: '#ee7b26' }}>العودة والمحاولة مجدداً</button></div>
-  if (timedOut) return <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6 text-center"><div className="text-8xl mb-6">⏱</div><h1 className="text-2xl font-bold text-red-500 mb-3">انتهت مهلة انتظار الفرع</h1><p className="text-gray-500 mb-8 leading-relaxed">لم يستجب الفرع خلال الوقت المحدد.<br />يمكنك المحاولة مرة أخرى.</p><button onClick={() => setCurrentScreen('offerDetails')} className="w-full max-w-sm py-4 rounded-2xl text-white font-black text-xl" style={{ background: '#ee7b26' }}>العودة والمحاولة مجدداً</button></div>
+  if (rejectedMsg) return (
+    <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6 text-center">
+      <div className="text-8xl mb-6">❌</div>
+      <h1 className="text-2xl font-bold text-red-500 mb-3">تم رفض الطلب</h1>
+      <p className="text-gray-500 mb-8 leading-relaxed">{rejectedMsg}</p>
+      <button onClick={() => setCurrentScreen('offerDetails')} className="w-full max-w-sm py-4 rounded-2xl text-white font-black text-xl mb-3" style={{ background: '#ee7b26' }}>العودة والمحاولة مجدداً</button>
+      <button onClick={() => setCurrentScreen('feed')} style={{ background: '#f3f4f6', border: 'none', cursor: 'pointer', color: '#374151', fontSize: 14, fontWeight: 700, fontFamily: 'inherit', padding: '10px 24px', borderRadius: 20, display: 'flex', alignItems: 'center', gap: 6, margin: '0 auto' }}>
+        <span>🏠</span><span>الرئيسية</span>
+      </button>
+    </div>
+  )
+  if (timedOut) return (
+    <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6 text-center">
+      <div className="text-8xl mb-6">⏱</div>
+      <h1 className="text-2xl font-bold text-red-500 mb-3">انتهت مهلة انتظار الفرع</h1>
+      <p className="text-gray-500 mb-8 leading-relaxed">لم يستجب الفرع خلال الوقت المحدد.<br />يمكنك المحاولة مرة أخرى.</p>
+      <button onClick={() => setCurrentScreen('offerDetails')} className="w-full max-w-sm py-4 rounded-2xl text-white font-black text-xl mb-3" style={{ background: '#ee7b26' }}>العودة والمحاولة مجدداً</button>
+      <button onClick={() => setCurrentScreen('feed')} style={{ background: '#f3f4f6', border: 'none', cursor: 'pointer', color: '#374151', fontSize: 14, fontWeight: 700, fontFamily: 'inherit', padding: '10px 24px', borderRadius: 20, display: 'flex', alignItems: 'center', gap: 6, margin: '0 auto' }}>
+        <span>🏠</span><span>الرئيسية</span>
+      </button>
+    </div>
+  )
 
   return (
     <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6">
@@ -71,7 +91,13 @@ export default function WaitingScreen() {
       <div className={`border-2 rounded-2xl px-10 py-5 mb-8 text-center ${countdown <= 15 ? 'bg-red-50 border-red-400' : 'bg-[#ee7b26]/10 border-[#ee7b26]'}`}><div className={`text-5xl font-black font-mono tracking-wider ${countdown <= 15 ? 'text-red-500' : 'text-[#ee7b26]'}`}>{String(Math.floor(countdown / 60)).padStart(2, '0')}:{String(countdown % 60).padStart(2, '0')}</div><div className="text-gray-500 font-semibold text-sm mt-1">الوقت المتبقي للانتظار</div></div>
       <div className="spinner mb-8 mx-auto" />
       <p className="text-xs text-gray-400 text-center mb-6">سيظهر QR الكود فور قبول الفرع لطلبك</p>
-      <button onClick={handleCancel} className="text-gray-400 font-semibold text-sm underline hover:text-gray-600">إلغاء الطلب</button>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+        <button onClick={handleCancel} className="text-gray-400 font-semibold text-sm underline hover:text-gray-600">إلغاء الطلب</button>
+        <span style={{ color: '#e5e7eb' }}>|</span>
+        <button onClick={() => setCurrentScreen('feed')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', fontSize: 13, fontWeight: 700, fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 4 }}>
+          <span>🏠</span><span>الرئيسية</span>
+        </button>
+      </div>
     </div>
   )
 }

@@ -144,8 +144,8 @@ const DashboardScreen = ({ branchId, setCurrentScreen, showToast, orders = [], o
         return;
       }
       const branchData = snap.data();
-      // إذا كان اسم المطعم غير محفوظ في الفرع، نجلبه من restaurants
-      if (!branchData.restaurantName && branchData.restaurantId) {
+      // دائماً نجلب اسم المطعم من مجموعة restaurants لضمان الحداثة
+      if (branchData.restaurantId) {
         try {
           const restSnap = await getDoc(doc(db, "restaurants", branchData.restaurantId));
           if (restSnap.exists()) {
@@ -153,6 +153,7 @@ const DashboardScreen = ({ branchId, setCurrentScreen, showToast, orders = [], o
           }
         } catch (e) {
           console.warn("تعذّر جلب اسم المطعم:", e);
+          // نحتفظ بالقيمة المخزنة في الفرع كـ fallback
         }
       }
       setPartnerProfile(branchData);
