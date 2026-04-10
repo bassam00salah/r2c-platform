@@ -114,6 +114,68 @@ function pickCuisineImage(filter, offers, restaurants) {
   return resolveRestaurantLogo(matchRestaurant) || filter.img
 }
 
+
+// ── القائمة الجانبية ────────────────────────────────────────────────────────
+function SideMenu({ isOpen, onClose, setCurrentScreen }) {
+  const items = [
+    { icon: '🛍️', label: 'طلباتي',  screen: 'orders' },
+    { icon: '👤', label: 'حسابي',   screen: 'profile' },
+    { icon: '🎁', label: 'العروض',  screen: 'search' },
+  ]
+  return (
+    <>
+      {isOpen && (
+        <div
+          onClick={onClose}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 40 }}
+        />
+      )}
+      <div style={{
+        position: 'fixed', top: 0, right: 0, height: '100%', width: 270,
+        background: WHITE, zIndex: 50,
+        boxShadow: '-8px 0 32px rgba(0,0,0,0.18)',
+        transform: isOpen ? 'translateX(0)' : 'translateX(100%)',
+        transition: 'transform 0.28s cubic-bezier(0.4,0,0.2,1)',
+        display: 'flex', flexDirection: 'column',
+      }} dir="rtl">
+        {/* Header */}
+        <div style={{ background: NAVY, padding: '20px 16px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <img src="/logo.png" alt="R2C" style={{ height: 36, objectFit: 'contain' }} onError={e => { e.currentTarget.style.display = 'none' }} />
+          <button
+            onClick={onClose}
+            style={{ width: 34, height: 34, borderRadius: '50%', border: 'none', background: 'rgba(255,255,255,0.12)', color: WHITE, fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          >✕</button>
+        </div>
+        {/* Items */}
+        <div style={{ flex: 1, padding: '12px 10px' }}>
+          {items.map(item => (
+            <button
+              key={item.screen}
+              onClick={() => { setCurrentScreen(item.screen); onClose() }}
+              style={{
+                width: '100%', display: 'flex', alignItems: 'center', gap: 14,
+                padding: '14px 14px', borderRadius: 14, border: 'none',
+                background: 'transparent', cursor: 'pointer', marginBottom: 4,
+                textAlign: 'right',
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = ORANGE_SOFT}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            >
+              <span style={{ width: 42, height: 42, borderRadius: 12, background: ORANGE_SOFT, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>{item.icon}</span>
+              <span style={{ fontSize: 16, fontWeight: 800, color: TEXT }}>{item.label}</span>
+              <span style={{ marginRight: 'auto', color: MUTED, fontSize: 16 }}>‹</span>
+            </button>
+          ))}
+        </div>
+        {/* Footer */}
+        <div style={{ padding: '14px 16px', borderTop: `1px solid ${BORDER}`, textAlign: 'center', color: MUTED, fontSize: 12, fontWeight: 600 }}>
+          R2C — عروض المطاعم الحصرية
+        </div>
+      </div>
+    </>
+  )
+}
+
 export default function FeedScreen() {
   const {
     offers, orders, loadingOffers,
@@ -130,6 +192,7 @@ export default function FeedScreen() {
   })
   const notifsRef = useRef(null)
   const restaurantsSectionRef = useRef(null)
+  const [showSideMenu, setShowSideMenu] = useState(false)
 
   const [cityName, setCityName] = useState('...')
   useEffect(() => {
@@ -370,6 +433,7 @@ export default function FeedScreen() {
 
   return (
     <>
+      <SideMenu isOpen={showSideMenu} onClose={() => setShowSideMenu(false)} setCurrentScreen={setCurrentScreen} />
       <style>{FONT_STYLE}</style>
       <style>{`
         .r2c-scrollbar::-webkit-scrollbar { display: none; }
@@ -398,6 +462,20 @@ export default function FeedScreen() {
               style={{ height: 44, width: 'auto', objectFit: 'contain', display: 'block', flexShrink: 0 }}
               onError={e => { e.currentTarget.style.display = 'none' }}
             />
+            <button
+              onClick={() => setShowSideMenu(true)}
+              className="r2c-btn-press"
+              style={{
+                width: 40, height: 40, borderRadius: 12, border: `1.5px solid ${BORDER}`,
+                background: WHITE, cursor: 'pointer', display: 'flex', flexDirection: 'column',
+                alignItems: 'center', justifyContent: 'center', gap: 5, flexShrink: 0,
+                boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+              }}
+            >
+              {[0,1,2].map(i => (
+                <span key={i} style={{ display: 'block', width: i === 1 ? 14 : 18, height: 2, background: NAVY, borderRadius: 2 }} />
+              ))}
+            </button>
 
             <div style={{ flex: 1, background: 'rgba(255,255,255,0)', borderRadius: 18, border: '1px solid rgba(238,123,38,0.22)', padding: '9px 12px', display: 'flex', alignItems: 'center', gap: 8 }}>
               <span style={{ fontSize: 15 }}>📍</span>
@@ -480,7 +558,7 @@ export default function FeedScreen() {
               <HeroBanner banner={banner} onClick={handleBannerClick} />
             </div>
 
-            <SectionBar title="استكشف القائمة" action="عرض الكل" />
+            <SectionBar title="استكشف القائمة" action="عرض الكل" onAction={() => { setActiveCuisine('all'); setActiveCustomCat(null); restaurantsSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }} />
             <div style={{ padding: '0 12px' }}>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12 }}>
                 {quickExploreItems.map(item => (
@@ -499,6 +577,7 @@ export default function FeedScreen() {
               offers={topSellerOffers}
               onOpenOffer={openOffer}
               onOpenRestaurant={openRestaurant}
+              onViewAll={() => { setSortBy('default'); setActiveCuisine('all'); setActiveCustomCat(null); restaurantsSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }}
             />
 
             <div style={{ padding: '10px 12px 0' }}>
@@ -511,6 +590,7 @@ export default function FeedScreen() {
               offers={quickPickOffers}
               onOpenOffer={openOffer}
               onOpenRestaurant={openRestaurant}
+              onViewAll={() => { setSortBy('default'); setActiveCuisine('all'); setActiveCustomCat(null); restaurantsSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }}
             />
 
             <ProductSection
@@ -519,6 +599,7 @@ export default function FeedScreen() {
               offers={pizzaLoveOffers}
               onOpenOffer={openOffer}
               onOpenRestaurant={openRestaurant}
+              onViewAll={() => { setSortBy('default'); setActiveCuisine('بيتزا'); setActiveCustomCat(null); restaurantsSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }}
             />
           </>
         )}
@@ -537,7 +618,7 @@ export default function FeedScreen() {
           )}
 
           <div className="r2c-scrollbar" style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 12 }}>
-            <FilterChip active={sortBy === 'default'} onClick={() => setSortBy('default')} icon="☰">الكل</FilterChip>
+            <FilterChip active={sortBy === 'default' && activeCuisine === 'all'} onClick={() => { setSortBy('default'); setActiveCuisine('all'); setActiveCustomCat(null) }} icon="☰">الكل</FilterChip>
             <FilterChip active={sortBy === 'discount'} onClick={() => setSortBy('discount')} icon="٪">الأكثر خصماً</FilterChip>
             <FilterChip active={sortBy === 'popular'} onClick={() => setSortBy('popular')} icon="🏆">الأكثر عروضاً</FilterChip>
             {CUISINE_FILTERS.slice(1, 5).map(cat => (
@@ -608,41 +689,12 @@ function HeroBanner({ banner, onClick }) {
         background: `linear-gradient(135deg, ${BLUE} 0%, ${BLUE_LIGHT} 50%, ${BLUE_DARK} 100%)`,
       }}
     >
-      {/* decorative circles */}
-      <div style={{ position: 'absolute', width: 260, height: 260, borderRadius: '50%', background: 'rgba(238,123,38,0.09)', top: -80, left: -80, pointerEvents: 'none' }} />
-      <div style={{ position: 'absolute', width: 180, height: 180, borderRadius: '50%', background: 'rgba(238,123,38,0.07)', bottom: -60, right: -40, pointerEvents: 'none' }} />
-      {banner.imageUrl ? (
-        <img src={banner.imageUrl} alt="banner" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-      ) : null}
-      <div style={{ position: 'absolute', inset: 0, background: banner.imageUrl ? 'linear-gradient(90deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.18) 55%, rgba(0,0,0,0.12) 100%)' : 'linear-gradient(90deg, rgba(0,0,0,0.12) 0%, rgba(0,0,0,0.0) 100%)' }} />
-      <div style={{ position: 'absolute', inset: 0, padding: '18px 16px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
-          <div style={{ color: '#fff', fontWeight: 900, fontSize: 16, lineHeight: 1.2, whiteSpace: 'pre-line', textShadow: '0 2px 10px rgba(0,0,0,0.3)' }}>
-            {banner.text || 'تميز أكثر\nواطلب أسرع'}
-          </div>
-          {banner.discountValue ? (
-            <div style={{ alignSelf: 'flex-start', background: 'rgba(255,255,255,0.96)', color: ORANGE, borderRadius: 999, padding: '6px 10px', fontWeight: 900, fontSize: 12 }}>
-              {banner.discountValue}%
-            </div>
-          ) : null}
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            {['🍕', '🥤', '🍟'].map((em, i) => (
-              <span key={i} style={{ width: 38, height: 38, borderRadius: 19, background: 'rgba(255,255,255,0.9)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>{em}</span>
-            ))}
-          </div>
-          <div style={{ textAlign: 'left', color: '#fff' }}>
-            <div style={{ fontSize: 11, opacity: 0.9 }}>{banner.restaurantName || 'اكتشف القائمة'}</div>
-            <div style={{ fontSize: 12, fontWeight: 800 }}>عرض لفترة محدودة</div>
-          </div>
-        </div>
-      </div>
+      {banner.imageUrl
+        ? <img src={banner.imageUrl} alt="banner" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+        : null}
     </div>
   )
 }
-
 function ExploreCategoryCard({ item, active }) {
   return (
     <button onClick={item.onClick} className="r2c-btn-press" style={{ border: 'none', background: WHITE, borderRadius: 18, padding: '12px 8px 10px', boxShadow: SHADOW, cursor: 'pointer' }}>
@@ -817,11 +869,11 @@ function PromoStripBanner({ title, subtitle, image, align = 'right' }) {
   )
 }
 
-function ProductSection({ title, action, offers, onOpenOffer, onOpenRestaurant }) {
+function ProductSection({ title, action, offers, onOpenOffer, onOpenRestaurant, onViewAll }) {
   if (!offers || offers.length === 0) return null
   return (
     <section style={{ paddingTop: 16 }}>
-      <SectionBar title={title} action={action} />
+      <SectionBar title={title} action={action} onAction={onViewAll} />
       <div className="r2c-scrollbar" style={{ display: 'flex', gap: 12, overflowX: 'auto', padding: '0 12px 4px' }}>
         {offers.map(offer => (
           <ProductCard key={offer.id} offer={offer} onOpenOffer={onOpenOffer} onOpenRestaurant={onOpenRestaurant} />
@@ -1005,11 +1057,16 @@ function InfoPill({ children, icon }) {
   )
 }
 
-function SectionBar({ title, action, actionMuted }) {
+function SectionBar({ title, action, actionMuted, onAction }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 12px 10px' }}>
       <div style={{ fontSize: 20, fontWeight: 900, color: TEXT }}>{title}</div>
-      {action ? <div style={{ fontSize: 13, color: actionMuted ? MUTED : TEXT, fontWeight: 700 }}>{action}</div> : <div />}
+      {action ? (
+        <div
+          onClick={onAction}
+          style={{ fontSize: 13, color: actionMuted ? MUTED : ORANGE, fontWeight: 700, cursor: onAction ? 'pointer' : 'default' }}
+        >{action}</div>
+      ) : <div />}
     </div>
   )
 }
