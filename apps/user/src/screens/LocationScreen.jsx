@@ -15,7 +15,7 @@ export default function LocationScreen() {
   const finish = (location) => {
     markLocationAsked()
     if (location) setUserLocation(location)
-    setCurrentScreen('search')
+    setCurrentScreen('feed')
   }
 
   const requestLocation = async () => {

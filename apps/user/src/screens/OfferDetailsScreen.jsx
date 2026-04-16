@@ -20,7 +20,7 @@ function BranchMap({ lat, lng, name }) {
 }
 
 export default function OfferDetailsScreen() {
-  const { selectedOffer, setCurrentScreen, viewMode } = useApp()
+  const { selectedOffer, goBack } = useApp() // ✅ أضفنا goBack هنا
   const [nearestBranch, setNearestBranch] = useState(null)
   const [mapLoading, setMapLoading] = useState(false)
 
@@ -75,7 +75,8 @@ export default function OfferDetailsScreen() {
   return (
     <div className="min-h-screen bg-white">
       <div className="sticky top-0 bg-white z-10 px-4 py-3 border-b border-gray-100 shadow-sm">
-        <BackButton onClick={() => setCurrentScreen(viewMode)} />
+        {/* ✅ غيّرنا هنا: استخدام goBack بدلاً من setCurrentScreen(viewMode) */}
+        <BackButton onClick={goBack} />
       </div>
       <div className="relative h-80 bg-gradient-to-br from-orange-900/20 to-gray-100 flex items-center justify-center overflow-hidden"><OfferImage offer={selectedOffer} size="large" /><div className="absolute top-4 right-4"><div className="discount-badge">خصم {selectedOffer.discount}%</div></div></div>
       <div className="p-6 pb-24">

@@ -14,6 +14,7 @@ import SuccessScreen from './screens/SuccessScreen'
 import OrdersScreen from './screens/OrdersScreen'
 import ProfileScreen from './screens/ProfileScreen'
 import EmptyStateScreen from './screens/EmptyStateScreen'
+import ExploreScreen from './screens/ExploreScreen'
 
 // Components
 import BottomNav from './components/BottomNav'
@@ -32,9 +33,11 @@ const SCREENS = {
   orders: OrdersScreen,
   profile: ProfileScreen,
   empty: EmptyStateScreen,
+  explore: ExploreScreen,
 }
 
-const WITH_NAV = ['feed', 'grid', 'search', 'restaurantProfile', 'orders', 'profile']
+// الشاشات التي تعرض BottomNav
+const WITH_NAV = ['feed', 'grid', 'search', 'restaurantProfile', 'orders', 'profile', 'explore']
 
 export default function App() {
   const { currentScreen, authLoading } = useApp()

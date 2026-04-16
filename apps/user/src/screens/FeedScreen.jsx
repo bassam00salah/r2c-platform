@@ -7,20 +7,17 @@ import { doc, getDoc, collection, onSnapshot } from 'firebase/firestore'
 const ORANGE = '#ee7b26'
 const ORANGE_DARK = '#d96a18'
 const ORANGE_SOFT = '#fff3e8'
-const NAVY        = '#0d1f35'   // كحلي غامق – خلفية البطاقات والبانرات
-const NAVY_MID    = '#152d4a'   // كحلي متوسط
-const NAVY_DARK   = '#080f1a'   // كحلي أعمق للتدرج
-// ── legacy aliases (for any remaining references) ──
+const NAVY        = '#0d1f35'
+const NAVY_MID    = '#152d4a'
+const NAVY_DARK   = '#080f1a'
 const BLUE        = NAVY
 const BLUE_LIGHT  = NAVY_MID
 const BLUE_DARK   = NAVY_DARK
 const BLUE_SOFT   = '#eaf1f9'
 
-
-const GOLD = '#ee7b26'  // برتقالي بدل ذهبي
-// ── aliases للتوافق مع الكود ─────────────────────────────────────────────────
-const RED      = ORANGE        // كان أحمر، الآن برتقالي المشروع
-const RED_DARK = ORANGE_DARK   // كان أحمر داكن، الآن برتقالي داكن
+const GOLD = '#ee7b26'
+const RED      = ORANGE
+const RED_DARK = ORANGE_DARK
 const BG = '#f4f6f9'
 const WHITE = '#ffffff'
 const TEXT = '#111827'
@@ -51,14 +48,14 @@ const EMOJI_3D = {
 
 const CUISINE_FILTERS = [
   { id: 'all',     label: 'الكل',    img: EMOJI_3D.all },
-  { id: 'برجر',   label: 'برجر',    img: EMOJI_3D.burger,   customImg: 'https://i.ibb.co/tPXQKJcL/image.png' /* 🔗 ضع رابط صورة البرجر هنا    — 400×400 px */ },
+  { id: 'برجر',   label: 'برجر',    img: EMOJI_3D.burger,   customImg: 'https://i.ibb.co/tPXQKJcL/image.png' },
   { id: 'بحب', label: 'عروض مميزة', img: EMOJI_3D.burger, customImg: 'https://i.ibb.co/ymG5qHhr/image.png' },
   { id: 'بيتزا',  label: 'بيتزا',   img: EMOJI_3D.pizza,    customImg: 'https://i.ibb.co/JFdjTJmP/image.png' },
-  { id: 'شاورما', label: 'شاورما',  img: EMOJI_3D.shawarma, customImg: 'https://i.ibb.co/wh2wzQbt/image.png' /* 🔗 ضع رابط صورة الشاورما هنا  — 400×400 px */ },
-  { id: 'دجاج',   label: 'دجاج',    img: EMOJI_3D.chicken,  customImg: 'https://i.ibb.co/Z6JtJbxQ/image.png' /* 🔗 ضع رابط صورة الدجاج هنا    — 400×400 px */ },
-  { id: 'بيتزا',  label: 'الأكثر مبيعًا',   img: EMOJI_3D.fish,     customImg: 'https://i.ibb.co/ymG5qHhr/image.png' /* 🔗 ضع رابط صورة الأسماك هنا   — 400×400 px */ },
-  { id: 'مشاوي',  label: 'مشروبات',  img: EMOJI_3D.grills,   customImg: 'https://i.ibb.co/TqWqjw7x/image.png' /* 🔗 ضع رابط صورة المشويات هنا  — 400×400 px */ },
-  { id: 'حلويات', label: 'حلويات',  img: EMOJI_3D.sweets,   customImg: 'https://i.ibb.co/q3tDHGtX/image.png' /* 🔗 ضع رابط صورة الحلويات هنا  — 400×400 px */ },
+  { id: 'شاورما', label: 'شاورما',  img: EMOJI_3D.shawarma, customImg: 'https://i.ibb.co/wh2wzQbt/image.png' },
+  { id: 'دجاج',   label: 'دجاج',    img: EMOJI_3D.chicken,  customImg: 'https://i.ibb.co/Z6JtJbxQ/image.png' },
+  { id: 'بيتزا',  label: 'الأكثر مبيعًا',   img: EMOJI_3D.fish,     customImg: 'https://i.ibb.co/ymG5qHhr/image.png' },
+  { id: 'مشاوي',  label: 'مشروبات',  img: EMOJI_3D.grills,   customImg: 'https://i.ibb.co/TqWqjw7x/image.png' },
+  { id: 'حلويات', label: 'حلويات',  img: EMOJI_3D.sweets,   customImg: 'https://i.ibb.co/q3tDHGtX/image.png' },
   { id: 'بطاطس', label: 'أفضل العروض', img: EMOJI_3D.burger, customImg: 'https://i.ibb.co/8DByX04b/image.png' },
 ]
 
@@ -105,7 +102,7 @@ function getOfferImage(offer) {
 }
 
 function pickCuisineImage(filter, offers, restaurants) {
-  if (filter.customImg) return filter.customImg   // ← الصورة المخصصة تأخذ الأولوية دائماً
+  if (filter.customImg) return filter.customImg
   if (filter.id === 'all') {
     return getOfferImage(offers?.[0]) || resolveRestaurantLogo(restaurants?.[0]) || filter.img
   }
@@ -125,7 +122,6 @@ function pickCuisineImage(filter, offers, restaurants) {
 // ── القائمة الجانبية ────────────────────────────────────────────────────────
 function SideMenu({ isOpen, onClose, setCurrentScreen, profileData, onScrollToTopSellers, onScrollToRestaurants, setActiveOrdersTab }) {
 
-  // SVG icons — خط رفيع بسيط
   const IconTrack = () => (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
       <path d="M9 17H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v3"/>
@@ -220,12 +216,10 @@ function SideMenu({ isOpen, onClose, setCurrentScreen, profileData, onScrollToTo
 
   return (
     <>
-      {/* Overlay */}
       {isOpen && (
         <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 40 }} />
       )}
 
-      {/* Drawer */}
       <div style={{
         position: 'fixed', top: 0, right: 0, height: '100%', width: 295,
         background: WHITE, zIndex: 50,
@@ -235,12 +229,9 @@ function SideMenu({ isOpen, onClose, setCurrentScreen, profileData, onScrollToTo
         display: 'flex', flexDirection: 'column', overflowY: 'auto',
       }} dir="rtl">
 
-        {/* ── User Header ── */}
         <div style={{ padding: '52px 20px 20px', background: WHITE, borderBottom: `1px solid ${BORDER}`, position: 'relative' }}>
-          {/* Close btn */}
           <button onClick={onClose} style={{ position: 'absolute', top: 16, left: 16, width: 32, height: 32, borderRadius: '50%', border: 'none', background: '#f5f6f8', color: '#374151', fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
 
-          {/* Avatar */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
             {photo ? (
               <img src={photo} alt={name} style={{ width: 60, height: 60, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: `2px solid ${BORDER}` }} onError={e => { e.currentTarget.style.display = 'none'; e.currentTarget.nextSibling.style.display = 'flex' }} />
@@ -255,7 +246,6 @@ function SideMenu({ isOpen, onClose, setCurrentScreen, profileData, onScrollToTo
           </div>
         </div>
 
-        {/* ── Main Items ── */}
         <div style={{ padding: '8px 0' }}>
           {mainItems.map((item, i) => (
             <button key={i} onClick={item.action} style={rowStyle}
@@ -268,10 +258,8 @@ function SideMenu({ isOpen, onClose, setCurrentScreen, profileData, onScrollToTo
           ))}
         </div>
 
-        {/* ── Divider ── */}
         <div style={{ height: 8, background: '#f5f6f8', flexShrink: 0 }} />
 
-        {/* ── Footer Items ── */}
         <div style={{ padding: '8px 0', flex: 1 }}>
           {footerItems.map((item, i) => (
             <div key={i} style={{ ...rowStyle, cursor: 'default' }}>
@@ -369,7 +357,6 @@ export default function FeedScreen() {
         banner2ImageUrl: d.banner2ImageUrl || null,
         banner3ImageUrl: d.banner3ImageUrl || null,
       })
-      // بناء قائمة الشرائح: البانر الأساسي + banners array
       const slides = []
       if (d.bannerImageUrl) {
         slides.push({
@@ -385,7 +372,6 @@ export default function FeedScreen() {
     }).catch(() => {})
   }, [])
 
-  // تبديل تلقائي كل 4 ثوانٍ
   useEffect(() => {
     if (bannerSlides.length <= 1) return
     slideTimerRef.current = setInterval(() => {
@@ -534,7 +520,6 @@ export default function FeedScreen() {
 
   const handleSlideChange = (index) => {
     setActiveSlide(index)
-    // إعادة ضبط المؤقت عند الضغط اليدوي
     clearInterval(slideTimerRef.current)
     if (bannerSlides.length > 1) {
       slideTimerRef.current = setInterval(() => {
@@ -549,17 +534,14 @@ export default function FeedScreen() {
       id: filter.id,
       label: filter.label,
       image: pickCuisineImage(filter, featuredOffers, restaurants),
-      emojiImg: filter.img,   // صورة webp من Noto Emoji كـ fallback
+      emojiImg: filter.img,
       accent: idx % 2 === 0 ? ORANGE : ORANGE_DARK,
       onClick: () => {
-        setActiveCuisine(filter.id)
-        setActiveCustomCat(null)
-        setTimeout(() => {
-          restaurantsSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-        }, 80)
+        localStorage.setItem('r2c_explore_category', filter.id)
+        setCurrentScreen('explore')
       },
     }))
-  }, [featuredOffers, restaurants])
+  }, [featuredOffers, restaurants, setCurrentScreen])
 
   const topSellerOffers = useMemo(() => featuredOffers.slice(0, 6), [featuredOffers])
   const quickPickOffers = useMemo(() => featuredOffers.slice(2, 8), [featuredOffers])
@@ -730,7 +712,10 @@ export default function FeedScreen() {
               />
             </div>
 
-            <SectionBar title="استكشف القائمة" action="عرض الكل" onAction={() => { setActiveCuisine('all'); setActiveCustomCat(null); restaurantsSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }} />
+            <SectionBar title="استكشف القائمة" action="عرض الكل" onAction={() => {
+              localStorage.setItem('r2c_explore_category', 'all')
+              setCurrentScreen('explore')
+            }} />
             <div
               className="r2c-scrollbar"
               style={{ display: 'flex', gap: 10, overflowX: 'auto', padding: '0 12px 4px', scrollSnapType: 'x mandatory' }}
@@ -753,7 +738,13 @@ export default function FeedScreen() {
               offers={topSellerOffers}
               onOpenOffer={openOffer}
               onOpenRestaurant={openRestaurant}
-              onViewAll={() => { setSortBy('default'); setActiveCuisine('all'); setActiveCustomCat(null); restaurantsSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }}
+              onViewAll={() => {
+                localStorage.setItem('r2c_explore_category', 'all')
+  setTimeout(() => {
+    window.scrollTo(0, 0)
+  }, 50)
+                setCurrentScreen('explore')
+              }}
             />
             </div>
 
@@ -767,7 +758,13 @@ export default function FeedScreen() {
               offers={quickPickOffers}
               onOpenOffer={openOffer}
               onOpenRestaurant={openRestaurant}
-              onViewAll={() => { setSortBy('default'); setActiveCuisine('all'); setActiveCustomCat(null); restaurantsSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }}
+              onViewAll={() => {
+                localStorage.setItem('r2c_explore_category', 'all')
+  setTimeout(() => {
+    window.scrollTo(0, 0)
+  }, 50)
+                setCurrentScreen('explore')
+              }}
             />
 
             <ProductSection
@@ -776,7 +773,13 @@ export default function FeedScreen() {
               offers={pizzaLoveOffers}
               onOpenOffer={openOffer}
               onOpenRestaurant={openRestaurant}
-              onViewAll={() => { setSortBy('default'); setActiveCuisine('بيتزا'); setActiveCustomCat(null); restaurantsSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }}
+              onViewAll={() => {
+                localStorage.setItem('r2c_explore_category', 'all')
+  setTimeout(() => {
+    window.scrollTo(0, 0)
+  }, 50)
+                setCurrentScreen('explore')
+              }}
             />
           </>
         )}
@@ -852,11 +855,36 @@ const headerIconBtnStyle = {
 }
 
 function HeroBannerSlider({ slides, fallbackBanner, activeSlide, onSlideChange, onClick }) {
-  // fallback: إذا لم تكن هناك شرائح، أظهر البانر الأصلي فارغاً
   const hasSlides = slides && slides.length > 0
-
   const currentSlide = hasSlides ? slides[activeSlide] : null
   const isClickable = currentSlide?.restaurantId || fallbackBanner?.restaurantId
+
+  const [touchStart, setTouchStart] = useState(0)
+  const [touchEnd, setTouchEnd] = useState(0)
+
+  const handleTouchStart = (e) => {
+    setTouchStart(e.targetTouches[0].clientX)
+  }
+
+  const handleTouchEnd = (e) => {
+    setTouchEnd(e.changedTouches[0].clientX)
+    handleSwipe()
+  }
+
+  const handleSwipe = () => {
+    if (!hasSlides || slides.length <= 1) return
+
+    const distance = touchStart - touchEnd
+    const isLeftSwipe = distance > 50
+    const isRightSwipe = distance < -50
+
+    if (isLeftSwipe) {
+      onSlideChange((activeSlide + 1) % slides.length)
+    }
+    if (isRightSwipe) {
+      onSlideChange((activeSlide - 1 + slides.length) % slides.length)
+    }
+  }
 
   return (
     <div
@@ -866,12 +894,14 @@ function HeroBannerSlider({ slides, fallbackBanner, activeSlide, onSlideChange, 
         height: 178,
         borderRadius: 22,
         overflow: 'hidden',
-        cursor: isClickable ? 'pointer' : 'default',
+        cursor: isClickable ? 'pointer' : 'grab',
         boxShadow: SHADOW,
         background: `linear-gradient(135deg, ${BLUE} 0%, ${BLUE_LIGHT} 50%, ${BLUE_DARK} 100%)`,
         userSelect: 'none',
       }}
       onClick={isClickable ? onClick : undefined}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
     >
       {/* الشرائح */}
       {hasSlides ? slides.map((slide, idx) => (
@@ -890,7 +920,7 @@ function HeroBannerSlider({ slides, fallbackBanner, activeSlide, onSlideChange, 
         <img src={fallbackBanner.imageUrl} alt="banner" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
       ) : null}
 
-      {/* نقاط التنقل — تظهر فقط إذا يوجد أكثر من شريحة */}
+      {/* نقاط التنقل */}
       {hasSlides && slides.length > 1 && (
         <div style={{
           position: 'absolute', bottom: 10, left: 0, right: 0,
@@ -918,6 +948,7 @@ function HeroBannerSlider({ slides, fallbackBanner, activeSlide, onSlideChange, 
     </div>
   )
 }
+
 function ExploreCategoryCard({ item, active }) {
   const imgSrc = item.image || item.emojiImg || null
   return (
@@ -931,7 +962,6 @@ function ExploreCategoryCard({ item, active }) {
         width: '100%',
       }}
     >
-      {/* دائرة الصورة */}
       <div style={{
         width: 68, height: 68, borderRadius: '50%',
         overflow: 'hidden',
@@ -954,7 +984,6 @@ function ExploreCategoryCard({ item, active }) {
           <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28 }}>🍽️</div>
         )}
       </div>
-      {/* الاسم أسفل الدائرة */}
       <div style={{
         fontSize: 12, fontWeight: 500,
         color: active ? ORANGE : TEXT,
@@ -984,111 +1013,227 @@ function TopOffersPromo({ offers, onOpenOffer, banner2ImageUrl }) {
 
   return (
     <div style={{ borderRadius: 22, paddingBottom: 16 }}>
-
-      {/* ── Hero banner: white card with orange border, decorative food doodles ── */}
       <div style={{
         position: 'relative',
-        background: '#fffdf8',
-        border: `2.5px solid ${ORANGE}`,
+        background: `linear-gradient(160deg, #0a1929 0%, #0d2644 40%, #0a1929 100%)`,
         overflow: 'hidden',
         borderRadius: 22,
-        boxShadow: `0 6px 28px rgba(238,123,38,0.18), 0 2px 8px rgba(238,123,38,0.10)`,
+        boxShadow: '0 8px 32px rgba(0,0,0,0.35)',
       }}>
-        {/* Decorative SVG food doodles left */}
-        <svg style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: 90, opacity: 0.13, pointerEvents: 'none' }} viewBox="0 0 90 180" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="15" cy="30" r="10" stroke="#ee7b26" strokeWidth="1.5"/>
-          <path d="M5 60 Q20 50 35 65 Q20 80 5 70Z" stroke="#ee7b26" strokeWidth="1.5"/>
-          <circle cx="45" cy="110" r="8" stroke="#ee7b26" strokeWidth="1.5"/>
-          <path d="M10 130 L25 120 L30 135 L15 145Z" stroke="#ee7b26" strokeWidth="1.5"/>
-          <circle cx="20" cy="165" r="6" stroke="#ee7b26" strokeWidth="1.5"/>
-          <path d="M50 25 Q60 15 70 25 Q60 35 50 25Z" stroke="#ee7b26" strokeWidth="1.5"/>
-          <circle cx="65" cy="60" r="5" stroke="#ee7b26" strokeWidth="1.5"/>
-          <path d="M55 85 L70 78 L72 95 L57 98Z" stroke="#ee7b26" strokeWidth="1.5"/>
-          <circle cx="35" cy="150" r="7" stroke="#ee7b26" strokeWidth="1.5"/>
+
+        {/* Islamic geometric pattern overlay */}
+        <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0.07, pointerEvents: 'none' }} xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <pattern id="islamicPattern" x="0" y="0" width="60" height="60" patternUnits="userSpaceOnUse">
+              <path d="M30 0 L60 30 L30 60 L0 30 Z" fill="none" stroke="#c8a96e" strokeWidth="0.8"/>
+              <path d="M30 10 L50 30 L30 50 L10 30 Z" fill="none" stroke="#c8a96e" strokeWidth="0.6"/>
+              <circle cx="30" cy="30" r="6" fill="none" stroke="#c8a96e" strokeWidth="0.6"/>
+              <path d="M0 0 L30 30 M60 0 L30 30 M0 60 L30 30 M60 60 L30 30" stroke="#c8a96e" strokeWidth="0.4"/>
+            </pattern>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#islamicPattern)"/>
         </svg>
-        {/* Decorative SVG food doodles right */}
-        <svg style={{ position: 'absolute', right: 0, top: 0, height: '100%', width: 90, opacity: 0.13, pointerEvents: 'none' }} viewBox="0 0 90 180" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="75" cy="30" r="10" stroke="#ee7b26" strokeWidth="1.5"/>
-          <path d="M85 60 Q70 50 55 65 Q70 80 85 70Z" stroke="#ee7b26" strokeWidth="1.5"/>
-          <circle cx="45" cy="110" r="8" stroke="#ee7b26" strokeWidth="1.5"/>
-          <path d="M80 130 L65 120 L60 135 L75 145Z" stroke="#ee7b26" strokeWidth="1.5"/>
-          <circle cx="70" cy="165" r="6" stroke="#ee7b26" strokeWidth="1.5"/>
-          <path d="M40 25 Q30 15 20 25 Q30 35 40 25Z" stroke="#ee7b26" strokeWidth="1.5"/>
-          <circle cx="25" cy="60" r="5" stroke="#ee7b26" strokeWidth="1.5"/>
-          <path d="M35 85 L20 78 L18 95 L33 98Z" stroke="#ee7b26" strokeWidth="1.5"/>
-          <circle cx="55" cy="150" r="7" stroke="#ee7b26" strokeWidth="1.5"/>
+
+        {/* Decorative top-left corner ornament */}
+        <svg style={{ position: 'absolute', top: 0, right: 0, width: 90, height: 90, opacity: 0.45, pointerEvents: 'none' }} viewBox="0 0 90 90" xmlns="http://www.w3.org/2000/svg">
+          <path d="M90 0 Q60 0 45 45 Q30 0 0 0" fill="none" stroke="#c8a96e" strokeWidth="1.2"/>
+          <path d="M90 0 Q70 10 55 40 Q40 10 10 0" fill="none" stroke="#c8a96e" strokeWidth="0.8"/>
+          <circle cx="45" cy="12" r="3.5" fill="#c8a96e" opacity="0.7"/>
+          <circle cx="30" cy="6" r="2" fill="#c8a96e" opacity="0.5"/>
+          <circle cx="60" cy="6" r="2" fill="#c8a96e" opacity="0.5"/>
+          <path d="M45 18 Q38 28 30 32 M45 18 Q52 28 60 32" stroke="#c8a96e" strokeWidth="0.8" fill="none"/>
         </svg>
+
+        {/* Decorative top-right corner ornament */}
+        <svg style={{ position: 'absolute', top: 0, left: 0, width: 90, height: 90, opacity: 0.45, pointerEvents: 'none', transform: 'scaleX(-1)' }} viewBox="0 0 90 90" xmlns="http://www.w3.org/2000/svg">
+          <path d="M90 0 Q60 0 45 45 Q30 0 0 0" fill="none" stroke="#c8a96e" strokeWidth="1.2"/>
+          <path d="M90 0 Q70 10 55 40 Q40 10 10 0" fill="none" stroke="#c8a96e" strokeWidth="0.8"/>
+          <circle cx="45" cy="12" r="3.5" fill="#c8a96e" opacity="0.7"/>
+          <circle cx="30" cy="6" r="2" fill="#c8a96e" opacity="0.5"/>
+          <circle cx="60" cy="6" r="2" fill="#c8a96e" opacity="0.5"/>
+          <path d="M45 18 Q38 28 30 32 M45 18 Q52 28 60 32" stroke="#c8a96e" strokeWidth="0.8" fill="none"/>
+        </svg>
+
+        {/* Decorative bottom ornaments */}
+        <svg style={{ position: 'absolute', bottom: 0, right: 0, width: 90, height: 70, opacity: 0.35, pointerEvents: 'none', transform: 'scaleY(-1)' }} viewBox="0 0 90 90" xmlns="http://www.w3.org/2000/svg">
+          <path d="M90 0 Q60 0 45 45 Q30 0 0 0" fill="none" stroke="#c8a96e" strokeWidth="1.2"/>
+          <path d="M90 0 Q70 10 55 40 Q40 10 10 0" fill="none" stroke="#c8a96e" strokeWidth="0.8"/>
+          <circle cx="45" cy="12" r="3.5" fill="#c8a96e" opacity="0.7"/>
+        </svg>
+        <svg style={{ position: 'absolute', bottom: 0, left: 0, width: 90, height: 70, opacity: 0.35, pointerEvents: 'none', transform: 'scaleX(-1) scaleY(-1)' }} viewBox="0 0 90 90" xmlns="http://www.w3.org/2000/svg">
+          <path d="M90 0 Q60 0 45 45 Q30 0 0 0" fill="none" stroke="#c8a96e" strokeWidth="1.2"/>
+          <path d="M90 0 Q70 10 55 40 Q40 10 10 0" fill="none" stroke="#c8a96e" strokeWidth="0.8"/>
+          <circle cx="45" cy="12" r="3.5" fill="#c8a96e" opacity="0.7"/>
+        </svg>
+
+        {/* Side vertical ornament lines */}
+        <div style={{ position: 'absolute', top: 10, bottom: 10, right: 10, width: 1, background: 'linear-gradient(to bottom, transparent, rgba(200,169,110,0.35), transparent)', pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', top: 10, bottom: 10, left: 10, width: 1, background: 'linear-gradient(to bottom, transparent, rgba(200,169,110,0.35), transparent)', pointerEvents: 'none' }} />
 
         {/* Title row with flame icon */}
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          gap: 8, padding: '14px 16px 12px',
-          borderBottom: `1.5px solid rgba(238,123,38,0.18)`,
+          gap: 8, padding: '16px 16px 14px',
+          borderBottom: `1px solid rgba(200,169,110,0.25)`,
           position: 'relative', zIndex: 1,
         }}>
           <span style={{ fontSize: 26 }}>🔥</span>
-          <span style={{ color: ORANGE, fontSize: 22, fontWeight: 700, letterSpacing: 0.5 }}>عروض مميزة</span>
+          <span style={{
+            color: '#f0d078',
+            fontSize: 22,
+            fontWeight: 700,
+            letterSpacing: 1,
+            textShadow: '0 0 18px rgba(240,208,120,0.5)',
+            fontFamily: "'Cairo', sans-serif",
+          }}>عروض مميزة</span>
         </div>
 
         {/* Cards container */}
         <div style={{ position: 'relative', zIndex: 1, padding: '14px 0 16px' }}>
-        <div
-          className="r2c-scrollbar"
-          style={{ display: 'flex', gap: 8, overflowX: 'auto', padding: '0 10px 4px' }}
-        >
-          {topFive.map((offer) => {
-            const price = offer.price ?? offer.finalPrice ?? offer.discountedPrice
-            const restName = offer.restaurantName || offer.restaurant || ''
-            return (
-              <div
-                key={offer.id}
-                onClick={() => onOpenOffer(offer)}
-                className="r2c-card-hover"
-                style={{ flexShrink: 0, width: 140, cursor: 'pointer', borderRadius: 16, overflow: 'hidden', boxShadow: '0 10px 28px rgba(0,0,0,0.32)' }}
-              >
-                {/* full image — no white bg */}
-                <div style={{ position: 'relative', height: 190, background: BLUE, overflow: 'hidden' }}>
-                  <OfferImage offer={offer} size="medium" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
-
-                  {/* subtle gradient at bottom for text readability */}
-                  <div style={{
-                    position: 'absolute', inset: 0,
-                    background: 'linear-gradient(to top, rgba(10,10,30,0.82) 0%, rgba(10,10,30,0.18) 55%, rgba(0,0,0,0) 100%)',
-                    pointerEvents: 'none',
-                  }} />
-
-                  {/* discount badge */}
-                  {offer.discount > 0 && (
-                    <div style={{ position: 'absolute', top: 7, right: 7, background: RED, color: '#fff', borderRadius: 999, padding: '2px 7px', fontSize: 9, fontWeight: 500, boxShadow: '0 2px 8px rgba(0,0,0,0.3)' }}>
-                      {offer.discount}%
-                    </div>
-                  )}
-
-                  {/* text info — floating over image, no background */}
-                  <div style={{ position: 'absolute', bottom: 0, right: 0, left: 0, padding: '0 8px 10px', textAlign: 'right' }}>
-                    {restName ? (
-                      <div style={{ fontSize: 10, fontWeight: 500, color: ORANGE, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', letterSpacing: 0.2, marginBottom: 2 }}>
-                        {restName}
-                      </div>
-                    ) : null}
-                    <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.82)', lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', marginBottom: 5 }}>
-                      {offer.name}
-                    </div>
-                    {price != null && (
-                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 2, justifyContent: 'flex-end' }}>
-                        <span style={{ color: GOLD, fontSize: 13, fontWeight: 500, textShadow: '0 1px 6px rgba(0,0,0,0.5)' }} className="font-num">{price}</span>
-                        <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: 9, fontWeight: 500 }}>ر.س</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )
-          })}
+          <div
+            className="r2c-scrollbar"
+            style={{ display: 'flex', gap: 8, overflowX: 'auto', padding: '0 10px 4px' }}
+          >
+            {topFive.map((offer) => (
+              <FeaturedOfferCard key={offer.id} offer={offer} onOpenOffer={onOpenOffer} />
+            ))}
+          </div>
         </div>
-        </div>{/* end cards container */}
-      </div>{/* end banner card */}
+      </div>
+    </div>
+  )
+}
 
+function FeaturedOfferCard({ offer, onOpenOffer }) {
+  const price = offer.price ?? offer.finalPrice ?? offer.discountedPrice
+  const restName = offer.restaurantName || offer.restaurant || ''
+
+  return (
+    <div
+      onClick={() => onOpenOffer(offer)}
+      className="r2c-card-hover"
+      style={{
+        flexShrink: 0,
+        width: 150,
+        cursor: 'pointer',
+        borderRadius: 18,
+        overflow: 'hidden',
+        background: WHITE,
+        boxShadow: '0 4px 16px rgba(238,123,38,0.15)',
+        border: `1.5px solid ${ORANGE_SOFT}`,
+        transition: 'all 0.3s ease',
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.boxShadow = '0 8px 28px rgba(238,123,38,0.25)'
+        e.currentTarget.style.transform = 'translateY(-6px)'
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.boxShadow = '0 4px 16px rgba(238,123,38,0.15)'
+        e.currentTarget.style.transform = 'translateY(0)'
+      }}
+    >
+      {/* صورة العرض مع تدرج */}
+      <div style={{
+        position: 'relative',
+        height: 140,
+        background: `linear-gradient(135deg, ${BLUE} 0%, ${BLUE_LIGHT} 100%)`,
+        overflow: 'hidden',
+      }}>
+        <OfferImage offer={offer} size="medium" style={{
+          width: '100%',
+          height: '100%',
+          objectFit: 'cover',
+        }} />
+
+        {/* شريط التقييم في الأسفل */}
+        <div style={{
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          background: 'linear-gradient(to top, rgba(0,0,0,0.6), rgba(0,0,0,0))',
+          padding: '12px 10px 10px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-end',
+        }}>
+          {restName && (
+            <span style={{
+              color: ORANGE,
+              fontSize: 10,
+              fontWeight: 600,
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              maxWidth: '70%',
+            }}>
+              {restName}
+            </span>
+          )}
+          <span style={{
+            color: WHITE,
+            fontSize: 10,
+            fontWeight: 700,
+          }}>
+            ⭐ 4.8
+          </span>
+        </div>
+      </div>
+
+      {/* معلومات العرض */}
+      <div style={{ padding: '12px 10px' }}>
+        <h4 style={{
+          fontSize: 12,
+          fontWeight: 600,
+          color: TEXT,
+          margin: '0 0 8px',
+          lineHeight: 1.3,
+          display: '-webkit-box',
+          WebkitLineClamp: 2,
+          WebkitBoxOrient: 'vertical',
+          overflow: 'hidden',
+        }}>
+          {offer.name}
+        </h4>
+
+        {/* السعر والزر */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 6,
+        }}>
+          {price && (
+            <span style={{
+              fontSize: 12,
+              fontWeight: 700,
+              color: ORANGE,
+            }} className="font-num">
+              {price} ر.س
+            </span>
+          )}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: 28,
+            height: 28,
+            borderRadius: '50%',
+            background: ORANGE_SOFT,
+            cursor: 'pointer',
+            transition: 'all 0.2s ease',
+          }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = ORANGE
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = ORANGE_SOFT
+            }}
+          >
+            <span style={{ fontSize: 14 }}>→</span>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
@@ -1144,11 +1289,6 @@ function ProductCard({ offer, onOpenOffer, onOpenRestaurant }) {
     <div className="r2c-card-hover" onClick={() => onOpenOffer(offer)} style={{ width: 162, flexShrink: 0, background: WHITE, borderRadius: 18, overflow: 'hidden', boxShadow: SHADOW, cursor: 'pointer' }}>
       <div style={{ height: 118, background: '#f7f7f7', position: 'relative' }}>
         <OfferImage offer={offer} size="medium" />
-        {offer.discount > 0 && (
-          <div style={{ position: 'absolute', top: 8, right: 8, background: WHITE, color: RED, borderRadius: 999, padding: '3px 8px', fontSize: 11, fontWeight: 500, boxShadow: '0 2px 10px rgba(0,0,0,0.12)' }}>
-            خصم {offer.discount}%
-          </div>
-        )}
       </div>
       <div style={{ padding: '10px 10px 12px' }}>
         <div style={{ fontSize: 13, fontWeight: 500, color: TEXT, lineHeight: 1.3, minHeight: 36, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
@@ -1172,7 +1312,6 @@ function ProductCard({ offer, onOpenOffer, onOpenRestaurant }) {
 }
 
 function InfoTimelineCard({ imageUrl }) {
-  // إذا وُجد رابط صورة من الإعدادات، نعرض الصورة كبانر
   if (imageUrl) {
     return (
       <div style={{
