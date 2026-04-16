@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { useApp } from '../contexts'
 import OfferImage from '../components/OfferImage'
+import BackButton from '../components/BackButton'
 import { db } from '@r2c/shared/firebase/config'
 import { doc, getDoc, collection, onSnapshot } from 'firebase/firestore'
 
@@ -224,6 +225,7 @@ export default function SearchScreen() {
                 position: 'sticky', top: 0, zIndex: 100,
                 display: 'flex', alignItems: 'center', gap: 10,
             }}>
+                <BackButton onClick={() => setCurrentScreen('feed')} variant="light" />
                 <div style={{ flex: 1, position: 'relative' }}>
                     <input
                         type="text" dir="rtl"

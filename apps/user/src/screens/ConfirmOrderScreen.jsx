@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useApp } from '../contexts'
 import { functions, db, haversineKm } from '@r2c/shared'
 import OfferImage from '../components/OfferImage'
+import BackButton from '../components/BackButton'
 import { httpsCallable } from 'firebase/functions'
 import { collection, query, where, getDocs } from 'firebase/firestore'
 
@@ -100,21 +101,13 @@ export default function ConfirmOrderScreen() {
   }
 
   return (
-    <div className="min-h-screen bg-white p-6 pb-24">
-      {/* زر العودة */}
-      <button
-        onClick={() => setCurrentScreen('offerDetails')}
-        style={{
-          display: 'flex', alignItems: 'center', gap: 6,
-          background: 'none', border: 'none', cursor: 'pointer',
-          color: '#6b7280', fontSize: 15, fontWeight: 700,
-          marginBottom: 16, fontFamily: 'inherit', padding: 0,
-        }}
-      >
-        <span style={{ fontSize: 20 }}>→</span>
-        <span>رجوع</span>
-      </button>
-      <h1 className="text-2xl font-bold mb-4">تأكيد الطلب</h1>
+    <div className="min-h-screen bg-white pb-24">
+      {/* Header */}
+      <div className="sticky top-0 bg-white border-b border-gray-100 z-10 px-4 py-3 shadow-sm flex items-center gap-4 mb-2">
+        <BackButton onClick={() => setCurrentScreen('offerDetails')} />
+        <h1 className="text-xl font-bold text-[#15487d]">تأكيد الطلب</h1>
+      </div>
+      <div className="p-6 pt-4">
       <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden mb-4">
         <OfferImage offer={selectedOffer} />
         <div className="p-4">
@@ -132,6 +125,7 @@ export default function ConfirmOrderScreen() {
       <button onClick={handleConfirm} disabled={loadingBranch || !assignedBranch || submitting} className="w-full py-4 rounded-2xl text-white font-black text-lg disabled:opacity-50" style={{ background: '#ee7b26' }}>
         {submitting ? '⏳ جاري إنشاء الطلب...' : loadingBranch ? '⏳ جاري تحديد الفرع...' : !assignedBranch && !needsLocation ? '⚠️ لا يوجد فرع قريب' : 'تأكيد الطلب'}
       </button>
+      </div>
     </div>
   )
 }

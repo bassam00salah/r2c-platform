@@ -47,7 +47,7 @@ export default function App() {
     )
   }
 
-  const Screen = SCREENS[currentScreen] ?? SCREENS.auth
+  const Screen = SCREENS[currentScreen] ?? SCREENS.feed
 
   return (
     <>

@@ -5,7 +5,7 @@ import { auth, db }            from '../firebase/config'
 
 export function useAuth() {
   const [user,        setUser]        = useState(null)
-  const [profileData, setProfileData] = useState({ name: '', email: '', photoURL: '' })
+  const [profileData, setProfileData] = useState({ name: '', email: '', photoURL: '', phone: '', address: '' })
   const [authLoading, setAuthLoading] = useState(true)
 
   useEffect(() => {
@@ -20,7 +20,7 @@ export function useAuth() {
           const snap    = await getDoc(userRef)
 
           if (!snap.exists()) {
-            // ✅ أنشئ document للمستخدم إذا لم يكن موجوداً (أول تسجيل دخول)
+            // أنشئ document للمستخدم إذا لم يكن موجوداً (أول تسجيل دخول)
             await setDoc(userRef, {
               name:      currentUser.displayName || 'مستخدم',
               email:     currentUser.email       || '',
@@ -31,12 +31,17 @@ export function useAuth() {
               name:     currentUser.displayName || 'مستخدم',
               email:    currentUser.email       || '',
               photoURL: currentUser.photoURL    || '',
+              phone:    '',
+              address:  '',
             })
           } else {
+            const d = snap.data()
             setProfileData({
-              name:     snap.data().name     || currentUser.displayName || 'مستخدم',
-              email:    snap.data().email    || currentUser.email       || '',
-              photoURL: snap.data().photoURL || currentUser.photoURL   || '',
+              name:     d.name     || currentUser.displayName || 'مستخدم',
+              email:    d.email    || currentUser.email       || '',
+              photoURL: d.photoURL || currentUser.photoURL   || '',
+              phone:    d.phone    || '',
+              address:  d.address  || '',
             })
           }
 
@@ -46,17 +51,19 @@ export function useAuth() {
             name:     currentUser.displayName || 'مستخدم',
             email:    currentUser.email       || '',
             photoURL: currentUser.photoURL    || '',
+            phone:    '',
+            address:  '',
           })
         }
 
       } else {
         setUser(null)
-        setProfileData({ name: '', email: '', photoURL: '' })
+        setProfileData({ name: '', email: '', photoURL: '', phone: '', address: '' })
       }
       setAuthLoading(false)
     })
     return () => unsub()
   }, [])
 
-  return { user, profileData, authLoading }
+  return { user, profileData, setProfileData, authLoading }
 }

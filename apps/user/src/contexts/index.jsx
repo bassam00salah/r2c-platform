@@ -1,6 +1,6 @@
 import {
   createContext, useContext, useState, useEffect,
-  useCallback, useMemo
+  useCallback, useMemo, useRef
 } from 'react'
 import { useAuth as useSharedAuth, useOffers, useOrders } from '@r2c/shared'
 
@@ -10,8 +10,8 @@ const OrderDataContext = createContext(null)
 const NavigationContext = createContext(null)
 
 export function AuthProvider({ children }) {
-  const { user, profileData, authLoading } = useSharedAuth()
-  const value = useMemo(() => ({ user, profileData, authLoading }), [user, profileData, authLoading])
+  const { user, profileData, setProfileData, authLoading } = useSharedAuth()
+  const value = useMemo(() => ({ user, profileData, setProfileData, authLoading }), [user, profileData, setProfileData, authLoading])
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 
@@ -71,6 +71,34 @@ export function NavigationProvider({ children }) {
     try { localStorage.setItem('r2c_location_asked', '1') } catch {}
   }, [])
 
+  // ── زر العودة في أندرويد ──────────────────────────────────────────
+  // stack داخلي يتتبع تاريخ الشاشات في هذه الجلسة
+  const screenHistoryRef = useRef([])
+
+  // كل مرة تتغير currentScreen → أضف entry وهمي في browser history
+  useEffect(() => {
+    if (!user) return
+    const stack = screenHistoryRef.current
+    if (stack[stack.length - 1] === currentScreen) return
+    stack.push(currentScreen)
+    window.history.pushState({ screen: currentScreen }, '')
+  }, [currentScreen, user])
+
+  // التقاط حدث popstate (زر العودة في أندرويد)
+  useEffect(() => {
+    const handlePopState = () => {
+      const stack = screenHistoryRef.current
+      stack.pop() // أزل الشاشة الحالية
+      const previous = stack[stack.length - 1]
+      if (previous) {
+        setCurrentScreenRaw(previous) // ارجع للشاشة السابقة
+      }
+      // إذا لم يكن هناك شاشة سابقة → المتصفح يتصرف بشكل طبيعي (يخرج من التطبيق)
+    }
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [])
+
   const setCurrentScreen = useCallback((screen) => {
     setCurrentScreenRaw(screen)
   }, [])
@@ -92,7 +120,7 @@ export function NavigationProvider({ children }) {
         // لا يوجد موقع في هذه الجلسة → اطلبه
         setCurrentScreenRaw('location')
       } else {
-        setCurrentScreenRaw('search')
+        setCurrentScreenRaw('feed')
       }
     }, 0)
     return () => clearTimeout(syncId)

@@ -155,68 +155,9 @@
         border-color: #ee7b26;
     }
 
-    .modern-nav-container {
-        position: fixed;
-        bottom: 20px;
-        left: 0;
-        width: 100%;
-        display: flex;
-        justify-content: center;
-        z-index: 9999;
-        pointer-events: none;
-    }
-
-    .modern-nav-bar {
-        pointer-events: auto;
-        background: rgba(255, 255, 255, 0.95);
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 25px;
-        padding: 10px 30px;
-        border-radius: 40px;
-        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
-        border: 1px solid rgba(255, 255, 255, 0.8);
-    }
-
-    .modern-nav-item {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        color: #8da1b5;
-        font-size: 11px;
-        font-weight: 700;
-        transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-        position: relative;
-        background: transparent;
-        border: none;
-        cursor: pointer;
-        padding: 0;
-        font-family: inherit;
-    }
-    .modern-nav-item svg {
-        width: 22px;
-        height: 22px;
-        margin-bottom: 4px;
-        fill: currentColor;
-        transition: transform 0.3s ease;
-    }
-    .modern-nav-item.active {
-        color: #ee7b26;
-        transform: translateY(-4px);
-    }
-    .modern-nav-item.active::after {
-        content: '';
-        position: absolute;
-        bottom: -8px;
-        width: 4px;
-        height: 4px;
-        background-color: #ee7b26;
-        border-radius: 50%;
-    }
-    .modern-nav-item.active svg { transform: scale(1.1); }
+    /* ── Bottom Nav (الشريط السفلي الجديد) ──
+       الكود مُدار بالكامل عبر inline styles في BottomNav.jsx
+       نُبقي هنا فقط على padding السفلي للمحتوى ── */
 
     .feed-container {
         overflow-y: scroll;

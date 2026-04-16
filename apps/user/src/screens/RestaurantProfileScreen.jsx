@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useApp } from '../contexts'
 import OfferImage from '../components/OfferImage'
+import BackButton from '../components/BackButton'
 import { db } from '@r2c/shared'
 import { collection, query, where, limit, getDocs, doc, getDoc } from 'firebase/firestore'
 
@@ -92,8 +93,8 @@ export default function RestaurantProfileScreen() {
   return (
     <div className="min-h-screen bg-white pb-20">
       {/* Header */}
-      <div className="sticky top-0 bg-white/90 backdrop-blur-sm z-20 p-4 border-b flex items-center gap-4 shadow-sm">
-        <button onClick={() => setCurrentScreen(viewMode)} className="text-2xl font-bold text-gray-700">←</button>
+      <div className="sticky top-0 bg-white/90 backdrop-blur-sm z-20 px-4 py-3 border-b flex items-center gap-4 shadow-sm">
+        <BackButton onClick={() => setCurrentScreen(viewMode)} />
         <h1 className="text-xl font-bold text-[#15487d]">{selectedRestaurant?.name}</h1>
       </div>
 

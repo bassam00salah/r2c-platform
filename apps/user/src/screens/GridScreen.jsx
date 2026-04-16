@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { useApp } from '../contexts'
 import OfferImage from '../components/OfferImage'
+import BackButton from '../components/BackButton'
 
 export default function GridScreen() {
-    // ✅ إصلاح: كان يستخدم mockOffers (غير موجود) → offers
     const { offers, setSelectedOffer, setCurrentScreen } = useApp()
     const [searchQuery, setSearchQuery]   = useState('')
     const [selectedCity, setSelectedCity] = useState('الكل')
@@ -24,8 +24,11 @@ export default function GridScreen() {
         <div className="min-h-screen bg-white pb-24">
             {/* Header */}
             <div className="sticky top-0 bg-white border-b border-gray-100 z-10 shadow-sm">
-                <div className="p-4 pb-2">
-                    <h1 className="text-xl font-bold text-[#15487d] text-center mb-3">البحث والاستكشاف</h1>
+                <div className="px-4 pt-3 pb-2 flex items-center gap-3">
+                    <BackButton onClick={() => setCurrentScreen('feed')} />
+                    <h1 className="text-xl font-bold text-[#15487d]">البحث والاستكشاف</h1>
+                </div>
+                <div className="px-4 pb-2">
                     <div className="relative">
                         <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-lg">🔍</span>
                         <input

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useApp } from '../contexts'
 import { db } from '@r2c/shared'
 import OfferImage from '../components/OfferImage'
+import BackButton from '../components/BackButton'
 import { collection, query, where, limit, getDocs, doc, getDoc } from 'firebase/firestore'
 
 function BranchMap({ lat, lng, name }) {
@@ -73,7 +74,9 @@ export default function OfferDetailsScreen() {
 
   return (
     <div className="min-h-screen bg-white">
-      <div className="sticky top-0 bg-white z-10 p-4"><button onClick={() => setCurrentScreen(viewMode)} className="text-gray-900 text-2xl">←</button></div>
+      <div className="sticky top-0 bg-white z-10 px-4 py-3 border-b border-gray-100 shadow-sm">
+        <BackButton onClick={() => setCurrentScreen(viewMode)} />
+      </div>
       <div className="relative h-80 bg-gradient-to-br from-orange-900/20 to-gray-100 flex items-center justify-center overflow-hidden"><OfferImage offer={selectedOffer} size="large" /><div className="absolute top-4 right-4"><div className="discount-badge">خصم {selectedOffer.discount}%</div></div></div>
       <div className="p-6 pb-24">
         <h1 className="text-3xl font-bold mb-2">{selectedOffer.name}</h1>
