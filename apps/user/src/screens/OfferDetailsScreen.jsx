@@ -4,6 +4,7 @@ import { db } from '@r2c/shared'
 import OfferImage from '../components/OfferImage'
 import BackButton from '../components/BackButton'
 import { collection, query, where, limit, getDocs, doc, getDoc } from 'firebase/firestore'
+import { App } from '@capacitor/app'
 
 function BranchMap({ lat, lng, name }) {
   if (!lat || !lng) return null
@@ -20,9 +21,28 @@ function BranchMap({ lat, lng, name }) {
 }
 
 export default function OfferDetailsScreen() {
-  const { selectedOffer, goBack } = useApp() // ✅ أضفنا goBack هنا
+  const { selectedOffer, goBack, setCurrentScreen } = useApp()
   const [nearestBranch, setNearestBranch] = useState(null)
   const [mapLoading, setMapLoading] = useState(false)
+
+  // ✅ FIX 1: الصعود لأعلى الشاشة عند الدخول
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' })
+  }, [])
+
+  // ✅ FIX 2: زر العودة في الهاتف (Capacitor) — نفس نمط RestaurantProfileScreen
+  useEffect(() => {
+    let listener = null
+    const register = async () => {
+      listener = await App.addListener('backButton', () => {
+        goBack()
+      })
+    }
+    register()
+    return () => {
+      if (listener) listener.remove()
+    }
+  }, [goBack])
 
   useEffect(() => {
     let cancelled = false
@@ -75,7 +95,6 @@ export default function OfferDetailsScreen() {
   return (
     <div className="min-h-screen bg-white">
       <div className="sticky top-0 bg-white z-10 px-4 py-3 border-b border-gray-100 shadow-sm">
-        {/* ✅ غيّرنا هنا: استخدام goBack بدلاً من setCurrentScreen(viewMode) */}
         <BackButton onClick={goBack} />
       </div>
       <div className="relative h-80 bg-gradient-to-br from-orange-900/20 to-gray-100 flex items-center justify-center overflow-hidden"><OfferImage offer={selectedOffer} size="large" /><div className="absolute top-4 right-4"><div className="discount-badge">خصم {selectedOffer.discount}%</div></div></div>
@@ -93,7 +112,14 @@ export default function OfferDetailsScreen() {
           <div className="flex items-center gap-3 mb-3"><span className="text-[#ee7b26] text-2xl">📍</span><div><div className="font-bold">{branchName}</div>{branchAddress && <div className="text-sm text-gray-500">{branchAddress}</div>}</div></div>
           {mapLoading ? <div className="h-32 bg-gray-100 rounded-xl flex items-center justify-center gap-2 text-gray-400"><div className="w-5 h-5 border-2 border-[#ee7b26] border-t-transparent rounded-full animate-spin"></div><span className="text-sm">جاري تحميل الخريطة...</span></div> : nearestBranch ? <BranchMap lat={nearestBranch.latitude} lng={nearestBranch.longitude} name={branchName} /> : <div className="h-32 bg-gray-100 rounded-xl flex flex-col items-center justify-center text-gray-400 gap-2"><span className="text-3xl">🗺️</span><span className="text-sm">لا تتوفر إحداثيات لهذا الفرع</span></div>}
         </div>
-        <button onClick={() => setCurrentScreen('confirmOrder')} className="gradient-button text-white font-bold text-xl py-4 rounded-2xl w-full transition-transform">اطلب الآن</button>
+
+        {/* ✅ FIX 3: زر "اطلب الآن" — استخدام setCurrentScreen من الـ context */}
+        <button
+          onClick={() => setCurrentScreen('confirmOrder')}
+          className="gradient-button text-white font-bold text-xl py-4 rounded-2xl w-full transition-transform"
+        >
+          اطلب الآن
+        </button>
       </div>
     </div>
   )

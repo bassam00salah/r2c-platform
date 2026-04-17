@@ -1,3 +1,6 @@
+import { useEffect, useMemo } from 'react'
+import { Capacitor } from '@capacitor/core'
+import { StatusBar, Style } from '@capacitor/status-bar'
 import { useApp } from './contexts'
 
 // Screens
@@ -36,16 +39,101 @@ const SCREENS = {
   explore: ExploreScreen,
 }
 
-// الشاشات التي تعرض BottomNav
-const WITH_NAV = ['feed', 'grid', 'search', 'restaurantProfile', 'orders', 'profile', 'explore']
+const WITH_NAV = ['feed', 'grid', 'search', 'restaurantProfile', 'offerDetails', 'orders', 'profile', 'explore']
+
+const STATUS_BAR_CONFIG = {
+  auth:              { color: '#000000', style: Style.Light, padTop: false },
+  location:          { color: '#FFFFFF', style: Style.Dark,  padTop: true },
+  feed:              { color: '#FFFFFF', style: Style.Dark,  padTop: true },
+  grid:              { color: '#ee7b26', style: Style.Light, padTop: true },
+  search:            { color: '#FFFFFF', style: Style.Dark,  padTop: true },
+  restaurantProfile: { color: '#FFFFFF', style: Style.Dark,  padTop: true },
+  offerDetails:      { color: '#FFFFFF', style: Style.Dark,  padTop: true },
+  confirmOrder:      { color: '#FFFFFF', style: Style.Dark,  padTop: true },
+  waiting:           { color: '#FFF7ED', style: Style.Dark,  padTop: true },
+  success:           { color: '#FFFFFF', style: Style.Dark,  padTop: true },
+  orders:            { color: '#FFFFFF', style: Style.Dark,  padTop: true },
+  profile:           { color: '#FFFFFF', style: Style.Dark,  padTop: true },
+  empty:             { color: '#FFFFFF', style: Style.Dark,  padTop: true },
+  explore:           { color: '#FFFFFF', style: Style.Dark,  padTop: true },
+}
+
+const LOADING_WRAPPER_STYLE = {
+  minHeight: '100vh',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  background: '#ffffff',
+}
+
+const LOGO_PULSE_STYLE = {
+  width: 120,
+  height: 120,
+  objectFit: 'contain',
+  animation: 'r2cLogoPulse 1.8s ease-in-out infinite',
+}
 
 export default function App() {
   const { currentScreen, authLoading } = useApp()
 
+  const isNativeAndroid = Capacitor.getPlatform() === 'android'
+  const statusConfig = useMemo(
+    () => STATUS_BAR_CONFIG[currentScreen] ?? { color: '#FFFFFF', style: Style.Dark, padTop: true },
+    [currentScreen]
+  )
+
+  useEffect(() => {
+    if (!isNativeAndroid) return
+
+    let cancelled = false
+
+    const applyStatusBar = async () => {
+      try {
+        await StatusBar.show()
+        await StatusBar.setOverlaysWebView({ overlay: true })
+
+        // نضبط الستايل أولاً ثم اللون، ثم نعيد الستايل مرة ثانية
+        // لأن بعض أجهزة أندرويد تطبق لون الخلفية لكن تتأخر في تحديث الأيقونات.
+        await StatusBar.setStyle({ style: statusConfig.style })
+        await StatusBar.setBackgroundColor({ color: statusConfig.color })
+        await StatusBar.setStyle({ style: statusConfig.style })
+
+        window.setTimeout(() => {
+          if (cancelled) return
+          StatusBar.setStyle({ style: statusConfig.style }).catch(error => {
+            console.error('Delayed StatusBar style update failed:', error)
+          })
+        }, 60)
+      } catch (error) {
+        console.error('StatusBar update failed:', error)
+      }
+    }
+
+    applyStatusBar()
+
+    return () => {
+      cancelled = true
+    }
+  }, [isNativeAndroid, statusConfig])
+
+  useEffect(() => {
+    document.documentElement.style.setProperty('--r2c-statusbar-color', statusConfig.color)
+    document.documentElement.style.setProperty(
+      '--r2c-statusbar-space-active',
+      isNativeAndroid && statusConfig.padTop ? 'var(--r2c-statusbar-space)' : '0px'
+    )
+  }, [isNativeAndroid, statusConfig])
+
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="w-12 h-12 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+      <div style={LOADING_WRAPPER_STYLE}>
+        <style>{`
+          @keyframes r2cLogoPulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.08); opacity: 0.86; }
+          }
+        `}</style>
+        <img src="/logo.png" alt="R2C" style={LOGO_PULSE_STYLE} />
       </div>
     )
   }
@@ -53,9 +141,15 @@ export default function App() {
   const Screen = SCREENS[currentScreen] ?? SCREENS.feed
 
   return (
-    <>
+    <div
+      style={{
+        minHeight: '100vh',
+        background: 'var(--r2c-statusbar-color)',
+        paddingTop: 'var(--r2c-statusbar-space-active)',
+      }}
+    >
       <Screen />
       {WITH_NAV.includes(currentScreen) && <BottomNav />}
-    </>
+    </div>
   )
 }

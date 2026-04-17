@@ -189,171 +189,156 @@ export default function RestaurantProfileScreen() {
         </h1>
       </div>
 
-      {/* معلومات المطعم - صورة الغلاف مع بيانات شفافة أسفلها */}
+      {/* معلومات المطعم - البطاقة الرئيسية */}
       <div style={{
+        padding: '32px 16px',
+        background: 'linear-gradient(145deg, #ffffff 0%, #f8fafc 100%)',
         margin: '16px',
+        borderRadius: 24,
+        boxShadow: '0 8px 30px rgba(0,0,0,0.04)',
+        border: `1px solid rgba(255,255,255,0.8)`,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        textAlign: 'center',
+        position: 'relative',
+        overflow: 'hidden'
       }}>
+        {/* تأثير زينة في الخلفية */}
         <div style={{
+          position: 'absolute',
+          top: -20,
+          right: -20,
+          width: 100,
+          height: 100,
+          background: `${ORANGE}10`,
+          borderRadius: '50%',
+          filter: 'blur(20px)',
+          zIndex: 0
+        }} />
+
+        {/* صورة المطعم */}
+        <div style={{
+          width: 110,
+          height: 110,
+          borderRadius: '50%',
+          overflow: 'hidden',
+          border: `4px solid ${WHITE}`,
+          marginBottom: 16,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: WHITE,
+          boxShadow: `0 8px 24px ${ORANGE}25`,
           position: 'relative',
-          borderRadius: 24,
-          overflow: 'visible',
-          minHeight: 168,
+          zIndex: 1
         }}>
-          <div style={{
-            borderRadius: 24,
-            overflow: 'hidden',
-            minHeight: 168,
-            background: 'linear-gradient(180deg, #d1d5db 0%, #e5e7eb 100%)',
-            border: `1px solid ${BORDER}`,
+          {restaurantData?.imageUrl ? (
+            <img
+              src={restaurantData.imageUrl}
+              alt={selectedRestaurant?.name}
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+              }}
+              onError={e => {
+                e.currentTarget.style.display = 'none'
+                if (e.currentTarget.nextSibling) {
+                  e.currentTarget.nextSibling.style.display = 'flex'
+                }
+              }}
+            />
+          ) : null}
+          <span style={{
+            fontSize: 48,
+            display: restaurantData?.imageUrl ? 'none' : 'flex',
           }}>
-            {restaurantData?.coverImageUrl || restaurantData?.imageUrl ? (
-              <img
-                src={restaurantData.coverImageUrl || restaurantData.imageUrl}
-                alt={selectedRestaurant?.name}
-                style={{
-                  width: '100%',
-                  height: 168,
-                  objectFit: 'cover',
-                  display: 'block',
-                }}
-                onError={e => {
-                  e.currentTarget.style.display = 'none'
-                }}
-              />
-            ) : null}
-
-            <div style={{
-              position: 'absolute',
-              inset: 0,
-              background: 'linear-gradient(180deg, rgba(15,23,42,0.08) 0%, rgba(15,23,42,0.18) 100%)',
-              pointerEvents: 'none'
-            }} />
-          </div>
-
-          <div style={{
-            position: 'absolute',
-            left: '50%',
-            bottom: -42,
-            transform: 'translateX(-50%)',
-            width: 92,
-            height: 92,
-            borderRadius: '50%',
-            overflow: 'hidden',
-            border: `4px solid ${WHITE}`,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: WHITE,
-            boxShadow: '0 10px 24px rgba(0,0,0,0.12)',
-            zIndex: 2,
-          }}>
-            {restaurantData?.imageUrl ? (
-              <img
-                src={restaurantData.imageUrl}
-                alt={selectedRestaurant?.name}
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover',
-                }}
-                onError={e => {
-                  e.currentTarget.style.display = 'none'
-                  if (e.currentTarget.nextSibling) {
-                    e.currentTarget.nextSibling.style.display = 'flex'
-                  }
-                }}
-              />
-            ) : null}
-            <span style={{
-              fontSize: 40,
-              display: restaurantData?.imageUrl ? 'none' : 'flex',
-            }}>
-              🏪
-            </span>
-          </div>
+            🏪
+          </span>
         </div>
 
-        <div style={{
-          padding: '56px 12px 0',
-          textAlign: 'center',
-          background: 'transparent',
+        <h2 style={{
+          fontSize: 22,
+          fontWeight: 800,
+          color: NAVY,
+          margin: '0 0 6px',
+          position: 'relative',
+          zIndex: 1
         }}>
-          <h2 style={{
-            fontSize: 22,
-            fontWeight: 800,
-            color: NAVY,
-            margin: '0 0 6px',
-          }}>
-            {selectedRestaurant?.name}
-          </h2>
+          {selectedRestaurant?.name}
+        </h2>
 
-          <p style={{
-            fontSize: 14,
-            color: MUTED,
-            fontWeight: 500,
-            margin: '0 0 20px',
-          }}>
-            📍 {selectedRestaurant?.city}
-          </p>
+        <p style={{
+          fontSize: 14,
+          color: MUTED,
+          fontWeight: 500,
+          margin: '0 0 20px',
+          position: 'relative',
+          zIndex: 1
+        }}>
+          📍 {selectedRestaurant?.city}
+        </p>
 
-          {/* الحالة والتقييم */}
-          <div style={{
-            display: 'flex',
-            gap: 10,
-            justifyContent: 'center',
-            flexWrap: 'wrap',
-          }}>
-            {branchStatus === null ? (
-              <span style={{
-                background: '#f1f5f9',
-                color: MUTED,
-                padding: '6px 16px',
-                borderRadius: 12,
-                fontSize: 13,
-                fontWeight: 600,
-              }}>
-                ⏳ جاري التحقق...
-              </span>
-            ) : branchStatus ? (
-              <span style={{
-                background: '#ecfdf5',
-                color: '#059669',
-                padding: '6px 16px',
-                borderRadius: 12,
-                fontSize: 13,
-                fontWeight: 700,
-                border: '1px solid #a7f3d0'
-              }}>
-                🟢 مفتوح الآن
-              </span>
-            ) : (
-              <span style={{
-                background: '#fef2f2',
-                color: '#dc2626',
-                padding: '6px 16px',
-                borderRadius: 12,
-                fontSize: 13,
-                fontWeight: 700,
-                border: '1px solid #fecaca'
-              }}>
-                🔴 مغلق حالياً
-              </span>
-            )}
+        {/* الحالة والتقييم */}
+        <div style={{
+          display: 'flex',
+          gap: 10,
+          justifyContent: 'center',
+          flexWrap: 'wrap',
+          position: 'relative',
+          zIndex: 1
+        }}>
+          {branchStatus === null ? (
             <span style={{
-              background: '#fffbeb',
-              color: '#d97706',
+              background: '#f1f5f9',
+              color: MUTED,
+              padding: '6px 16px',
+              borderRadius: 12,
+              fontSize: 13,
+              fontWeight: 600,
+            }}>
+              ⏳ جاري التحقق...
+            </span>
+          ) : branchStatus ? (
+            <span style={{
+              background: '#ecfdf5',
+              color: '#059669',
               padding: '6px 16px',
               borderRadius: 12,
               fontSize: 13,
               fontWeight: 700,
-              border: '1px solid #fde68a',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 4
+              border: '1px solid #a7f3d0'
             }}>
-              ⭐ 4.8
+              🟢 مفتوح الآن
             </span>
-          </div>
+          ) : (
+            <span style={{
+              background: '#fef2f2',
+              color: '#dc2626',
+              padding: '6px 16px',
+              borderRadius: 12,
+              fontSize: 13,
+              fontWeight: 700,
+              border: '1px solid #fecaca'
+            }}>
+              🔴 مغلق حالياً
+            </span>
+          )}
+          <span style={{
+            background: '#fffbeb',
+            color: '#d97706',
+            padding: '6px 16px',
+            borderRadius: 12,
+            fontSize: 13,
+            fontWeight: 700,
+            border: '1px solid #fde68a',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 4
+          }}>
+            ⭐ 4.8
+          </span>
         </div>
       </div>
 

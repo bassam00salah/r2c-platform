@@ -47,16 +47,17 @@ const EMOJI_3D = {
 }
 
 const CUISINE_FILTERS = [
-  { id: 'all',     label: 'الكل',    img: EMOJI_3D.all },
-  { id: 'برجر',   label: 'برجر',    img: EMOJI_3D.burger,   customImg: 'https://i.ibb.co/tPXQKJcL/image.png' },
-  { id: 'بحب', label: 'عروض مميزة', img: EMOJI_3D.burger, customImg: 'https://i.ibb.co/ymG5qHhr/image.png' },
-  { id: 'بيتزا',  label: 'بيتزا',   img: EMOJI_3D.pizza,    customImg: 'https://i.ibb.co/JFdjTJmP/image.png' },
-  { id: 'شاورما', label: 'شاورما',  img: EMOJI_3D.shawarma, customImg: 'https://i.ibb.co/wh2wzQbt/image.png' },
-  { id: 'دجاج',   label: 'دجاج',    img: EMOJI_3D.chicken,  customImg: 'https://i.ibb.co/Z6JtJbxQ/image.png' },
-  { id: 'بيتزا',  label: 'الأكثر مبيعًا',   img: EMOJI_3D.fish,     customImg: 'https://i.ibb.co/ymG5qHhr/image.png' },
-  { id: 'مشاوي',  label: 'مشروبات',  img: EMOJI_3D.grills,   customImg: 'https://i.ibb.co/TqWqjw7x/image.png' },
-  { id: 'حلويات', label: 'حلويات',  img: EMOJI_3D.sweets,   customImg: 'https://i.ibb.co/q3tDHGtX/image.png' },
-  { id: 'بطاطس', label: 'أفضل العروض', img: EMOJI_3D.burger, customImg: 'https://i.ibb.co/8DByX04b/image.png' },
+ { id: 'all',     label: 'الكل', customImg: 'https://i.ibb.co/8DByX04b/image.png' },
+  { id: 'بحب', label: 'عروض مميزة', customImg: 'https://i.ibb.co/ymG5qHhr/image.png' },
+  { id: 'بطاطس', label: 'أفضل العروض', customImg: 'https://i.ibb.co/8DByX04b/image.png' },
+  { id: 'بوكس', label: 'عروض لك', customImg: 'https://i.ibb.co/7tJLwNh5/file-00000000a90072439ee2eb42f6c0c720.png' },
+  { id: 'مكس',  label: 'الأكثر مبيعًا',   customImg: 'https://i.ibb.co/ccp4YM9J/image.png' },
+  { id: 'شاورما', label: 'شاورما',customImg: 'https://i.ibb.co/wh2wzQbt/image.png' },
+  { id: 'بيتزا',  label: 'بيتزا',  customImg: 'https://i.ibb.co/JFdjTJmP/image.png' },
+  { id: 'برجر',   label: 'برجر', customImg: 'https://i.ibb.co/tPXQKJcL/image.png' },
+  { id: 'دجاج',   label: 'دجاج',customImg: 'https://i.ibb.co/Z6JtJbxQ/image.png' },
+  { id: 'مشاوي',  label: 'مشويات', customImg: 'https://i.ibb.co/wh2wzQbt/image.png' },
+  { id: 'حلويات', label: 'حلويات',  customImg: 'https://i.ibb.co/q3tDHGtX/image.png' },
 ]
 
 const CUSTOM_CATEGORIES = [
@@ -99,6 +100,28 @@ function resolveRestaurantLogo(r) {
 
 function getOfferImage(offer) {
   return offer?.imageUrl || offer?.photo || offer?.thumbnailUrl || ''
+}
+
+function extractOrderRestaurantKey(order) {
+  return order?.restaurantId || order?.restaurant?.id || order?.restaurant?.restaurantId || order?.restaurantName || order?.restaurant || order?.offer?.restaurantId || order?.offer?.restaurantName || order?.offer?.restaurant || ''
+}
+
+function extractLatLng(entity) {
+  const lat = entity?.latitude ?? entity?.lat ?? entity?.location?.latitude ?? entity?.location?.lat ?? entity?.coords?.latitude ?? entity?.coords?.lat
+  const lng = entity?.longitude ?? entity?.lng ?? entity?.lon ?? entity?.location?.longitude ?? entity?.location?.lng ?? entity?.location?.lon ?? entity?.coords?.longitude ?? entity?.coords?.lng ?? entity?.coords?.lon
+  if (typeof lat !== 'number' || typeof lng !== 'number') return null
+  return { lat, lng }
+}
+
+function haversineKm(a, b) {
+  const toRad = d => (d * Math.PI) / 180
+  const R = 6371
+  const dLat = toRad(b.lat - a.lat)
+  const dLng = toRad(b.lng - a.lng)
+  const s1 = Math.sin(dLat / 2)
+  const s2 = Math.sin(dLng / 2)
+  const aa = s1 * s1 + Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * s2 * s2
+  return 2 * R * Math.asin(Math.sqrt(aa))
 }
 
 function pickCuisineImage(filter, offers, restaurants) {
@@ -296,6 +319,7 @@ export default function FeedScreen() {
   const [showSideMenu, setShowSideMenu] = useState(false)
 
   const [cityName, setCityName] = useState('...')
+  const [userCoords, setUserCoords] = useState(null)
   useEffect(() => {
     const reverseGeocode = async (lat, lng) => {
       try {
@@ -315,7 +339,10 @@ export default function FeedScreen() {
     }
     if (!navigator.geolocation) { setCityName('موقعك'); return }
     navigator.geolocation.getCurrentPosition(
-      pos => reverseGeocode(pos.coords.latitude, pos.coords.longitude),
+      pos => {
+        setUserCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude })
+        reverseGeocode(pos.coords.latitude, pos.coords.longitude)
+      },
       () => setCityName('موقعك'),
       { timeout: 6000, maximumAge: 300000 }
     )
@@ -430,8 +457,14 @@ export default function FeedScreen() {
   const featuredOffers = useMemo(() => {
     const restMap = {}
     allRestaurants.forEach(r => { restMap[r.id] = r.name })
-    return [...(offers || [])]
-      .sort((a, b) => (b.discount || 0) - (a.discount || 0))
+
+    // الأولوية للعروض المميزة يدويًا من اللوحة الإدارية
+    const manualFeatured = (offers || []).filter(o => o.isFeatured === true)
+    const base = manualFeatured.length > 0
+      ? manualFeatured
+      : [...(offers || [])].sort((a, b) => (b.discount || 0) - (a.discount || 0))
+
+    return base
       .slice(0, 12)
       .map(offer => ({
         ...offer,
@@ -529,7 +562,7 @@ export default function FeedScreen() {
   }
 
   const quickExploreItems = useMemo(() => {
-    const base = [CUISINE_FILTERS[2], CUISINE_FILTERS[6], CUISINE_FILTERS[9], CUISINE_FILTERS[3], CUISINE_FILTERS[4], CUISINE_FILTERS[5], CUISINE_FILTERS[7], CUISINE_FILTERS[8],]
+    const base = [CUISINE_FILTERS[2], CUISINE_FILTERS[7], CUISINE_FILTERS[8], CUISINE_FILTERS[3], CUISINE_FILTERS[4], CUISINE_FILTERS[5], CUISINE_FILTERS[6], CUISINE_FILTERS[9], CUISINE_FILTERS[10], CUISINE_FILTERS[1]]
     return base.map((filter, idx) => ({
       id: filter.id,
       label: filter.label,
@@ -537,7 +570,18 @@ export default function FeedScreen() {
       emojiImg: filter.img,
       accent: idx % 2 === 0 ? ORANGE : ORANGE_DARK,
       onClick: () => {
-        localStorage.setItem('r2c_explore_category', filter.id)
+        const isFeaturedShortcut = filter.id === 'بحب' || filter.label === 'عروض مميزة'
+
+        if (isFeaturedShortcut) {
+          try {
+            localStorage.setItem('r2c_explore_category', 'featured')
+            localStorage.setItem('r2c_explore_featured_offers', JSON.stringify(featuredOffers))
+          } catch {}
+        } else {
+          localStorage.setItem('r2c_explore_category', filter.id)
+          try { localStorage.removeItem('r2c_explore_featured_offers') } catch {}
+        }
+
         setCurrentScreen('explore')
       },
     }))
@@ -545,10 +589,48 @@ export default function FeedScreen() {
 
   const topSellerOffers = useMemo(() => featuredOffers.slice(0, 6), [featuredOffers])
   const quickPickOffers = useMemo(() => featuredOffers.slice(2, 8), [featuredOffers])
-  const pizzaLoveOffers = useMemo(() => {
-    const pizza = featuredOffers.filter(o => `${o.name || ''} ${o.description || ''} ${o.category || ''}`.toLowerCase().includes('بيتزا'))
-    return (pizza.length ? pizza : featuredOffers).slice(0, 6)
-  }, [featuredOffers])
+  const recommendedOffers = useMemo(() => {
+    const safeOrders = Array.isArray(orders) ? orders : []
+    const previousRestaurantKeys = new Set(
+      safeOrders
+        .map(extractOrderRestaurantKey)
+        .filter(Boolean)
+        .map(v => String(v).trim().toLowerCase())
+    )
+
+    const cityQuery = String(cityName || '').trim().toLowerCase()
+
+    const matchingRestaurantIds = new Set()
+    const matchingRestaurantNames = new Set()
+
+    restaurants.forEach(r => {
+      const restaurantKey = String(r.id || '').trim().toLowerCase()
+      const restaurantName = String(r.name || '').trim().toLowerCase()
+      const hasPreviousOrder = previousRestaurantKeys.has(restaurantKey) || previousRestaurantKeys.has(restaurantName)
+
+      let isNearby = false
+      const restaurantCoords = extractLatLng(r)
+      if (userCoords && restaurantCoords) {
+        isNearby = haversineKm(userCoords, restaurantCoords) <= 8
+      } else if (cityQuery && cityQuery !== '...' && cityQuery !== 'موقعك') {
+        const cityText = `${r.city || ''} ${r.area || ''} ${r.address || ''}`.toLowerCase()
+        isNearby = cityText.includes(cityQuery)
+      }
+
+      if (hasPreviousOrder || isNearby) {
+        if (restaurantKey) matchingRestaurantIds.add(restaurantKey)
+        if (restaurantName) matchingRestaurantNames.add(restaurantName)
+      }
+    })
+
+    const personalized = featuredOffers.filter(o => {
+      const restaurantId = String(o.restaurantId || '').trim().toLowerCase()
+      const restaurantName = String(o.restaurantName || o.restaurant || '').trim().toLowerCase()
+      return matchingRestaurantIds.has(restaurantId) || matchingRestaurantNames.has(restaurantName)
+    })
+
+    return (personalized.length ? personalized : featuredOffers).slice(0, 6)
+  }, [featuredOffers, orders, restaurants, cityName, userCoords])
 
   if (loadingOffers) {
     return (
@@ -768,9 +850,9 @@ export default function FeedScreen() {
             />
 
             <ProductSection
-              title="من أجل حب البيتزا"
+              title="عروض لك"
               action="عرض الكل"
-              offers={pizzaLoveOffers}
+              offers={recommendedOffers}
               onOpenOffer={openOffer}
               onOpenRestaurant={openRestaurant}
               onViewAll={() => {
@@ -1230,7 +1312,7 @@ function FeaturedOfferCard({ offer, onOpenOffer }) {
               e.currentTarget.style.background = ORANGE_SOFT
             }}
           >
-            <span style={{ fontSize: 14 }}>→</span>
+            <span style={{ fontSize: 20, lineHeight: 1, color: ORANGE, fontWeight: 500 }}>+</span>
           </div>
         </div>
       </div>

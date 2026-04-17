@@ -28,7 +28,8 @@ const EMOJI_3D = {
 
 const CUISINE_FILTERS = [
   { id: 'all',     label: 'الكل', customImg: 'https://i.ibb.co/8DByX04b/image.png' },
-  { id: 'featured', label: 'عروض مميزة', customImg: 'https://i.ibb.co/ymG5qHhr/image.png' },
+  { id: 'بحب', label: 'عروض مميزة', customImg: 'https://i.ibb.co/ymG5qHhr/image.png' },
+  { id: 'بطاطس', label: 'أفضل العروض', customImg: 'https://i.ibb.co/8DByX04b/image.png' },
   { id: 'بوكس', label: 'عروض لك', customImg: 'https://i.ibb.co/7tJLwNh5/file-00000000a90072439ee2eb42f6c0c720.png' },
   { id: 'مكس',  label: 'الأكثر مبيعًا',   customImg: 'https://i.ibb.co/ccp4YM9J/image.png' },
   { id: 'شاورما', label: 'شاورما',customImg: 'https://i.ibb.co/wh2wzQbt/image.png' },
@@ -49,52 +50,6 @@ const FONT_STYLE = `
   .font-num { font-family: 'Poppins', 'Cairo', sans-serif; }
 `
 
-
-
-function toNumber(value) {
-  const n = Number(value)
-  return Number.isFinite(n) ? n : null
-}
-
-function resolveOldPrice(offer, currentPrice) {
-  const oldPrice = toNumber(
-    offer?.oldPrice ??
-    offer?.originalPrice ??
-    offer?.priceBeforeDiscount ??
-    offer?.beforePrice
-  )
-  if (oldPrice != null) return oldPrice
-  if (offer?.discount > 0 && currentPrice != null) {
-    return Math.round((currentPrice / (1 - offer.discount / 100)) * 100) / 100
-  }
-  return null
-}
-
-function resolveRating(offer) {
-  return (
-    toNumber(offer?.restaurantRating) ??
-    toNumber(offer?.rating) ??
-    toNumber(offer?.restaurant?.rating) ??
-    4.8
-  )
-}
-
-function resolveDeliveryTime(offer) {
-  return (
-    offer?.deliveryTime ??
-    offer?.estimatedDeliveryTime ??
-    offer?.restaurantDeliveryTime ??
-    offer?.prepTime ??
-    '25-40 د'
-  )
-}
-
-function resolveShortDescription(offer) {
-  const raw = (offer?.description || offer?.shortDescription || '').trim()
-  if (!raw) return 'عرض مميز بطعم رائع وسعر مناسب.'
-  return raw.length > 65 ? `${raw.slice(0, 65).trim()}...` : raw
-}
-
 export default function ExploreScreen() {
   const {
     offers, setCurrentScreen, setSelectedOffer, setSelectedRestaurant, setBottomNav
@@ -109,16 +64,6 @@ export default function ExploreScreen() {
       return 'all'
     }
   })
-  const [featuredOffersSnapshot] = useState(() => {
-    try {
-      const raw = localStorage.getItem('r2c_explore_featured_offers')
-      localStorage.removeItem('r2c_explore_featured_offers')
-      const parsed = raw ? JSON.parse(raw) : []
-      return Array.isArray(parsed) ? parsed : []
-    } catch {
-      return []
-    }
-  })
 
   useEffect(() => {
     setBottomNav('explore')
@@ -129,23 +74,11 @@ export default function ExploreScreen() {
     if (activeCategory === 'all') {
       return offers || []
     }
-
-    if (activeCategory === 'featured') {
-      if (featuredOffersSnapshot.length > 0) return featuredOffersSnapshot
-
-      const manualFeatured = (offers || []).filter(o => o.isFeatured === true)
-      const base = manualFeatured.length > 0
-        ? manualFeatured
-        : [...(offers || [])].sort((a, b) => (b.discount || 0) - (a.discount || 0))
-
-      return base.slice(0, 12)
-    }
-
     return (offers || []).filter(o => {
       const text = `${o.name || ''} ${o.description || ''} ${o.category || ''} ${o.cuisine || ''}`.toLowerCase()
       return text.includes(activeCategory.toLowerCase())
     })
-  }, [offers, activeCategory, featuredOffersSnapshot])
+  }, [offers, activeCategory])
 
   const handleOfferClick = (offer) => {
     setSelectedOffer(offer)
@@ -182,7 +115,7 @@ export default function ExploreScreen() {
           borderBottom: `1px solid ${BORDER}`,
           padding: '14px 12px',
           display: 'flex',
-          alignItems: 'stretch',
+          alignItems: 'center',
           gap: 10,
         }}>
           <button
@@ -346,183 +279,154 @@ export default function ExploreScreen() {
   )
 }
 
-
 function OfferListCard({ offer, onOfferClick, onRestaurantClick }) {
-  const currentPrice = toNumber(offer.price ?? offer.finalPrice ?? offer.discountedPrice)
-  const oldPrice = resolveOldPrice(offer, currentPrice)
-  const rating = resolveRating(offer)
-  const deliveryTime = resolveDeliveryTime(offer)
-  const shortDescription = resolveShortDescription(offer)
+  const price = offer.price ?? offer.finalPrice ?? offer.discountedPrice
+  const restName = offer.restaurantName || offer.restaurant || ''
 
   return (
     <div
       onClick={onOfferClick}
       style={{
-        position: 'relative',
         background: WHITE,
-        borderRadius: 22,
-        padding: '12px 12px 12px 56px',
+        borderRadius: 16,
+        padding: '14px 12px',
         display: 'flex',
         gap: 12,
-        alignItems: 'center',
+        alignItems: 'flex-start',
         cursor: 'pointer',
-        boxShadow: '0 6px 18px rgba(17, 24, 39, 0.06)',
-        transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-        border: `1px solid ${BORDER}`,
+        boxShadow: SHADOW,
+        transition: 'all 0.2s ease',
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.transform = 'translateY(-2px)'
-        e.currentTarget.style.boxShadow = '0 14px 34px rgba(238, 123, 38, 0.14)'
+        e.currentTarget.style.boxShadow = '0 12px 32px rgba(238, 123, 38, 0.15)'
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.transform = 'translateY(0)'
-        e.currentTarget.style.boxShadow = '0 6px 18px rgba(17, 24, 39, 0.06)'
+        e.currentTarget.style.boxShadow = SHADOW
       }}
     >
-      {/* صورة العرض — تظهر على اليمين في RTL لأنها أول عنصر */}
+      {/* صورة العرض */}
       <div style={{
-        width: 130,
-        minHeight: 130,
-        alignSelf: 'stretch',
-        borderRadius: 18,
+        width: 80,
+        height: 80,
+        borderRadius: 14,
         overflow: 'hidden',
         background: '#f0f0f0',
         flexShrink: 0,
         border: `1.5px solid ${BORDER}`,
         display: 'flex',
-        alignItems: 'stretch',
-        justifyContent: 'stretch',
+        alignItems: 'center',
+        justifyContent: 'center',
         position: 'relative',
       }}>
-        <OfferImage offer={offer} size="large" style={{
+        <OfferImage offer={offer} size="medium" style={{
           width: '100%',
           height: '100%',
           objectFit: 'cover',
-          display: 'block',
-          flex: 1,
         }} />
+
+        {/* Discount Badge */}
+        {offer.discount > 0 && (
+          <div style={{
+            position: 'absolute',
+            top: 6,
+            right: 6,
+            background: ORANGE,
+            color: WHITE,
+            borderRadius: 8,
+            padding: '3px 7px',
+            fontSize: 10,
+            fontWeight: 700,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 2,
+          }}>
+            <span>🔥</span>
+            <span>{offer.discount}%</span>
+          </div>
+        )}
       </div>
 
-      {/* محتوى النص */}
-      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+      {/* معلومات العرض */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        {/* اسم العرض */}
         <h3 style={{
-          fontSize: 15,
-          fontWeight: 700,
+          fontSize: 14,
+          fontWeight: 600,
           color: TEXT,
-          margin: '0 0 6px',
-          lineHeight: 1.35,
+          margin: '0 0 4px',
+          lineHeight: 1.3,
           display: '-webkit-box',
-          WebkitLineClamp: 1,
+          WebkitLineClamp: 2,
           WebkitBoxOrient: 'vertical',
           overflow: 'hidden',
         }}>
           {offer.name}
         </h3>
 
-        <p style={{
-          fontSize: 11,
-          color: MUTED,
-          margin: '0 0 9px',
-          lineHeight: 1.55,
-          display: '-webkit-box',
-          WebkitLineClamp: 2,
-          WebkitBoxOrient: 'vertical',
-          overflow: 'hidden',
-        }}>
-          {shortDescription}
-        </p>
+        {/* اسم المطعم */}
+        {restName && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              onRestaurantClick()
+            }}
+            style={{
+              border: 'none',
+              background: 'transparent',
+              padding: 0,
+              color: ORANGE,
+              fontSize: 11,
+              fontWeight: 600,
+              cursor: 'pointer',
+              marginBottom: 6,
+              display: 'block',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              maxWidth: '100%',
+              textAlign: 'right',
+            }}
+          >
+            {restName}
+          </button>
+        )}
 
-        <div style={{
-          height: 1,
-          background: 'linear-gradient(90deg, rgba(229,231,235,0), rgba(229,231,235,1), rgba(229,231,235,0))',
-          margin: '0 0 9px',
-        }} />
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 9 }}>
-          {currentPrice != null && (
-            <span style={{ fontSize: 15, fontWeight: 800, color: ORANGE }} className="font-num">
-              {currentPrice} ر.س
-            </span>
-          )}
-          {oldPrice != null && oldPrice > (currentPrice ?? 0) && (
-            <span style={{ fontSize: 12, color: '#9ca3af', textDecoration: 'line-through' }} className="font-num">
-              {oldPrice} ر.س
-            </span>
-          )}
-          {oldPrice != null && currentPrice != null && oldPrice > currentPrice && (
-            <span style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              padding: '3px 8px',
-              borderRadius: 999,
-              background: ORANGE_SOFT,
-              color: ORANGE_DARK,
-              fontSize: 10,
-              fontWeight: 700,
-            }}>
-              وفر {Math.round(oldPrice - currentPrice)} ر.س
-            </span>
-          )}
-        </div>
-
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
-          <InfoPill label={`⭐ ${rating.toFixed ? rating.toFixed(1) : rating}`} />
-          <InfoPill label={`⏱ ${deliveryTime}`} />
-        </div>
+        {/* السعر */}
+        {price && (
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 4,
+            background: '#dcfce7',
+            color: '#166534',
+            padding: '4px 10px',
+            borderRadius: 999,
+            fontSize: 11,
+            fontWeight: 700,
+          }} className="font-num">
+            <span>💚</span>
+            <span>{price} ر.س</span>
+          </div>
+        )}
       </div>
 
-      {/* زر + على اليسار الفيزيائي (نهاية الكارت في RTL) */}
-      <button
-        onClick={(e) => {
-          e.stopPropagation()
-          onOfferClick()
-        }}
-        aria-label="فتح العرض"
-        style={{
-          position: 'absolute',
-          left: 14,
-          top: '50%',
-          transform: 'translateY(-50%)',
-          width: 36,
-          height: 36,
-          borderRadius: '50%',
-          border: `1px solid rgba(238, 123, 38, 0.18)`,
-          background: ORANGE_SOFT,
-          color: ORANGE_DARK,
-          boxShadow: '0 6px 14px rgba(238, 123, 38, 0.16)',
-          fontSize: 24,
-          lineHeight: 1,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          cursor: 'pointer',
-          fontWeight: 600,
-          flexShrink: 0,
-        }}
+      {/* Chevron */}
+      <svg
+        width="20"
+        height="20"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke={ORANGE}
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        style={{ flexShrink: 0, marginTop: 8 }}
       >
-        +
-      </button>
+        <polyline points="9 18 15 12 9 6" />
+      </svg>
     </div>
-  )
-}
-
-function InfoPill({ label }) {
-  return (
-    <span style={{
-      display: 'inline-flex',
-      alignItems: 'center',
-      gap: 5,
-      padding: '5px 10px',
-      borderRadius: 999,
-      background: '#fffaf5',
-      border: `1px solid rgba(238, 123, 38, 0.10)`,
-      color: TEXT,
-      fontSize: 10,
-      fontWeight: 600,
-      whiteSpace: 'nowrap',
-      minHeight: 28,
-    }}>
-      {label}
-    </span>
   )
 }

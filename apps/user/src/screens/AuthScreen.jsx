@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { auth } from '@r2c/shared'
 import { GoogleAuthProvider, signInWithCredential, signInWithPopup } from 'firebase/auth'
 
-const LOGIN_IMAGE = '/login-banner.jpg'
+const LOGIN_IMAGE = '/login-success.jpg'
 const SUCCESS_IMAGE = '/login-success.jpg'
 
 export default function AuthScreen() {
@@ -48,19 +48,15 @@ export default function AuthScreen() {
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-black">
-      {/* الصورة على كامل الشاشة */}
       <img
         src={imageSrc}
         alt="Auth visual"
         className="absolute inset-0 h-full w-full object-cover transition-all duration-700"
       />
 
-      {/* تدرج على كامل الشاشة لتحسين وضوح المحتوى */}
       <div className="absolute inset-0 bg-gradient-to-b from-black/35 via-black/40 to-black/60" />
 
-      {/* المحتوى */}
       <div className="relative z-10 flex min-h-screen flex-col">
-        {/* أعلى الشاشة */}
         <div className="px-6 pt-8">
           <div className="mx-auto max-w-md text-center text-white">
             <img
@@ -69,38 +65,46 @@ export default function AuthScreen() {
               className="mx-auto mb-5 h-16 object-contain drop-shadow-md"
             />
 
-            <h1 className="text-3xl font-extrabold tracking-tight mb-3 drop-shadow-sm">
-              {success ? 'تم تسجيل الدخول بنجاح' : 'اكتشف أفضل العروض'}
-            </h1>
+            {success ? (
+              <>
+                <h1 className="mb-3 text-3xl font-extrabold tracking-tight drop-shadow-sm">
+                  تم تسجيل الدخول بنجاح
+                </h1>
+                <p className="text-sm leading-6 text-white/90 sm:text-base">
+                  جاري تجهيز تجربتك داخل التطبيق
+                </p>
+              </>
+            ) : (
+              <div className="space-y-3">
 
-            <p className="text-sm sm:text-base text-white/90 leading-6">
-              {success
-                ? 'جاري تجهيز تجربتك داخل التطبيق'
-                : 'ادخل الآن للوصول إلى عروض المطاعم الحصرية والخصومات القريبة منك'}
-            </p>
+
+                <h1 className="text-[34px] font-black leading-[1.15] tracking-tight text-white drop-shadow-[0_4px_18px_rgba(0,0,0,0.45)] sm:text-[40px]">
+                  <span className="block bg-gradient-to-r from-white via-orange-100 to-white bg-clip-text text-transparent">
+                    مايزود..
+                  </span>
+                  <span className="mt-1 block text-[28px] font-extrabold text-white/95 sm:text-[32px]">
+                    يوفر يسهل يقرب
+                  </span>
+                </h1>
+
+                <p className="mx-auto max-w-xs text-sm leading-6 text-white/88 sm:text-base">
+                  ادخل الآن للوصول إلى عروض المطاعم الحصرية والخصومات القريبة منك
+                </p>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* أسفل الشاشة */}
-        <div className="mt-auto px-4 pb-8 pt-8">
-          <div className="max-w-md mx-auto rounded-[28px] bg-white/92 backdrop-blur-md shadow-[0_12px_40px_rgba(0,0,0,0.22)] border border-white/50 p-6 sm:p-7">
-            <div className="text-center mb-6">
-              <h2 className="text-xl font-extrabold text-gray-900 mb-2">
-                أهلاً بك في R2C
-              </h2>
-              <p className="text-gray-600 text-sm leading-6">
-                سجل الدخول وابدأ في تصفح العروض بسهولة وسرعة
-              </p>
-            </div>
-
+        <div className="mt-auto px-4 pb-10 pt-8">
+          <div className="mx-auto max-w-md text-center">
             {error && (
-              <div className="bg-red-50 border border-red-200 rounded-2xl p-3 mb-4 text-center text-red-600 text-sm font-bold">
+              <div className="mb-4 rounded-2xl border border-red-200 bg-red-50/95 p-3 text-center text-sm font-bold text-red-600 shadow-lg backdrop-blur-sm">
                 {error}
               </div>
             )}
 
             {success && (
-              <div className="bg-green-50 border border-green-200 rounded-2xl p-3 mb-4 text-center text-green-700 text-sm font-bold">
+              <div className="mb-4 rounded-2xl border border-green-200 bg-green-50/95 p-3 text-center text-sm font-bold text-green-700 shadow-lg backdrop-blur-sm">
                 تم تسجيل الدخول بنجاح
               </div>
             )}
@@ -108,15 +112,15 @@ export default function AuthScreen() {
             <button
               onClick={handleGoogleLogin}
               disabled={loading}
-              className="w-full group relative overflow-hidden rounded-2xl border border-gray-200 bg-white px-5 py-4 shadow-[0_8px_24px_rgba(0,0,0,0.06)] transition-all duration-200 active:scale-[0.98] disabled:opacity-70"
+              className="group relative w-full overflow-hidden rounded-2xl border border-white/35 bg-white/88 px-5 py-4 shadow-[0_16px_40px_rgba(0,0,0,0.28)] backdrop-blur-md transition-all duration-200 active:scale-[0.98] disabled:opacity-70"
             >
-              <span className="absolute inset-0 bg-gradient-to-r from-orange-50 via-white to-orange-50 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+              <span className="absolute inset-0 bg-gradient-to-r from-orange-50/80 via-white/20 to-orange-50/80 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
 
               <span className="relative flex items-center justify-center gap-3">
                 {loading ? (
-                  <div className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                  <div className="h-5 w-5 animate-spin rounded-full border-2 border-gray-400 border-t-transparent" />
                 ) : (
-                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-sm border border-gray-100">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-full border border-gray-100 bg-white shadow-sm">
                     <svg width="20" height="20" viewBox="0 0 48 48">
                       <path
                         fill="#EA4335"
@@ -148,7 +152,7 @@ export default function AuthScreen() {
               </span>
             </button>
 
-            <p className="text-center text-[12px] text-gray-500 mt-5 leading-5">
+            <p className="mt-5 text-center text-[12px] leading-5 text-white/85 drop-shadow-sm">
               بالمتابعة، أنت توافق على استخدام تسجيل الدخول الآمن للوصول إلى خدمات التطبيق
             </p>
           </div>

@@ -9,7 +9,7 @@ export default function RestaurantsPage() {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
   const [cities, setCities] = useState(['الدمام','الخبر','الجبيل','القطيف']);
-  const [form, setForm] = useState({ name: '', category: '', city: 'الدمام', imageUrl: '' });
+  const [form, setForm] = useState({ name: '', category: '', city: 'الدمام', imageUrl: '', coverImageUrl: '' });
 
   useEffect(() => {
     getDoc(doc(db, 'system', 'settings')).then(d => {
@@ -22,7 +22,7 @@ export default function RestaurantsPage() {
   const filtered = restaurants.filter(r => r.name?.includes(search) || r.city?.includes(search));
 
   const resetForm = () => {
-    setForm({ name: '', category: '', city: cities[0] || 'الدمام', imageUrl: '' });
+    setForm({ name: '', category: '', city: cities[0] || 'الدمام', imageUrl: '', coverImageUrl: '' });
     setEditing(null);
     setShowForm(false);
   };
@@ -49,7 +49,7 @@ export default function RestaurantsPage() {
 
   const handleEdit = (r) => {
     setEditing(r);
-    setForm({ name: r.name||'', category: r.category||'', city: r.city||cities[0]||'الدمام', imageUrl: r.imageUrl||'' });
+    setForm({ name: r.name||'', category: r.category||'', city: r.city||cities[0]||'الدمام', imageUrl: r.imageUrl||'', coverImageUrl: r.coverImageUrl||'' });
     setShowForm(true);
   };
 
@@ -85,9 +85,34 @@ export default function RestaurantsPage() {
             </div>
 
             <div>
-              <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px', fontWeight: '600' }}>رابط الصورة</label>
-              <input value={form.imageUrl} onChange={e => setForm({...form, imageUrl: e.target.value})} style={{ width: '100%', padding: '8px 12px', border: '1px solid #e5e7eb', borderRadius: '8px', boxSizing: 'border-box' }} />
+              <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px', fontWeight: '600' }}>رابط الصورة (اللوجو)</label>
+              <input value={form.imageUrl} onChange={e => setForm({...form, imageUrl: e.target.value})} placeholder="https://example.com/logo.jpg" style={{ width: '100%', padding: '8px 12px', border: '1px solid #e5e7eb', borderRadius: '8px', boxSizing: 'border-box' }} />
             </div>
+
+            <div>
+              <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px', fontWeight: '600' }}>رابط صورة الغلاف</label>
+              <input value={form.coverImageUrl} onChange={e => setForm({...form, coverImageUrl: e.target.value})} placeholder="https://example.com/cover.jpg" style={{ width: '100%', padding: '8px 12px', border: '1px solid #e5e7eb', borderRadius: '8px', boxSizing: 'border-box' }} />
+            </div>
+
+            {/* معاينة الصور */}
+            {(form.imageUrl || form.coverImageUrl) && (
+              <div style={{ gridColumn: '1 / -1', display: 'flex', gap: '12px' }}>
+                {form.imageUrl && (
+                  <div style={{ flex: 1 }}>
+                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: '600', color: '#6b7280' }}>معاينة اللوجو</label>
+                    <div style={{ width: 72, height: 72, borderRadius: '50%', overflow: 'hidden', border: '2px solid #e5e7eb', background: '#f9fafb' }}>
+                      <img src={form.imageUrl} alt="logo preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => e.target.style.display='none'} />
+                    </div>
+                  </div>
+                )}
+                {form.coverImageUrl && (
+                  <div style={{ flex: 3 }}>
+                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: '600', color: '#6b7280' }}>معاينة الغلاف</label>
+                    <img src={form.coverImageUrl} alt="cover preview" style={{ width: '100%', height: '100px', objectFit: 'cover', borderRadius: '10px', border: '2px solid #e5e7eb' }} onError={e => e.target.style.display='none'} />
+                  </div>
+                )}
+              </div>
+            )}
 
           </div>
           <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
