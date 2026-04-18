@@ -1,328 +1,542 @@
-import { useState, useEffect, useRef } from "react";
-import { db } from "@r2c/shared";
-import { ORDER_STATUS } from "@r2c/shared/constants/orderStatus";
-import { doc, getDoc } from "firebase/firestore";
-import OrderCard from "../components/OrderCard";
-import Logo from "../components/logo";
+import { useState, useEffect, useRef } from 'react'
+import { db } from '@r2c/shared'
+import { ORDER_STATUS } from '@r2c/shared/constants/orderStatus'
+import { doc, getDoc, onSnapshot } from 'firebase/firestore'
+import OrderCard from '../components/OrderCard'
+import Logo from '../components/logo'
 
-// ── قائمة الأقسام الجانبية ──────────────────────────────────────────────────
-function OrdersMenuDrawer({ isOpen, onClose, counts, activeTab, onSelectTab }) {
-  const tabs = [
-    { key: "new",       label: "جديدة",   icon: "🆕", color: "bg-red-500",    count: counts.new },
-    { key: "accepted",  label: "مقبولة",  icon: "✅", color: "bg-blue-500",   count: counts.accepted },
-    { key: "completed", label: "مُسلَّمة", icon: "📦", color: "bg-green-500",  count: counts.completed },
-  ];
+function getInitialDashboardTab() {
+  try {
+    const storedTab = window.sessionStorage.getItem('partnerDashboardActiveTab')
+    return ['new', 'accepted', 'completed'].includes(storedTab) ? storedTab : 'new'
+  } catch (error) {
+    console.warn('تعذر قراءة التبويب المحفوظ للداشبورد:', error)
+    return 'new'
+  }
+}
+
+function resolveRestaurantLogo(source = {}) {
+  return (
+    source?.logoUrl ||
+    source?.logo ||
+    source?.imageUrl ||
+    source?.photo ||
+    source?.photoUrl ||
+    source?.image ||
+    source?.thumbnailUrl ||
+    ''
+  )
+}
+
+function RestaurantLogoAvatar({ logoUrl, alt }) {
+  return (
+    <div className="relative h-14 w-14 overflow-hidden rounded-full border border-[#ededed] bg-white p-1 shadow-sm">
+      {logoUrl ? (
+        <>
+          <img
+            src={logoUrl}
+            alt={alt || 'لوجو المطعم'}
+            className="h-full w-full rounded-full object-cover"
+            onError={(e) => {
+              e.currentTarget.style.display = 'none'
+              const fallback = e.currentTarget.parentElement?.querySelector('[data-logo-fallback="true"]')
+              if (fallback) {
+                fallback.classList.remove('hidden')
+                fallback.classList.add('flex')
+              }
+            }}
+          />
+          <div
+            data-logo-fallback="true"
+            className="hidden h-full w-full items-center justify-center rounded-full bg-white"
+          >
+            <Logo className="h-8" />
+          </div>
+        </>
+      ) : (
+        <div
+          data-logo-fallback="true"
+          className="flex h-full w-full items-center justify-center rounded-full bg-white"
+        >
+          <Logo className="h-8" />
+        </div>
+      )}
+    </div>
+  )
+}
+
+function getTabMeta(activeTab, counts) {
+  return [
+    {
+      key: 'new',
+      label: 'جديد',
+      emptyText: 'لا توجد طلبات جديدة',
+      count: counts.new,
+    },
+    {
+      key: 'accepted',
+      label: 'تحضير',
+      emptyText: 'لا توجد طلبات تحت التحضير',
+      count: counts.accepted,
+    },
+    {
+      key: 'completed',
+      label: 'مكتملة',
+      emptyText: 'لا توجد طلبات مكتملة',
+      count: counts.completed,
+    },
+  ].map((tab) => ({ ...tab, isActive: tab.key === activeTab }))
+}
+
+function getBranchStateMeta(profile, branchId) {
+  if (!branchId) {
+    return {
+      isOpen: false,
+      label: 'لا يوجد فرع مسجل',
+      shortLabel: 'غير متاح',
+      badgeClass: 'bg-[#fff1f1] text-[#d43a3a] border-[#ffd6d6]',
+      dotClass: 'bg-[#ef4444]',
+    }
+  }
+
+  if (!profile) {
+    return {
+      isOpen: false,
+      label: 'جاري قراءة حالة الفرع...',
+      shortLabel: 'جارٍ التحميل',
+      badgeClass: 'bg-[#f4f4f5] text-[#666] border-[#e5e7eb]',
+      dotClass: 'bg-[#9ca3af]',
+    }
+  }
+
+  const normalizedStatus = String(profile.status || '').trim().toLowerCase()
+
+  if (['inactive', 'closed', 'paused', 'busy', 'off', 'stopped'].includes(normalizedStatus)) {
+    return {
+      isOpen: false,
+      label: 'استقبال الطلبات متوقف حاليًا',
+      shortLabel: 'متوقف',
+      badgeClass: 'bg-[#fff7ed] text-[#c45d12] border-[#f3c39d]',
+      dotClass: 'bg-[#ee7b26]',
+    }
+  }
+
+  if (['active', 'open', 'online', 'available', ''].includes(normalizedStatus)) {
+    return {
+      isOpen: true,
+      label: 'الفرع مفتوح ويستقبل الطلبات',
+      shortLabel: 'مفتوح',
+      badgeClass: 'bg-[#eef9f1] text-[#178b4b] border-[#caebd5]',
+      dotClass: 'bg-[#18a957]',
+    }
+  }
+
+  return {
+    isOpen: true,
+    label: 'حالة الفرع غير معروفة بدقة',
+    shortLabel: normalizedStatus || 'غير محددة',
+    badgeClass: 'bg-[#fff7ed] text-[#c45d12] border-[#f3c39d]',
+    dotClass: 'bg-[#ee7b26]',
+  }
+}
+
+function OrdersMenuDrawer({
+  isOpen,
+  onClose,
+  counts,
+  activeTab,
+  onSelectTab,
+  setCurrentScreen,
+  partnerProfile,
+  branchState,
+}) {
+  const tabItems = [
+    { key: 'new', label: 'الطلبات الحالية', subtitle: 'عرض الطلبات الجديدة', count: counts.new },
+    { key: 'accepted', label: 'الطلبات تحت التحضير', subtitle: 'الطلبات المقبولة الجاري تجهيزها', count: counts.accepted },
+    { key: 'completed', label: 'الطلبات المكتملة', subtitle: 'الطلبات التي تم تسليمها', count: counts.completed },
+  ]
+
+  const utilityItems = [
+    { key: 'reports', label: 'التقارير', icon: '▤', onClick: () => setCurrentScreen('reports') },
+    { key: 'settings', label: 'الإعدادات', icon: '⚙', onClick: () => setCurrentScreen('settings') },
+    { key: 'qrScanner', label: 'مسح QR', icon: '⌁', onClick: () => setCurrentScreen('qrScanner') },
+  ]
 
   return (
     <>
-      {/* Overlay */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-40 transition-opacity"
+          className="fixed inset-0 z-40 bg-black/30 backdrop-blur-[1px] transition-opacity"
           onClick={onClose}
         />
       )}
 
-      {/* Drawer */}
-      <div
-        className={`fixed top-0 right-0 h-full w-72 bg-white z-50 shadow-2xl transform transition-transform duration-300 ease-in-out
-          ${isOpen ? "translate-x-0" : "translate-x-full"}`}
+      <aside
+        className={`fixed top-0 right-0 z-50 h-full w-[86%] max-w-[330px] border-l border-black/5 bg-white shadow-[0_18px_50px_rgba(0,0,0,0.18)] transition-transform duration-300 ease-out ${
+          isOpen ? 'translate-x-0' : 'translate-x-full'
+        }`}
         dir="rtl"
       >
-        {/* Header */}
-        <div className="bg-[#1e2337] text-white p-5 flex items-center justify-between">
-          <div>
-            <h2 className="text-lg font-black">📋 أقسام الطلبات</h2>
-            <p className="text-xs text-gray-400 mt-0.5">اختر القسم للعرض</p>
-          </div>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-lg transition-colors"
-          >
-            ✕
-          </button>
-        </div>
+        <div className="flex h-full flex-col">
+          <div className="border-b border-[#ececec] bg-[#fcfcfc] px-5 pt-6 pb-5">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <div className="mb-3 flex items-center gap-3">
+                  <RestaurantLogoAvatar
+                    logoUrl={partnerProfile?.restaurantLogo}
+                    alt={partnerProfile?.restaurantName || 'لوجو المطعم'}
+                  />
 
-        {/* Tabs List */}
-        <div className="p-4 space-y-3">
-          {tabs.map(tab => (
-            <button
-              key={tab.key}
-              onClick={() => { onSelectTab(tab.key); onClose(); }}
-              className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all border-2
-                ${activeTab === tab.key
-                  ? "border-[#ee7b26] bg-[#ee7b26]/10"
-                  : "border-gray-100 bg-gray-50 hover:bg-gray-100"}`}
-            >
-              <div className={`w-10 h-10 rounded-xl ${tab.color} flex items-center justify-center text-white text-lg shadow-sm flex-shrink-0`}>
-                {tab.icon}
-              </div>
-              <div className="flex-1 text-right">
-                <div className={`font-black text-base ${activeTab === tab.key ? "text-[#ee7b26]" : "text-[#1e2337]"}`}>
-                  {tab.label}
+                  <div className="min-w-0">
+                    <p className="truncate text-[15px] font-extrabold leading-6 text-[#232323]">
+                      {partnerProfile?.restaurantName || 'اسم المطعم'}
+                    </p>
+                    <p className="truncate text-[13px] leading-5 text-[#6b6b6b]">
+                      {partnerProfile?.name || 'بيانات الفرع'}
+                    </p>
+                  </div>
                 </div>
-                <div className="text-xs text-gray-400 mt-0.5">
-                  {tab.count} {tab.count === 1 ? "طلب" : "طلبات"}
+
+                <div
+                  className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[12px] font-bold ${branchState.badgeClass}`}
+                >
+                  <span className={`inline-block h-2.5 w-2.5 rounded-full ${branchState.dotClass}`} />
+                  {branchState.label}
                 </div>
               </div>
-              {tab.count > 0 && (
-                <span className={`${tab.color} text-white text-xs font-bold px-2.5 py-1 rounded-full min-w-[28px] text-center`}>
-                  {tab.count}
-                </span>
-              )}
-              {activeTab === tab.key && (
-                <span className="text-[#ee7b26] text-lg">◀</span>
-              )}
-            </button>
-          ))}
-        </div>
 
-        {/* Summary */}
-        <div className="mx-4 mt-2 bg-gray-50 rounded-2xl p-4 border border-gray-100">
-          <div className="text-xs text-gray-500 font-bold mb-2">ملخص اليوم</div>
-          <div className="flex justify-between text-center">
-            <div>
-              <div className="text-2xl font-black text-red-500">{counts.new}</div>
-              <div className="text-xs text-gray-400">جديدة</div>
+              <button
+                type="button"
+                onClick={onClose}
+                className="h-10 w-10 flex-shrink-0 rounded-full border border-[#ececec] text-[#444] transition-colors hover:bg-[#f7f7f7]"
+                aria-label="إغلاق القائمة"
+              >
+                ✕
+              </button>
             </div>
-            <div className="w-px bg-gray-200"></div>
-            <div>
-              <div className="text-2xl font-black text-blue-500">{counts.accepted}</div>
-              <div className="text-xs text-gray-400">مقبولة</div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto px-4 py-4">
+            <div className="mb-4">
+              {tabItems.map((item) => {
+                const isActive = activeTab === item.key
+                return (
+                  <button
+                    key={item.key}
+                    type="button"
+                    onClick={() => {
+                      onSelectTab(item.key)
+                      onClose()
+                    }}
+                    className={`group relative mb-2 flex w-full items-center gap-3 rounded-2xl border px-4 py-3.5 text-right transition-all ${
+                      isActive
+                        ? 'border-[#f4d1b7] bg-[#fff8f1] shadow-sm'
+                        : 'border-[#efefef] bg-white hover:bg-[#fafafa]'
+                    }`}
+                  >
+                    <span
+                      className={`absolute right-0 top-2 bottom-2 w-1 rounded-full transition-colors ${
+                        isActive ? 'bg-[#ee7b26]' : 'bg-transparent group-hover:bg-[#f2f2f2]'
+                      }`}
+                    />
+                    <div className="min-w-0 flex-1 pr-2">
+                      <div className={`text-[15px] font-extrabold ${isActive ? 'text-[#232323]' : 'text-[#2b2b2b]'}`}>
+                        {item.label}
+                      </div>
+                      <div className="mt-1 text-[12px] leading-5 text-[#8a8a8a]">{item.subtitle}</div>
+                    </div>
+                    <div
+                      className={`min-w-[34px] rounded-full px-2 py-1 text-center text-[12px] font-extrabold ${
+                        item.count > 0 ? 'bg-[#ee7b26] text-white' : 'bg-[#f3f3f3] text-[#808080]'
+                      }`}
+                    >
+                      {item.count}
+                    </div>
+                  </button>
+                )
+              })}
             </div>
-            <div className="w-px bg-gray-200"></div>
-            <div>
-              <div className="text-2xl font-black text-green-500">{counts.completed}</div>
-              <div className="text-xs text-gray-400">مُسلَّمة</div>
+
+            <div className="mt-4 border-t border-[#efefef] pt-4">
+              {utilityItems.map((item) => (
+                <button
+                  key={item.key}
+                  type="button"
+                  onClick={() => {
+                    item.onClick()
+                    onClose()
+                  }}
+                  className="mb-2 flex w-full items-center justify-between rounded-2xl border border-[#efefef] bg-white px-4 py-3.5 text-right transition-colors hover:bg-[#fafafa]"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-[17px] text-[#5a5a5a]">{item.icon}</span>
+                    <span className="text-[15px] font-bold text-[#2b2b2b]">{item.label}</span>
+                  </div>
+                  <span className="text-[#a9a9a9]">←</span>
+                </button>
+              ))}
             </div>
           </div>
         </div>
-      </div>
+      </aside>
     </>
-  );
+  )
 }
 
-// ── تشغيل صوت تنبيه عند ورود طلب جديد ──────────────────────────────────────
 function playAlertSound() {
   try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = new (window.AudioContext || window.webkitAudioContext)()
     const beep = (freq, start, duration) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.type = 'sine';
-      osc.frequency.value = freq;
-      gain.gain.setValueAtTime(0.4, ctx.currentTime + start);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + start + duration);
-      osc.start(ctx.currentTime + start);
-      osc.stop(ctx.currentTime + start + duration);
-    };
-    beep(880, 0,    0.15);
-    beep(660, 0.2,  0.15);
-    beep(880, 0.4,  0.15);
-    beep(1100, 0.6, 0.3);
-  } catch (e) {
-    console.warn('Audio not available:', e);
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.type = 'sine'
+      osc.frequency.value = freq
+      gain.gain.setValueAtTime(0.4, ctx.currentTime + start)
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + start + duration)
+      osc.start(ctx.currentTime + start)
+      osc.stop(ctx.currentTime + start + duration)
+    }
+    beep(880, 0, 0.15)
+    beep(660, 0.2, 0.15)
+    beep(880, 0.4, 0.15)
+    beep(1100, 0.6, 0.3)
+  } catch (error) {
+    console.warn('Audio not available:', error)
   }
 }
 
-const DashboardScreen = ({ branchId, setCurrentScreen, showToast, orders = [], ordersLoading: loading = false }) => {
-  const [activeTab, setActiveTab]           = useState("new");
-  const [partnerProfile, setPartnerProfile] = useState(null);
-  const [drawerOpen, setDrawerOpen]         = useState(false);
+const DashboardScreen = ({
+  branchId,
+  setCurrentScreen,
+  showToast,
+  orders = [],
+  ordersLoading: loading = false,
+}) => {
+  const [activeTab, setActiveTab] = useState(getInitialDashboardTab)
+  const [partnerProfile, setPartnerProfile] = useState(null)
+  const [drawerOpen, setDrawerOpen] = useState(false)
 
-  // ── تتبع الطلبات الجديدة للتنبيه الصوتي ─────────────────────────────────
-  const seenOrdersRef = useRef(new Set());
-  const isFirstLoadRef = useRef(true);
-
-  useEffect(() => {
-    if (!branchId) return;
-    getDoc(doc(db, "branches", branchId)).then(async snap => {
-      if (!snap.exists()) {
-        console.warn("وثيقة الفرع غير موجودة:", branchId);
-        return;
-      }
-      const branchData = snap.data();
-      // دائماً نجلب اسم المطعم من مجموعة restaurants لضمان الحداثة
-      if (branchData.restaurantId) {
-        try {
-          const restSnap = await getDoc(doc(db, "restaurants", branchData.restaurantId));
-          if (restSnap.exists()) {
-            branchData.restaurantName = restSnap.data().name || "";
-          }
-        } catch (e) {
-          console.warn("تعذّر جلب اسم المطعم:", e);
-          // نحتفظ بالقيمة المخزنة في الفرع كـ fallback
-        }
-      }
-      setPartnerProfile(branchData);
-    }).catch(err => console.error("خطأ في جلب بيانات الفرع:", err));
-  }, [branchId]);
+  const seenOrdersRef = useRef(new Set())
+  const isFirstLoadRef = useRef(true)
 
   useEffect(() => {
-    if (loading) return;
+    try {
+      const storedTab = window.sessionStorage.getItem('partnerDashboardActiveTab')
+      if (['new', 'accepted', 'completed'].includes(storedTab)) {
+        setActiveTab(storedTab)
+        window.sessionStorage.removeItem('partnerDashboardActiveTab')
+      }
+    } catch (error) {
+      console.warn('تعذر تطبيق التبويب المحفوظ للداشبورد:', error)
+    }
+  }, [])
 
-    if (isFirstLoadRef.current) {
-      orders.forEach(o => seenOrdersRef.current.add(o.id));
-      isFirstLoadRef.current = false;
-      return;
+  useEffect(() => {
+    if (!branchId) {
+      setPartnerProfile(null)
+      return undefined
     }
 
-    orders.forEach(o => {
-      if (o.status === ORDER_STATUS.PENDING && !seenOrdersRef.current.has(o.id)) {
-        seenOrdersRef.current.add(o.id);
-        playAlertSound();
-        showToast('🔔 طلب جديد وارد!', 'success');
+    let isMounted = true
+    const branchRef = doc(db, 'branches', branchId)
+
+    const unsubscribe = onSnapshot(
+      branchRef,
+      async (snap) => {
+        if (!snap.exists()) {
+          if (isMounted) setPartnerProfile(null)
+          return
+        }
+
+        const branchData = { id: snap.id, ...snap.data() }
+        let restaurantName = branchData.restaurantName || ''
+        let restaurantLogo = resolveRestaurantLogo(branchData)
+
+        if (branchData.restaurantId) {
+          try {
+            const restSnap = await getDoc(doc(db, 'restaurants', branchData.restaurantId))
+            if (restSnap.exists()) {
+              const restaurantData = restSnap.data() || {}
+              restaurantName = restaurantData.name || restaurantName
+              restaurantLogo = resolveRestaurantLogo(restaurantData) || restaurantLogo
+            }
+          } catch (error) {
+            console.warn('تعذّر جلب بيانات المطعم:', error)
+          }
+        }
+
+        if (isMounted) {
+          setPartnerProfile({
+            ...branchData,
+            restaurantName,
+            restaurantLogo,
+          })
+        }
+      },
+      (error) => {
+        console.error('خطأ في متابعة بيانات الفرع:', error)
       }
-      if (!seenOrdersRef.current.has(o.id)) {
-        seenOrdersRef.current.add(o.id);
+    )
+
+    return () => {
+      isMounted = false
+      unsubscribe()
+    }
+  }, [branchId])
+
+  useEffect(() => {
+    if (loading) return
+
+    if (isFirstLoadRef.current) {
+      orders.forEach((order) => seenOrdersRef.current.add(order.id))
+      isFirstLoadRef.current = false
+      return
+    }
+
+    orders.forEach((order) => {
+      if (order.status === ORDER_STATUS.PENDING && !seenOrdersRef.current.has(order.id)) {
+        seenOrdersRef.current.add(order.id)
+        playAlertSound()
+        showToast('🔔 طلب جديد وارد!', 'success')
       }
-    });
-  }, [orders, loading, showToast]);
 
-  const newCount       = orders.filter(o => o.status === ORDER_STATUS.PENDING).length;
-  const acceptedCount  = orders.filter(o => o.status === ORDER_STATUS.ACCEPTED).length;
-  const completedCount = orders.filter(o => o.status === ORDER_STATUS.COMPLETED).length;
+      if (!seenOrdersRef.current.has(order.id)) {
+        seenOrdersRef.current.add(order.id)
+      }
+    })
+  }, [orders, loading, showToast])
 
-  const filteredOrders = orders.filter(o => {
-    if (activeTab === "new")       return o.status === ORDER_STATUS.PENDING;
-    if (activeTab === "accepted")  return o.status === ORDER_STATUS.ACCEPTED || o.status === ORDER_STATUS.READY;
-    if (activeTab === "completed") return o.status === ORDER_STATUS.COMPLETED;
-    return false;
-  });
+  const newCount = orders.filter((order) => order.status === ORDER_STATUS.PENDING).length
+  const acceptedCount = orders.filter(
+    (order) => order.status === ORDER_STATUS.ACCEPTED || order.status === ORDER_STATUS.READY
+  ).length
+  const completedCount = orders.filter((order) => order.status === ORDER_STATUS.COMPLETED).length
 
-  const isListening = !!branchId;
+  const filteredOrders = orders.filter((order) => {
+    if (activeTab === 'new') return order.status === ORDER_STATUS.PENDING
+    if (activeTab === 'accepted') {
+      return order.status === ORDER_STATUS.ACCEPTED || order.status === ORDER_STATUS.READY
+    }
+    if (activeTab === 'completed') return order.status === ORDER_STATUS.COMPLETED
+    return false
+  })
+
+  const counts = { new: newCount, accepted: acceptedCount, completed: completedCount }
+  const tabs = getTabMeta(activeTab, counts)
+  const emptyMessage = tabs.find((tab) => tab.key === activeTab)?.emptyText || 'لا توجد طلبات في هذا القسم'
+  const branchState = getBranchStateMeta(partnerProfile, branchId)
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="w-10 h-10 border-4 border-[#ee7b26] border-t-transparent rounded-full animate-spin"></div>
+      <div className="min-h-screen flex items-center justify-center bg-[#f7f7f7]">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-11 w-11 animate-spin rounded-full border-4 border-[#ee7b26] border-t-transparent" />
+          <p className="text-sm font-bold text-[#7a7a7a]">جاري تحميل الطلبات...</p>
+        </div>
       </div>
-    );
+    )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-6 pb-24 font-sans text-gray-800" dir="rtl">
-
-      {/* ── Drawer القائمة الجانبية ─────────────────────────────────────── */}
+    <div className="min-h-screen bg-[#f7f7f7] pb-24" dir="rtl">
       <OrdersMenuDrawer
         isOpen={drawerOpen}
         onClose={() => setDrawerOpen(false)}
-        counts={{ new: newCount, accepted: acceptedCount, completed: completedCount }}
+        counts={counts}
         activeTab={activeTab}
         onSelectTab={setActiveTab}
+        setCurrentScreen={setCurrentScreen}
+        partnerProfile={partnerProfile}
+        branchState={branchState}
       />
 
-      {/* ── Header ────────────────────────────────────────────────────── */}
-      <div className="flex justify-between items-start mb-6 bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+      <div className="mx-auto w-full max-w-6xl px-3 pt-3 md:px-5 md:pt-5">
+        <div className="overflow-hidden rounded-[28px] border border-[#e9e9e9] bg-white shadow-[0_12px_34px_rgba(15,23,42,0.06)]">
+          <div className="border-b border-[#ededed] bg-white px-4 pt-4 pb-3 md:px-6">
+            <div className="flex items-start justify-between gap-3">
+              <button
+                type="button"
+                onClick={() => setDrawerOpen(true)}
+                className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl border border-[#e6e6e6] bg-white text-[#333] shadow-sm transition-colors hover:bg-[#fafafa]"
+                aria-label="فتح القائمة"
+              >
+                ☰
+              </button>
 
-        {/* الجانب الأيمن: اللوجو والبيانات */}
-        <div className="flex flex-col">
-          {/* الصف الأول: اللوجو وعنوان طلبات اليوم */}
-          <div className="flex items-center gap-3 mb-2">
-            <div dir="ltr" className="flex items-center">
-              <Logo className="h-8" />
-            </div>
-            <span className="text-gray-300 mx-1">|</span>
-            <h1 className="text-xl font-bold text-[#ee7b26]">طلبات اليوم</h1>
-          </div>
+              <div className="min-w-0 flex-1 text-right">
+                <div className="flex items-center justify-start gap-2">
+                  <h1 className="text-[20px] font-black leading-none text-[#1f1f1f] md:text-[24px]">
+                    الطلبات الحالية
+                  </h1>
+                </div>
 
-          {/* الصف الثاني: اسم المطعم والفرع ثم حالة الاتصال */}
-          <div className="pr-1">
-
-            {/* التعديل هنا: إضافة نصوص بديلة لاكتشاف المشكلة */}
-            <p className="text-[#1e2337] font-bold text-lg mb-1 min-h-[28px]">
-              {!partnerProfile ? (
-                <span className="text-gray-400 text-sm">⏳ جاري تحميل بيانات المطعم...</span>
-              ) : (
-                <>
-                  {partnerProfile.restaurantName || <span className="text-red-400 text-sm">⚠️ (اسم المطعم مفقود)</span>}
-                  <span className="text-gray-500 font-normal text-sm mx-2">
-                    ({partnerProfile.name || "الفرع مفقود"})
+                <div className="mt-2 flex flex-wrap items-center justify-start gap-2 text-[13px] text-[#707070]">
+                  <span className="font-bold text-[#2f2f2f]">
+                    {partnerProfile?.restaurantName || 'اسم المطعم'}
                   </span>
-                </>
-              )}
-            </p>
-
-            <div className="flex items-center gap-1.5 mt-1">
-              <span className="relative flex h-2.5 w-2.5">
-                {isListening && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#10b981] opacity-75"></span>}
-                <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${isListening ? "bg-[#10b981]" : "bg-[#ef4444]"}`}></span>
-              </span>
-              <span className={`text-xs font-bold ${isListening ? "text-[#10b981]" : "text-[#ef4444]"}`}>
-                {isListening ? "مُتصل — يستقبل الطلبات" : "غير متصل"}
-              </span>
+                  <span>—</span>
+                  <span>{partnerProfile?.name || 'اسم الفرع'}</span>
+                  <span
+                    className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-extrabold ${branchState.badgeClass}`}
+                  >
+                    <span className={`h-2 w-2 rounded-full ${branchState.dotClass}`} />
+                    {branchState.shortLabel}
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* الجانب الأيسر: الأزرار */}
-        <div className="flex gap-2">
-          <button onClick={() => setDrawerOpen(true)}
-            className="relative bg-[#ee7b26] hover:bg-[#d96b1a] transition-colors text-white px-4 py-2 rounded-xl text-sm font-medium flex items-center gap-2 shadow-sm">
-            ☰ القائمة
-            {newCount > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 bg-red-600 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center">
-                {newCount}
-              </span>
-            )}
-          </button>
-          <button onClick={() => setCurrentScreen("settings")}
-            className="bg-[#1e2337] hover:bg-gray-800 transition-colors text-white px-4 py-2 rounded-xl text-sm font-medium flex items-center gap-2 shadow-sm">
-            ⚙ الإعدادات
-          </button>
-          <button onClick={() => setCurrentScreen("reports")}
-            className="bg-[#1e2337] hover:bg-gray-800 transition-colors text-white px-4 py-2 rounded-xl text-sm font-medium flex items-center gap-2 shadow-sm">
-            📊 التقارير
-          </button>
-        </div>
-      </div>
-      {/* ──────────────────────────────────────────────────────────────── */}
-
-      {/* Tabs */}
-      <div className="flex gap-3 mb-5 flex-wrap">
-        <button onClick={() => setActiveTab("new")}
-          className={`flex-1 py-3 rounded-2xl font-black text-sm transition-all shadow-sm
-            ${activeTab === "new" ? "bg-red-600 text-white" : "bg-[#1e2337] text-gray-300 hover:bg-gray-800"}`}>
-          جديدة {newCount > 0 && (
-            <span className="bg-white text-red-600 rounded-full px-2 mr-1 text-xs font-bold">{newCount}</span>
-          )}
-        </button>
-        <button onClick={() => setActiveTab("accepted")}
-          className={`flex-1 py-3 rounded-2xl font-black text-sm transition-all shadow-sm
-            ${activeTab === "accepted" ? "bg-[#1e2337] text-white ring-2 ring-offset-2 ring-[#1e2337]" : "bg-[#1e2337] text-gray-300 hover:bg-gray-800"}`}>
-          مقبولة {acceptedCount > 0 && `(${acceptedCount})`}
-        </button>
-        <button onClick={() => setActiveTab("completed")}
-          className={`flex-1 py-3 rounded-2xl font-black text-sm transition-all shadow-sm
-            ${activeTab === "completed" ? "bg-[#1e2337] text-white ring-2 ring-offset-2 ring-[#1e2337]" : "bg-[#1e2337] text-gray-300 hover:bg-gray-800"}`}>
-          مُسلَّمة {completedCount > 0 && `(${completedCount})`}
-        </button>
-        <button onClick={() => setCurrentScreen("qrScanner")}
-          className="bg-green-500 hover:bg-green-600 transition-colors text-white px-5 rounded-2xl font-black text-sm shadow-sm flex items-center gap-1">
-          ⚡ مسح QR
-        </button>
-      </div>
-
-      {/* Orders grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredOrders.length === 0 ? (
-          <div className="col-span-full text-center py-20">
-            <div className="text-6xl mb-4">📭</div>
-            <p className="text-gray-400 text-xl font-medium">لا توجد طلبات في هذا القسم</p>
+          <div className="border-b border-[#efefef] bg-white px-4 md:px-6">
+            <div className="flex items-center gap-2 overflow-x-auto">
+              {tabs.map((tab) => (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => setActiveTab(tab.key)}
+                  className={`relative min-w-[112px] flex-1 whitespace-nowrap px-3 py-4 text-center text-[15px] font-black transition-colors md:min-w-[138px] ${
+                    tab.isActive ? 'text-[#b33a3a]' : 'text-[#8d8d8d] hover:text-[#3d3d3d]'
+                  }`}
+                >
+                  <span>{tab.label}</span>
+                  <span className={`mr-1 text-[13px] ${tab.isActive ? 'text-[#b33a3a]' : 'text-[#9f9f9f]'}`}>
+                    {tab.count}
+                  </span>
+                  <span
+                    className={`absolute bottom-0 right-3 left-3 h-[3px] rounded-full transition-all ${
+                      tab.isActive ? 'bg-[#d85b5b]' : 'bg-transparent'
+                    }`}
+                  />
+                </button>
+              ))}
+            </div>
           </div>
-        ) : filteredOrders.map(order => (
-          <OrderCard
-            key={order.id}
-            order={order}
-            onView={() => setCurrentScreen("orderDetail", order)}
-            showToast={showToast}
-          />
-        ))}
+
+          <div className="bg-[#fafafa] px-4 py-5 md:px-6 md:py-6">
+            {filteredOrders.length === 0 ? (
+              <div className="flex min-h-[58vh] flex-col items-center justify-center rounded-[26px] border border-dashed border-[#e5e5e5] bg-white text-center">
+                <div className="mb-4 text-[64px] leading-none text-[#d6d6d6]">🛒</div>
+                <p className="text-[19px] font-black text-[#c2c2c2]">{emptyMessage}</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {filteredOrders.map((order) => (
+                  <OrderCard
+                    key={order.id}
+                    order={order}
+                    onView={() => setCurrentScreen('orderDetail', order)}
+                    showToast={showToast}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default DashboardScreen;
+export default DashboardScreen

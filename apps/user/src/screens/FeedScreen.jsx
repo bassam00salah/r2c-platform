@@ -47,7 +47,7 @@ const EMOJI_3D = {
 }
 
 const CUISINE_FILTERS = [
- { id: 'all',     label: 'الكل', customImg: 'https://i.ibb.co/8DByX04b/image.png' },
+ { id: 'all',     label: 'الكل', customImg: 'https://i.ibb.co/99HgtTDP/file-000000005e8c720aaeaaeb7347016d68.png' },
   { id: 'بحب', label: 'عروض مميزة', customImg: 'https://i.ibb.co/ymG5qHhr/image.png' },
   { id: 'بطاطس', label: 'أفضل العروض', customImg: 'https://i.ibb.co/8DByX04b/image.png' },
   { id: 'بوكس', label: 'عروض لك', customImg: 'https://i.ibb.co/7tJLwNh5/file-00000000a90072439ee2eb42f6c0c720.png' },
@@ -562,7 +562,7 @@ export default function FeedScreen() {
   }
 
   const quickExploreItems = useMemo(() => {
-    const base = [CUISINE_FILTERS[2], CUISINE_FILTERS[7], CUISINE_FILTERS[8], CUISINE_FILTERS[3], CUISINE_FILTERS[4], CUISINE_FILTERS[5], CUISINE_FILTERS[6], CUISINE_FILTERS[9], CUISINE_FILTERS[10], CUISINE_FILTERS[1]]
+    const base = [CUISINE_FILTERS[7],  CUISINE_FILTERS[3], CUISINE_FILTERS[4], CUISINE_FILTERS[5], CUISINE_FILTERS[6], CUISINE_FILTERS[10], CUISINE_FILTERS[9], CUISINE_FILTERS[1], CUISINE_FILTERS[8],CUISINE_FILTERS[2] ]
     return base.map((filter, idx) => ({
       id: filter.id,
       label: filter.label,

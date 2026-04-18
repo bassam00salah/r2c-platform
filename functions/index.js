@@ -109,6 +109,96 @@ function generateQRCode() {
   return crypto.randomBytes(16).toString("hex");
 }
 
+
+// ─── Helper: إرسال Push Notification للفرع عند ورود طلب جديد ───────────────
+async function sendNewOrderNotificationToBranch(orderId, orderData) {
+  const branchId = orderData?.branchId;
+  if (!branchId) {
+    logger.warn("sendNewOrderNotificationToBranch: missing branchId", { orderId });
+    return { sent: 0, failed: 0 };
+  }
+
+  const tokensSnap = await db.collection("branches").doc(branchId).collection("pushTokens").get();
+  if (tokensSnap.empty) {
+    logger.info("sendNewOrderNotificationToBranch: no push tokens", { orderId, branchId });
+    return { sent: 0, failed: 0 };
+  }
+
+  const tokenDocs = tokensSnap.docs
+    .map((snap) => ({ ref: snap.ref, ...(snap.data() || {}) }))
+    .filter((item) => item.token && item.isActive !== false);
+
+  if (!tokenDocs.length) {
+    logger.info("sendNewOrderNotificationToBranch: no active push tokens", { orderId, branchId });
+    return { sent: 0, failed: 0 };
+  }
+
+  const message = {
+    tokens: tokenDocs.map((item) => item.token),
+    notification: {
+      title: "طلب جديد",
+      body: orderData?.offerName
+        ? `ورد طلب جديد: ${String(orderData.offerName).slice(0, 80)}`
+        : "ورد طلب جديد إلى الفرع",
+    },
+    data: {
+      type: "new_order",
+      orderId: String(orderId),
+      branchId: String(branchId),
+      status: String(orderData?.status || ORDER_STATUS.PENDING),
+      offerName: String(orderData?.offerName || ""),
+      screen: "orderDetail",
+    },
+    android: {
+      priority: "high",
+      notification: {
+        sound: "default",
+      },
+    },
+  };
+
+  const response = await admin.messaging().sendEachForMulticast(message);
+
+  const invalidRefs = [];
+  response.responses.forEach((result, index) => {
+    if (result.success) return;
+
+    const errorCode = result.error?.code || "unknown";
+    logger.warn("sendNewOrderNotificationToBranch: token send failed", {
+      orderId,
+      branchId,
+      tokenRef: tokenDocs[index]?.ref?.path,
+      errorCode,
+    });
+
+    if (
+      errorCode === "messaging/registration-token-not-registered" ||
+      errorCode === "messaging/invalid-registration-token"
+    ) {
+      invalidRefs.push(tokenDocs[index].ref);
+    }
+  });
+
+  if (invalidRefs.length) {
+    const batch = db.batch();
+    invalidRefs.forEach((ref) => batch.delete(ref));
+    await batch.commit();
+  }
+
+  logger.info("sendNewOrderNotificationToBranch: done", {
+    orderId,
+    branchId,
+    successCount: response.successCount,
+    failureCount: response.failureCount,
+    removedInvalidTokens: invalidRefs.length,
+  });
+
+  return {
+    sent: response.successCount,
+    failed: response.failureCount,
+  };
+}
+
 // ───────────────────────────────────────────────────────────────────────────
 // 1. إنشاء الطلب — Callable
 // ───────────────────────────────────────────────────────────────────────────
@@ -401,6 +491,25 @@ exports.createOwnerUser = onCall(CALL_OPTIONS, async (request) => {
     logger.error("createOwnerUser failed", err);
     throw new HttpsError("internal", "Unable to create owner user");
   }
+});
+
+// ───────────────────────────────────────────────────────────────────────────
+// 5. Trigger: إرسال Push Notification للفرع عند ورود طلب جديد
+// ───────────────────────────────────────────────────────────────────────────
+exports.sendPartnerOrderPush = onDocumentCreated("orders/{orderId}", async (event) => {
+  const order = event.data?.data();
+  if (!order || order.status !== ORDER_STATUS.PENDING) return null;
+
+  try {
+    await sendNewOrderNotificationToBranch(event.params.orderId, order);
+  } catch (err) {
+    logger.error("sendPartnerOrderPush: failed", {
+      orderId: event.params.orderId,
+      error: err?.message || String(err),
+    });
+  }
+
+  return null;
 });
 
 // ───────────────────────────────────────────────────────────────────────────

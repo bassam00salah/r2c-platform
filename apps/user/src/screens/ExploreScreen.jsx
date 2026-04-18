@@ -27,16 +27,16 @@ const EMOJI_3D = {
 }
 
 const CUISINE_FILTERS = [
-  { id: 'all',     label: 'الكل', customImg: 'https://i.ibb.co/8DByX04b/image.png' },
-  { id: 'featured', label: 'عروض مميزة', customImg: 'https://i.ibb.co/ymG5qHhr/image.png' },
+  { id: 'all',     label: 'الكل', customImg: 'https://i.ibb.co/99HgtTDP/file-000000005e8c720aaeaaeb7347016d68.png' },
+    { id: 'برجر',   label: 'برجر', customImg: 'https://i.ibb.co/tPXQKJcL/image.png' },
   { id: 'بوكس', label: 'عروض لك', customImg: 'https://i.ibb.co/7tJLwNh5/file-00000000a90072439ee2eb42f6c0c720.png' },
   { id: 'مكس',  label: 'الأكثر مبيعًا',   customImg: 'https://i.ibb.co/ccp4YM9J/image.png' },
   { id: 'شاورما', label: 'شاورما',customImg: 'https://i.ibb.co/wh2wzQbt/image.png' },
-  { id: 'بيتزا',  label: 'بيتزا',  customImg: 'https://i.ibb.co/JFdjTJmP/image.png' },
-  { id: 'برجر',   label: 'برجر', customImg: 'https://i.ibb.co/tPXQKJcL/image.png' },
-  { id: 'دجاج',   label: 'دجاج',customImg: 'https://i.ibb.co/Z6JtJbxQ/image.png' },
-  { id: 'مشاوي',  label: 'مشويات', customImg: 'https://i.ibb.co/wh2wzQbt/image.png' },
+    { id: 'بيتزا',  label: 'بيتزا',  customImg: 'https://i.ibb.co/JFdjTJmP/image.png' },
   { id: 'حلويات', label: 'حلويات',  customImg: 'https://i.ibb.co/q3tDHGtX/image.png' },
+    { id: 'featured', label: 'عروض مميزة', customImg: 'https://i.ibb.co/ymG5qHhr/image.png' },
+    { id: 'دجاج',   label: 'دجاج',customImg: 'https://i.ibb.co/Z6JtJbxQ/image.png' },
+  { id: 'مشاوي',  label: 'مشويات', customImg: 'https://i.ibb.co/wh2wzQbt/image.png' },
 ]
 
 const FONT_STYLE = `
@@ -248,64 +248,70 @@ export default function ExploreScreen() {
             }}
           >
             {CUISINE_FILTERS.map((category) => (
-              <button
+              <div
                 key={category.id}
-                onClick={() => setActiveCategory(category.id)}
-                className="explore-category-btn"
                 style={{
                   flexShrink: 0,
-                  width: 90,
-                  border: activeCategory === category.id ? `2.5px solid ${ORANGE}` : `2px solid ${BORDER}`,
-                  borderRadius: 16,
-                  background: activeCategory === category.id ? ORANGE_SOFT : WHITE,
-                  padding: '8px 6px',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: 6,
+                  width: 80,
                   scrollSnapAlign: 'start',
                 }}
               >
-                <div style={{
-                  width: 50,
-                  height: 50,
-                  borderRadius: '50%',
-                  overflow: 'hidden',
-                  background: WHITE,
-                  border: `1.5px solid ${BORDER}`,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}>
-                  <img
-                    src={category.customImg || category.img}
-                    alt={category.label}
-                    style={{
-                      width: '100%',
-                      height: '100%',
-                      objectFit: 'cover',
-                    }}
-                    onError={(e) => {
-                      e.currentTarget.style.objectFit = 'contain'
-                      e.currentTarget.style.padding = '6px'
-                    }}
-                  />
-                </div>
-                <span style={{
-                  fontSize: 11,
-                  fontWeight: 500,
-                  color: activeCategory === category.id ? ORANGE : TEXT,
-                  textAlign: 'center',
-                  lineHeight: 1.2,
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  maxWidth: '100%',
-                }}>
-                  {category.label}
-                </span>
-              </button>
+                <button
+                  onClick={() => setActiveCategory(category.id)}
+                  className="explore-category-btn"
+                  style={{
+                    border: 'none',
+                    padding: '4px 2px 6px',
+                    cursor: 'pointer',
+                    background: 'transparent',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: 7,
+                    width: '100%',
+                  }}
+                >
+                  <div style={{
+                    width: 68,
+                    height: 68,
+                    borderRadius: '50%',
+                    overflow: 'hidden',
+                    background: WHITE,
+                    border: activeCategory === category.id ? `2.5px solid ${ORANGE}` : `2px solid ${BORDER}`,
+                    boxShadow: activeCategory === category.id
+                      ? `0 4px 16px ${ORANGE}55`
+                      : '0 2px 10px rgba(0,0,0,0.09)',
+                    flexShrink: 0,
+                    transition: 'border 0.18s, box-shadow 0.18s',
+                  }}>
+                    <img
+                      src={category.customImg || category.img}
+                      alt={category.label}
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover',
+                        display: 'block',
+                      }}
+                      onError={(e) => {
+                        e.currentTarget.style.objectFit = 'contain'
+                        e.currentTarget.style.padding = '8px'
+                      }}
+                    />
+                  </div>
+                  <div style={{
+                    fontSize: 12,
+                    fontWeight: 500,
+                    color: activeCategory === category.id ? ORANGE : TEXT,
+                    textAlign: 'center',
+                    lineHeight: 1.2,
+                    whiteSpace: 'nowrap',
+                    transition: 'color 0.18s',
+                  }}>
+                    {category.label}
+                  </div>
+                </button>
+              </div>
             ))}
           </div>
         </div>

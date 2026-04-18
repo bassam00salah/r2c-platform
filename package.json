@@ -16,6 +16,9 @@
     "test": "npm --prefix functions test && npm -w packages/shared run test"
   },
   "dependencies": {
+    "@capacitor/app": "^8.1.0",
+    "@capacitor/push-notifications": "^8.0.3",
+    "@capacitor/status-bar": "^8.0.2",
     "html5-qrcode": "^2.3.8"
   }
 }
