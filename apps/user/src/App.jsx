@@ -90,20 +90,20 @@ export default function App() {
     const applyStatusBar = async () => {
       try {
         await StatusBar.show()
-        await StatusBar.setOverlaysWebView({ overlay: true })
 
-        // نضبط الستايل أولاً ثم اللون، ثم نعيد الستايل مرة ثانية
-        // لأن بعض أجهزة أندرويد تطبق لون الخلفية لكن تتأخر في تحديث الأيقونات.
-        await StatusBar.setStyle({ style: statusConfig.style })
+        // ✅ الترتيب الصحيح:
+        // 1. نضبط اللون والستايل أولاً
+        // 2. ثم نفعّل الـ overlay عشان الـ WebView يمتد فعلاً تحته
         await StatusBar.setBackgroundColor({ color: statusConfig.color })
         await StatusBar.setStyle({ style: statusConfig.style })
+        await StatusBar.setOverlaysWebView({ overlay: false })
+        await StatusBar.setOverlaysWebView({ overlay: true })
 
+        // تأخير قصير لضمان تطبيق الستايل على بعض أجهزة أندرويد
         window.setTimeout(() => {
           if (cancelled) return
-          StatusBar.setStyle({ style: statusConfig.style }).catch(error => {
-            console.error('Delayed StatusBar style update failed:', error)
-          })
-        }, 60)
+          StatusBar.setStyle({ style: statusConfig.style }).catch(() => {})
+        }, 80)
       } catch (error) {
         console.error('StatusBar update failed:', error)
       }

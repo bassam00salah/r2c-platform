@@ -47,14 +47,14 @@ const EMOJI_3D = {
 }
 
 const CUISINE_FILTERS = [
- { id: 'all',     label: 'الكل', customImg: 'https://i.ibb.co/99HgtTDP/file-000000005e8c720aaeaaeb7347016d68.png' },
-  { id: 'بحب', label: 'عروض مميزة', customImg: 'https://i.ibb.co/ymG5qHhr/image.png' },
+  { id: 'all',     label: 'الكل', customImg: 'https://i.ibb.co/99HgtTDP/file-000000005e8c720aaeaaeb7347016d68.png' },
+  { id: 'featured', label: 'عروض مميزة', customImg: 'https://i.ibb.co/ymG5qHhr/image.png' },
   { id: 'بطاطس', label: 'أفضل العروض', customImg: 'https://i.ibb.co/8DByX04b/image.png' },
-  { id: 'بوكس', label: 'عروض لك', customImg: 'https://i.ibb.co/7tJLwNh5/file-00000000a90072439ee2eb42f6c0c720.png' },
   { id: 'مكس',  label: 'الأكثر مبيعًا',   customImg: 'https://i.ibb.co/ccp4YM9J/image.png' },
-  { id: 'شاورما', label: 'شاورما',customImg: 'https://i.ibb.co/wh2wzQbt/image.png' },
+  { id: 'بوكس', label: 'عروض لك', customImg: 'https://i.ibb.co/7tJLwNh5/file-00000000a90072439ee2eb42f6c0c720.png' },
+   { id: 'برجر',   label: 'برجر', customImg: 'https://i.ibb.co/tPXQKJcL/image.png' },
   { id: 'بيتزا',  label: 'بيتزا',  customImg: 'https://i.ibb.co/JFdjTJmP/image.png' },
-  { id: 'برجر',   label: 'برجر', customImg: 'https://i.ibb.co/tPXQKJcL/image.png' },
+ { id: 'شاورما', label: 'شاورما',customImg: 'https://i.ibb.co/wh2wzQbt/image.png' },
   { id: 'دجاج',   label: 'دجاج',customImg: 'https://i.ibb.co/Z6JtJbxQ/image.png' },
   { id: 'مشاوي',  label: 'مشويات', customImg: 'https://i.ibb.co/wh2wzQbt/image.png' },
   { id: 'حلويات', label: 'حلويات',  customImg: 'https://i.ibb.co/q3tDHGtX/image.png' },
@@ -370,6 +370,10 @@ export default function FeedScreen() {
   const [bannerSlides, setBannerSlides] = useState([])
   const [activeSlide, setActiveSlide] = useState(0)
   const slideTimerRef = useRef(null)
+  // Banner 3 slider
+  const [banner3Slides, setBanner3Slides] = useState([])
+  const [activeSlide3, setActiveSlide3] = useState(0)
+  const slideTimer3Ref = useRef(null)
 
   useEffect(() => {
     getDoc(doc(db, 'system', 'settings')).then(snap => {
@@ -396,6 +400,14 @@ export default function FeedScreen() {
         d.banners.forEach(b => { if (b.imageUrl) slides.push(b) })
       }
       setBannerSlides(slides)
+
+      // Banner 3 slides — يستخدم banner3ImageUrl + مصفوفة banners3
+      const slides3 = []
+      if (d.banner3ImageUrl) slides3.push({ imageUrl: d.banner3ImageUrl })
+      if (Array.isArray(d.banners3)) {
+        d.banners3.forEach(b => { if (b.imageUrl) slides3.push(b) })
+      }
+      setBanner3Slides(slides3)
     }).catch(() => {})
   }, [])
 
@@ -406,6 +418,14 @@ export default function FeedScreen() {
     }, 4000)
     return () => clearInterval(slideTimerRef.current)
   }, [bannerSlides.length])
+
+  useEffect(() => {
+    if (banner3Slides.length <= 1) return
+    slideTimer3Ref.current = setInterval(() => {
+      setActiveSlide3(prev => (prev + 1) % banner3Slides.length)
+    }, 4500)
+    return () => clearInterval(slideTimer3Ref.current)
+  }, [banner3Slides.length])
 
   useEffect(() => {
     if (!showNotifs) return
@@ -561,8 +581,18 @@ export default function FeedScreen() {
     }
   }
 
+  const handleSlideChange3 = (index) => {
+    setActiveSlide3(index)
+    clearInterval(slideTimer3Ref.current)
+    if (banner3Slides.length > 1) {
+      slideTimer3Ref.current = setInterval(() => {
+        setActiveSlide3(prev => (prev + 1) % banner3Slides.length)
+      }, 4500)
+    }
+  }
+
   const quickExploreItems = useMemo(() => {
-    const base = [CUISINE_FILTERS[7],  CUISINE_FILTERS[3], CUISINE_FILTERS[4], CUISINE_FILTERS[5], CUISINE_FILTERS[6], CUISINE_FILTERS[10], CUISINE_FILTERS[9], CUISINE_FILTERS[1], CUISINE_FILTERS[8],CUISINE_FILTERS[2] ]
+    const base = [CUISINE_FILTERS[1],  CUISINE_FILTERS[2], CUISINE_FILTERS[3], CUISINE_FILTERS[4], CUISINE_FILTERS[5], CUISINE_FILTERS[6], CUISINE_FILTERS[7], CUISINE_FILTERS[8], CUISINE_FILTERS[9],CUISINE_FILTERS[10] ]
     return base.map((filter, idx) => ({
       id: filter.id,
       label: filter.label,
@@ -831,7 +861,17 @@ export default function FeedScreen() {
             </div>
 
             <div style={{ padding: '10px 12px 0' }}>
-              <InfoTimelineCard imageUrl={banner.banner3ImageUrl} />
+              {banner3Slides.length > 0 ? (
+                <HeroBannerSlider
+                  slides={banner3Slides}
+                  fallbackBanner={null}
+                  activeSlide={activeSlide3}
+                  onSlideChange={handleSlideChange3}
+                  onClick={() => {}}
+                />
+              ) : (
+                <InfoTimelineCard imageUrl={banner.banner3ImageUrl} />
+              )}
             </div>
 
             <ProductSection
@@ -941,65 +981,95 @@ function HeroBannerSlider({ slides, fallbackBanner, activeSlide, onSlideChange, 
   const currentSlide = hasSlides ? slides[activeSlide] : null
   const isClickable = currentSlide?.restaurantId || fallbackBanner?.restaurantId
 
-  const [touchStart, setTouchStart] = useState(0)
-  const [touchEnd, setTouchEnd] = useState(0)
+  // ── سوايب بالـ px النسبي (بدون ResizeObserver) ───────────────────────────
+  const touchStartX = useRef(0)
+  const [dragPct, setDragPct]       = useState(0)   // نسبة من عرض الـ container 0..1
+  const [isDragging, setIsDragging] = useState(false)
+  const containerRef = useRef(null)
+
+  const getW = () => containerRef.current?.offsetWidth || 1
 
   const handleTouchStart = (e) => {
-    setTouchStart(e.targetTouches[0].clientX)
+    touchStartX.current = e.targetTouches[0].clientX
+    setIsDragging(true)
+    setDragPct(0)
   }
 
-  const handleTouchEnd = (e) => {
-    setTouchEnd(e.changedTouches[0].clientX)
-    handleSwipe()
+  const handleTouchMove = (e) => {
+    if (!isDragging || !hasSlides || slides.length <= 1) return
+    const delta = e.targetTouches[0].clientX - touchStartX.current
+    const w = getW()
+    const pct = delta / w                             // −1..+1
+    const resistance = 0.35
+    const atStart = activeSlide === 0 && pct > 0
+    const atEnd   = activeSlide === slides.length - 1 && pct < 0
+    setDragPct(atStart || atEnd ? pct * resistance : pct)
   }
 
-  const handleSwipe = () => {
-    if (!hasSlides || slides.length <= 1) return
-
-    const distance = touchStart - touchEnd
-    const isLeftSwipe = distance > 50
-    const isRightSwipe = distance < -50
-
-    if (isLeftSwipe) {
-      onSlideChange((activeSlide + 1) % slides.length)
-    }
-    if (isRightSwipe) {
-      onSlideChange((activeSlide - 1 + slides.length) % slides.length)
-    }
+  const handleTouchEnd = () => {
+    setIsDragging(false)
+    if (!hasSlides || slides.length <= 1) { setDragPct(0); return }
+    if (dragPct < -0.15)     onSlideChange((activeSlide + 1) % slides.length)
+    else if (dragPct > 0.15) onSlideChange((activeSlide - 1 + slides.length) % slides.length)
+    setDragPct(0)
   }
+
+  const handleClick = (e) => {
+    if (Math.abs(dragPct) > 0.05) return
+    if (isClickable) onClick?.(e)
+  }
+
+  // translateX بالـ % من عرض الـ container — يعمل فوراً بدون قياس
+  // كل شريحة عرضها 100% من الـ container، فالانتقال = activeSlide * -100%
+  const translateX = `calc(${(-activeSlide + dragPct) * 100}%)`
 
   return (
     <div
+      ref={containerRef}
       className="r2c-card-hover"
       style={{
         position: 'relative',
         height: 178,
         borderRadius: 22,
         overflow: 'hidden',
-        cursor: isClickable ? 'pointer' : 'grab',
+        cursor: isDragging ? 'grabbing' : (isClickable ? 'pointer' : 'grab'),
         boxShadow: SHADOW,
         background: `linear-gradient(135deg, ${BLUE} 0%, ${BLUE_LIGHT} 50%, ${BLUE_DARK} 100%)`,
         userSelect: 'none',
+        touchAction: 'pan-y',
       }}
-      onClick={isClickable ? onClick : undefined}
+      onClick={handleClick}
       onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
     >
-      {/* الشرائح */}
+      {/* كل شريحة position:absolute تمتد 100% — بتتحرك بـ translateX نسبي */}
       {hasSlides ? slides.map((slide, idx) => (
         <img
           key={idx}
           src={slide.imageUrl}
           alt={slide.restaurantName || `banner-${idx}`}
           style={{
-            position: 'absolute', inset: 0,
-            width: '100%', height: '100%', objectFit: 'cover', display: 'block',
-            opacity: idx === activeSlide ? 1 : 0,
-            transition: 'opacity 0.6s ease',
+            position: 'absolute',
+            top: 0, left: 0,
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            display: 'block',
+            pointerEvents: 'none',
+            transform: `translateX(calc(${(idx - activeSlide) * 100}% + ${dragPct * 100}%))`,
+            transition: isDragging
+              ? 'none'
+              : 'transform 0.38s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+            willChange: 'transform',
           }}
         />
       )) : fallbackBanner?.imageUrl ? (
-        <img src={fallbackBanner.imageUrl} alt="banner" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+        <img
+          src={fallbackBanner.imageUrl}
+          alt="banner"
+          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+        />
       ) : null}
 
       {/* نقاط التنقل */}

@@ -100,6 +100,9 @@ export function SettingsPage() {
   const [newBannerUrl,         setNewBannerUrl]         = useState('');
   const [newBannerRestId,      setNewBannerRestId]      = useState('');
   const [newBannerRestName,    setNewBannerRestName]    = useState('');
+  // ── قائمة شرائح البانر الثالث ──
+  const [banners3,             setBanners3]             = useState([]);   // [{imageUrl}]
+  const [newBanner3Url,        setNewBanner3Url]        = useState('');
 
   useEffect(() => {
     getDoc(doc(db, 'system', 'settings'))
@@ -119,6 +122,7 @@ export function SettingsPage() {
           if (data.banner2ImageUrl)      setBanner2ImageUrl(data.banner2ImageUrl);
           if (data.banner3ImageUrl)      setBanner3ImageUrl(data.banner3ImageUrl);
           if (Array.isArray(data.banners)) setBanners(data.banners);
+          if (Array.isArray(data.banners3)) setBanners3(data.banners3);
         }
       })
       .catch(err => console.error('خطأ في تحميل الإعدادات:', err))
@@ -163,6 +167,28 @@ export function SettingsPage() {
     });
   };
 
+  // ── شرائح البانر الثالث ──
+  const handleAddBanner3Slide = () => {
+    if (!newBanner3Url.trim()) return showToast('أدخل رابط الصورة', 'error');
+    setBanners3(prev => [...prev, { imageUrl: newBanner3Url.trim() }]);
+    setNewBanner3Url('');
+    showToast('تمت إضافة الشريحة — احفظ الإعدادات لتطبيقها');
+  };
+
+  const handleRemoveBanner3Slide = (idx) => {
+    setBanners3(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleMoveBanner3Slide = (idx, dir) => {
+    setBanners3(prev => {
+      const next = [...prev];
+      const target = idx + dir;
+      if (target < 0 || target >= next.length) return prev;
+      [next[idx], next[target]] = [next[target], next[idx]];
+      return next;
+    });
+  };
+
   const handleSave = async () => {
     setSaving(true);
     try {
@@ -175,6 +201,7 @@ export function SettingsPage() {
         banner2ImageUrl:      banner2ImageUrl      || null,
         banner3ImageUrl:      banner3ImageUrl      || null,
         banners:              banners,
+        banners3:             banners3,
       }, { merge: true });
       showToast('تم حفظ الإعدادات ✅');
     } catch (err) {
@@ -485,9 +512,9 @@ export function SettingsPage() {
           </div>
         </div>
 
-        {/* ── البانر الثالث ── */}
+        {/* ── البانر الثالث (الشريحة الأساسية) ── */}
         <div style={{ background: 'white', borderRadius: '12px', padding: '24px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
-          <h3 style={{ fontWeight: 'bold', marginBottom: '4px' }}>⚡ البانر الثالث — قسم "بدون انتظار"</h3>
+          <h3 style={{ fontWeight: 'bold', marginBottom: '4px' }}>⚡ البانر الثالث — الشريحة الأساسية</h3>
           <p style={{ color: '#6b7280', fontSize: '13px', marginBottom: '16px', marginTop: 0 }}>
             المقاس الموصى به: <strong>800 × 356 بكسل</strong> (نسبة 2.25:1) — PNG أو JPG<br />
             إذا تركت الحقل فارغاً، سيُعرض التصميم الافتراضي (الخطوات الثلاث).
@@ -514,6 +541,86 @@ export function SettingsPage() {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+
+        {/* ── شرائح البانر الثالث (Slider) ── */}
+        <div style={{ background: 'white', borderRadius: '12px', padding: '24px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
+          <h3 style={{ fontWeight: 'bold', marginBottom: '4px' }}>🎞️ شرائح البانر الثالث — السلايدر</h3>
+          <p style={{ color: '#6b7280', fontSize: '13px', marginBottom: '20px', marginTop: 0 }}>
+            الشريحة الأساسية أعلاه تُعرض دائماً أولاً، ثم تتناوب مع الشرائح المضافة هنا كل 4.5 ثوانٍ تلقائياً.
+          </p>
+
+          {/* قائمة الشرائح الحالية */}
+          {banners3.length === 0 ? (
+            <div style={{ background: '#f9fafb', border: '1px dashed #d1d5db', borderRadius: 10, padding: '20px', textAlign: 'center', color: '#9ca3af', fontSize: 14, marginBottom: 20 }}>
+              لا توجد شرائح إضافية — أضف شريحة أدناه
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
+              {banners3.map((slide, idx) => (
+                <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 12, background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 10, padding: '10px 14px' }}>
+                  {/* معاينة مصغرة */}
+                  <div style={{ width: 72, height: 44, borderRadius: 8, overflow: 'hidden', flexShrink: 0, background: '#e5e7eb' }}>
+                    <img src={slide.imageUrl} alt={`slide3-${idx}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { e.target.style.opacity = 0.3 }} />
+                  </div>
+                  {/* رابط الصورة */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12, color: '#374151', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {slide.imageUrl}
+                    </div>
+                  </div>
+                  {/* أزرار الترتيب والحذف */}
+                  <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+                    <button
+                      onClick={() => handleMoveBanner3Slide(idx, -1)}
+                      disabled={idx === 0}
+                      title="تحريك لأعلى"
+                      style={{ padding: '4px 8px', background: idx === 0 ? '#f3f4f6' : '#eff6ff', color: idx === 0 ? '#d1d5db' : '#2563eb', border: 'none', borderRadius: 6, cursor: idx === 0 ? 'default' : 'pointer', fontSize: 13, fontWeight: 700 }}
+                    >↑</button>
+                    <button
+                      onClick={() => handleMoveBanner3Slide(idx, 1)}
+                      disabled={idx === banners3.length - 1}
+                      title="تحريك لأسفل"
+                      style={{ padding: '4px 8px', background: idx === banners3.length - 1 ? '#f3f4f6' : '#eff6ff', color: idx === banners3.length - 1 ? '#d1d5db' : '#2563eb', border: 'none', borderRadius: 6, cursor: idx === banners3.length - 1 ? 'default' : 'pointer', fontSize: 13, fontWeight: 700 }}
+                    >↓</button>
+                    <button
+                      onClick={() => handleRemoveBanner3Slide(idx)}
+                      title="حذف الشريحة"
+                      style={{ padding: '4px 10px', background: '#fee2e2', color: '#dc2626', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13, fontWeight: 700 }}
+                    >✕</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* إضافة شريحة جديدة */}
+          <div style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 10, padding: '16px' }}>
+            <div style={{ fontWeight: 700, fontSize: 14, color: '#92400e', marginBottom: 12 }}>➕ إضافة شريحة جديدة</div>
+            <div style={{ display: 'grid', gap: 10 }}>
+              <div>
+                <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 13 }}>🖼️ رابط الصورة *</label>
+                <input
+                  type="url"
+                  value={newBanner3Url}
+                  onChange={e => setNewBanner3Url(e.target.value)}
+                  placeholder="https://example.com/slide3.jpg"
+                  style={{ width: '100%', padding: '9px 12px', border: '1.5px solid #e5e7eb', borderRadius: 8, fontSize: 14, boxSizing: 'border-box' }}
+                />
+                {newBanner3Url && (
+                  <div style={{ marginTop: 8, borderRadius: 8, overflow: 'hidden', height: 80, background: '#f3f4f6' }}>
+                    <img src={newBanner3Url} alt="معاينة" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { e.target.style.opacity = 0.2 }} />
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={handleAddBanner3Slide}
+                style={{ padding: '10px 20px', background: '#ee7b26', color: 'white', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: 'pointer', alignSelf: 'flex-start' }}
+              >
+                + إضافة الشريحة
+              </button>
+            </div>
           </div>
         </div>
 

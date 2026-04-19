@@ -3,6 +3,8 @@ import {
   useCallback, useMemo, useRef
 } from 'react'
 import { useAuth as useSharedAuth, useOffers, useOrders } from '@r2c/shared'
+import { db } from '@r2c/shared/firebase/config'
+import { doc, updateDoc } from 'firebase/firestore'
 
 const AuthContext      = createContext(null)
 const OfferDataContext = createContext(null)
@@ -101,29 +103,36 @@ export function NavigationProvider({ children }) {
     }
   }, [])
 
-  // معالج زر العودة في أندرويد
+  // ── معالج العودة المشترك (popstate + زر أندرويد الفيزيائي) ─────────────────
   useEffect(() => {
-    const handlePopState = (e) => {
+    const handleBack = () => {
       const stack = screenHistoryRef.current
 
-      // أزل الشاشة الحالية
       if (stack.length > 1) {
         stack.pop()
         const previousScreen = stack[stack.length - 1]
         setCurrentScreenRaw(previousScreen)
       } else {
-        // إذا كانت هذه أول شاشة
-        if (exitScreens.includes(stack[0])) {
-          // في شاشات Auth/Location - لا تفعل شيء
-        } else {
-          // في الشاشات الأخرى - ابق في نفس الشاشة
+        // أول شاشة في الـ stack — نخرج من التطبيق
+        if (!exitScreens.includes(stack[0])) {
           window.history.pushState({ screen: stack[0] }, '', window.location.href)
         }
+        // إرسال إشارة للخروج يلتقطها main.jsx
+        window.dispatchEvent(new CustomEvent('r2c-exit-app'))
       }
     }
 
+    // popstate = زر العودة في المتصفح / WebView
+    const handlePopState = () => handleBack()
+
+    // r2c-back = زر العودة الفيزيائي في أندرويد (يُطلقه main.jsx)
     window.addEventListener('popstate', handlePopState)
-    return () => window.removeEventListener('popstate', handlePopState)
+    window.addEventListener('r2c-back', handleBack)
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState)
+      window.removeEventListener('r2c-back', handleBack)
+    }
   }, [exitScreens])
 
   // ضع أول pushState عند التحميل
@@ -152,7 +161,40 @@ export function NavigationProvider({ children }) {
     return () => clearTimeout(syncId)
   }, [user, authLoading, userLocation])
 
-  const value = useMemo(() => ({
+  // ── حفظ FCM Token في Firestore عند استقباله من main.jsx ─────────────────
+  useEffect(() => {
+    const handleFcmToken = async (e) => {
+      const { token } = e.detail || {}
+      if (!token || !user?.uid) return
+      try {
+        await updateDoc(doc(db, 'users', user.uid), {
+          fcmToken: token,
+          fcmTokenUpdatedAt: new Date().toISOString(),
+          platform: 'android',
+        })
+      } catch (err) {
+        console.error('R2C: failed to save FCM token', err)
+      }
+    }
+
+    // فتح شاشة معينة عند الضغط على إشعار (background/closed)
+    const handleOpenScreen = (e) => {
+      const { screen } = e.detail || {}
+      const validScreens = ['orders', 'feed', 'profile', 'search']
+      if (screen && validScreens.includes(screen)) {
+        setCurrentScreen(screen)
+      }
+    }
+
+    window.addEventListener('r2c-fcm-token', handleFcmToken)
+    window.addEventListener('r2c-open-screen', handleOpenScreen)
+    return () => {
+      window.removeEventListener('r2c-fcm-token', handleFcmToken)
+      window.removeEventListener('r2c-open-screen', handleOpenScreen)
+    }
+  }, [user?.uid, setCurrentScreen])
+
+    const value = useMemo(() => ({
     currentScreen: currentScreen === undefined ? 'feed' : currentScreen,
     setCurrentScreen,
     goBack, // ✅ أضفنا دالة العودة هنا

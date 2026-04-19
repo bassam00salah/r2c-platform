@@ -318,6 +318,76 @@ exports.createOrder = onCall(CALL_OPTIONS, async (request) => {
 // ───────────────────────────────────────────────────────────────────────────
 // 2. تحديث حالة الطلب — Callable
 // ───────────────────────────────────────────────────────────────────────────
+
+// ─── Helper: إشعار المستخدم بتغيير حالة طلبه ──────────────────────────────
+const USER_NOTIF_MAP = {
+  accepted:  { title: "✅ تم قبول طلبك",     body: "طلبك قيد التحضير الآن، سنخبرك لما يكون جاهزاً" },
+  ready:     { title: "🎉 طلبك جاهز!",       body: "توجه لاستلام طلبك من المطعم" },
+  completed: { title: "✔️ اكتمل طلبك",       body: "شكراً لاستخدامك R2C، نراك قريباً!" },
+  rejected:  { title: "❌ تم رفض طلبك",      body: "عذراً، تعذر قبول طلبك. يمكنك المحاولة مرة أخرى" },
+  cancelled: { title: "🚫 تم إلغاء الطلب",   body: "تم إلغاء الطلب. تواصل مع الدعم لمزيد من المعلومات" },
+};
+
+async function sendUserOrderNotification(orderId, orderData, newStatus) {
+  const notifContent = USER_NOTIF_MAP[newStatus];
+  if (!notifContent) return; // pending لا يستدعي إشعاراً
+
+  const userId = orderData?.userId;
+  if (!userId) {
+    logger.warn("sendUserOrderNotification: missing userId", { orderId });
+    return;
+  }
+
+  // جلب FCM token من Firestore
+  const userSnap = await db.collection("users").doc(userId).get();
+  const fcmToken = userSnap.data()?.fcmToken;
+
+  if (!fcmToken) {
+    logger.info("sendUserOrderNotification: no FCM token for user", { userId, orderId });
+    return;
+  }
+
+  const message = {
+    token: fcmToken,
+    notification: {
+      title: notifContent.title,
+      body: orderData?.offerName
+        ? `${notifContent.body} — ${String(orderData.offerName).slice(0, 60)}`
+        : notifContent.body,
+    },
+    data: {
+      type: "order_status",
+      orderId: String(orderId),
+      status: String(newStatus),
+      screen: "orders",          // يفتح شاشة الطلبات عند الضغط
+    },
+    android: {
+      priority: "high",
+      notification: {
+        sound: "default",
+        channelId: "order_updates",
+      },
+    },
+  };
+
+  try {
+    await admin.messaging().send(message);
+    logger.info("sendUserOrderNotification: sent", { orderId, userId, newStatus });
+  } catch (err) {
+    const code = err?.errorInfo?.code || "";
+    // لو الـ token انتهى نحذفه من Firestore
+    if (
+      code === "messaging/registration-token-not-registered" ||
+      code === "messaging/invalid-registration-token"
+    ) {
+      await db.collection("users").doc(userId).update({ fcmToken: FieldValue.delete() });
+      logger.info("sendUserOrderNotification: removed stale token", { userId });
+    } else {
+      throw err;
+    }
+  }
+}
+
 exports.updateOrderStatus = onCall(CALL_OPTIONS, async (request) => {
   const { auth, data } = request;
 
@@ -378,6 +448,17 @@ exports.updateOrderStatus = onCall(CALL_OPTIONS, async (request) => {
     actor: auth.uid,
     ts: new Date().toISOString(),
   });
+
+  // ── إشعار المستخدم بتغيير حالة طلبه ──────────────────────────────────────
+  try {
+    await sendUserOrderNotification(orderId, order, newStatus);
+  } catch (notifErr) {
+    // لا نوقف العملية لو فشل الإشعار
+    logger.warn("updateOrderStatus: notification failed (non-fatal)", {
+      orderId,
+      error: notifErr?.message,
+    });
+  }
 
   return { success: true, orderId, status: newStatus };
 });
