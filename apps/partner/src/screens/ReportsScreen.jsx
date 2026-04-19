@@ -2,6 +2,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { db } from '@r2c/shared'
 import { doc, getDoc, onSnapshot } from 'firebase/firestore'
 import Logo from '../components/logo'
+import { Capacitor } from '@capacitor/core'
+import { Filesystem, Directory } from '@capacitor/filesystem'
+import { FileOpener } from '@capacitor-community/file-opener'
 
 const RANGE_OPTIONS = [
   { key: 'today', label: 'اليوم' },
@@ -539,7 +542,7 @@ function csvEscape(value) {
   return `"${text.replace(/"/g, '""')}"`
 }
 
-function exportOrdersToExcelCompatibleCsv({ filteredOrders, selectedRange, selectedStatus }) {
+async function exportOrdersToExcelCompatibleCsv({ filteredOrders, selectedRange, selectedStatus }) {
   const headers = [
     'رقم الطلب',
     'الحالة',
@@ -579,17 +582,33 @@ function exportOrdersToExcelCompatibleCsv({ filteredOrders, selectedRange, selec
   ])
 
   const csvContent = [headers, ...rows].map((row) => row.map(csvEscape).join(',')).join('\n')
-  const blob = new Blob([`\uFEFF${csvContent}`], { type: 'text/csv;charset=utf-8;' })
-  const link = document.createElement('a')
-  const url = URL.createObjectURL(blob)
   const dateLabel = new Date().toISOString().slice(0, 10)
+  const fileName = `reports-${dateLabel}.csv`
 
-  link.href = url
-  link.setAttribute('download', `reports-${dateLabel}.csv`)
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-  URL.revokeObjectURL(url)
+  if (Capacitor.isNativePlatform()) {
+    // ✅ Android: اكتب الملف في Cache ثم افتحه
+    const base64Data = btoa(unescape(encodeURIComponent('\uFEFF' + csvContent)))
+    const result = await Filesystem.writeFile({
+      path: fileName,
+      data: base64Data,
+      directory: Directory.Cache,
+    })
+    await FileOpener.open({
+      filePath: result.uri,
+      contentType: 'text/csv',
+    })
+  } else {
+    // ✅ Web/localhost: الطريقة الأصلية
+    const blob = new Blob([`\uFEFF${csvContent}`], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', fileName)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }
 }
 
 function StatCard({ label, value, sublabel, accent = 'text-[#1f2937]' }) {
@@ -764,10 +783,13 @@ const ReportsScreen = ({ branchId, setCurrentScreen, orders = [] }) => {
 
   const branchState = getBranchStateMeta(partnerProfile, branchId)
 
-  const handleExport = () => {
+  const handleExport = async () => {
     try {
       setIsExporting(true)
-      exportOrdersToExcelCompatibleCsv({ filteredOrders, selectedRange, selectedStatus })
+      await exportOrdersToExcelCompatibleCsv({ filteredOrders, selectedRange, selectedStatus })
+    } catch (err) {
+      console.error('Export failed:', err)
+      alert('فشل التصدير، حاول مرة أخرى')
     } finally {
       setTimeout(() => setIsExporting(false), 500)
     }

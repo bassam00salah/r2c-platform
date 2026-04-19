@@ -1,68 +1,153 @@
 import { useState, useEffect, useRef } from 'react'
 import { useApp } from '../contexts'
 import { db, functions } from '@r2c/shared'
-import { doc, onSnapshot } from 'firebase/firestore'
+import { doc, onSnapshot, updateDoc, serverTimestamp } from 'firebase/firestore'
 import { httpsCallable } from 'firebase/functions'
 
 const COUNTDOWN_SECONDS = 20
+const STORAGE_KEY = 'r2c_current_order_id'
 
 export default function WaitingScreen() {
-  const { currentOrderId, setCurrentScreen, user } = useApp()
-  const [countdown, setCountdown]   = useState(COUNTDOWN_SECONDS)
-  const [phase, setPhase]           = useState('waiting')
-  const [cancelling, setCancelling] = useState(false)
-  const orderResolvedRef            = useRef(false)
+  const { currentOrderId, setCurrentOrderId, setCurrentScreen, user } = useApp()
+  const [countdown, setCountdown]     = useState(COUNTDOWN_SECONDS)
+  const [phase, setPhase]             = useState('waiting')
+  const [cancelling, setCancelling]   = useState(false)
+  const [cancelError, setCancelError] = useState(null)
+  const orderResolvedRef              = useRef(false)
+  const orderIdRef                    = useRef(null)
 
-  // ── مستمع Firestore ─────────────────────────────────────────────────────
+  // ── حفظ orderId في ref دائماً محدَّث ──────────────────────────────────────
   useEffect(() => {
-    if (!currentOrderId) return
-    const unsub = onSnapshot(doc(db, 'orders', currentOrderId), (snap) => {
+    if (currentOrderId) {
+      orderIdRef.current = currentOrderId
+      try { localStorage.setItem(STORAGE_KEY, currentOrderId) } catch {}
+    } else {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY)
+        if (saved) orderIdRef.current = saved
+      } catch {}
+    }
+  }, [currentOrderId])
+
+  const getOrderId = () => {
+    try {
+      return orderIdRef.current || currentOrderId || localStorage.getItem(STORAGE_KEY)
+    } catch {
+      return orderIdRef.current || currentOrderId
+    }
+  }
+
+  const clearOrderId = () => {
+    orderIdRef.current = null
+    setCurrentOrderId(null)
+    try { localStorage.removeItem(STORAGE_KEY) } catch {}
+  }
+
+  // ── مستمع Firestore ──────────────────────────────────────────────────────
+  useEffect(() => {
+    const oid = getOrderId()
+    if (!oid) return
+    const unsub = onSnapshot(doc(db, 'orders', oid), (snap) => {
       if (!snap.exists()) return
       const status = snap.data().status
       if (status === 'accepted') {
         orderResolvedRef.current = true
+        clearOrderId()
         setCurrentScreen('success')
       } else if (status === 'rejected') {
         orderResolvedRef.current = true
+        clearOrderId()
         setPhase('rejected')
       } else if (status === 'cancelled') {
         orderResolvedRef.current = true
+        clearOrderId()
         setCurrentScreen('feed')
       }
     })
     return () => unsub()
-  }, [currentOrderId, setCurrentScreen])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentOrderId])
 
-  // ── العداد ──────────────────────────────────────────────────────────────
+  // ── العداد ────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (phase !== 'waiting') return
     if (countdown <= 0) {
-      if (!orderResolvedRef.current && currentOrderId) {
+      const oid = getOrderId()
+      if (!orderResolvedRef.current && oid) {
         setPhase('auto_accepting')
-        httpsCallable(functions, 'autoAcceptOrder')({ orderId: currentOrderId })
+        httpsCallable(functions, 'autoAcceptOrder')({ orderId: oid })
           .catch(() => setCurrentScreen('success'))
       }
       return
     }
     const t = setTimeout(() => setCountdown(v => v - 1), 1000)
     return () => clearTimeout(t)
-  }, [countdown, phase, currentOrderId, setCurrentScreen])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [countdown, phase])
 
-  // ── إلغاء الطلب ─────────────────────────────────────────────────────────
+  // ── إلغاء الطلب ──────────────────────────────────────────────────────────
   const handleCancel = async () => {
-    if (!currentOrderId || !user?.uid || cancelling) return
-    setCancelling(true)
-    try {
-      // ننتظر تأكيد الإلغاء من السيرفر أولاً قبل الانتقال
-      await httpsCallable(functions, 'cancelOrderOnTimeout')({ orderId: currentOrderId })
-    } catch (err) {
-      console.error('cancel error:', err)
+    if (cancelling) return
+    const oid = getOrderId()
+
+    if (!oid) {
+      setCancelError('لم يتم العثور على رقم الطلب.')
+      return
     }
-    // ننتقل للـ feed بغض النظر عن نجاح أو فشل الـ function
-    setCurrentScreen('feed')
+
+    setCancelling(true)
+    setCancelError(null)
+
+    // ── المحاولة الأولى: Firestore مباشرة (أسرع وأبسط) ──────────────────────
+    try {
+      await updateDoc(doc(db, 'orders', oid), {
+        status: 'cancelled',
+        cancelReason: 'user_cancelled',
+        cancelledAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      })
+      // الـ onSnapshot سيلتقط التغيير ويغير الشاشة تلقائياً
+      return
+    } catch (fsErr) {
+      console.warn('R2C: Firestore direct cancel failed, trying Function...', fsErr?.code)
+    }
+
+    // ── المحاولة الثانية: Cloud Function كـ fallback ─────────────────────────
+    try {
+      const result = await httpsCallable(functions, 'cancelOrderOnTimeout')({ orderId: oid })
+
+      if (result?.data?.cancelled === true) {
+        clearOrderId()
+        setCurrentScreen('feed')
+        return
+      }
+
+      const st = result?.data?.status
+      if (st === 'ready' || st === 'completed') {
+        setCancelError('لا يمكن إلغاء الطلب بعد تجهيزه.')
+      } else {
+        setCancelError('لم يتم الإلغاء، أعد المحاولة.')
+      }
+
+    } catch (fnErr) {
+      const code = fnErr?.code || ''
+      console.error('R2C: Function cancel error:', code, fnErr?.message)
+
+      if (code === 'functions/unauthenticated') {
+        setCancelError('انتهت جلستك. أعد تسجيل الدخول.')
+      } else if (code === 'functions/not-found') {
+        setCancelError('الطلب غير موجود أو تم إلغاؤه مسبقاً.')
+      } else if (code === 'functions/permission-denied') {
+        setCancelError('لا تملك صلاحية إلغاء هذا الطلب.')
+      } else {
+        setCancelError('مشكلة في الاتصال. تحقق من الإنترنت وأعد المحاولة.')
+      }
+    }
+
+    setCancelling(false)
   }
 
-  // ── شاشة الرفض ──────────────────────────────────────────────────────────
+  // ── شاشة الرفض ────────────────────────────────────────────────────────────
   if (phase === 'rejected') return (
     <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6 text-center">
       <div className="text-8xl mb-6">❌</div>
@@ -80,7 +165,7 @@ export default function WaitingScreen() {
     </div>
   )
 
-  // ── شاشة القبول التلقائي ────────────────────────────────────────────────
+  // ── شاشة القبول التلقائي ──────────────────────────────────────────────────
   if (phase === 'auto_accepting') return (
     <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6 text-center">
       <div className="text-8xl mb-6">⏳</div>
@@ -93,7 +178,7 @@ export default function WaitingScreen() {
     </div>
   )
 
-  // ── شاشة الانتظار ───────────────────────────────────────────────────────
+  // ── شاشة الانتظار ─────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6">
       <div className="mb-8"><div style={{ fontSize: 80 }}>🍽️</div></div>
@@ -109,6 +194,12 @@ export default function WaitingScreen() {
 
       <div className="spinner mb-8 mx-auto" />
       <p className="text-xs text-gray-400 text-center mb-6">سيظهر QR الكود فور قبول الفرع لطلبك</p>
+
+      {cancelError && (
+        <div className="mb-4 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm font-bold text-center max-w-xs leading-relaxed">
+          {cancelError}
+        </div>
+      )}
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
         <button

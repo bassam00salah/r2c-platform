@@ -83,7 +83,9 @@ export default function ConfirmOrderScreen() {
     try {
       const createOrder = httpsCallable(functions, 'createOrder')
       const result = await createOrder({ offerId: selectedOffer.id, branchId: assignedBranch.id, userLat: userLocation?.lat || null, userLng: userLocation?.lng || null })
-      setCurrentOrderId(result.data.orderId)
+      const newOrderId = result.data.orderId
+      setCurrentOrderId(newOrderId)
+      try { localStorage.setItem('r2c_current_order_id', newOrderId) } catch {}
       setCurrentScreen('waiting')
     } catch (error) {
       const code = error?.code || ''

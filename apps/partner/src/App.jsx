@@ -58,6 +58,36 @@ function getOrderIdFromData(data) {
   return data.orderId || data.id || data.order_id || null
 }
 
+// ── إشعار محلي بصوت عند وصول push وهو مفتوح (Foreground) ────────────────────
+async function showLocalNotificationWithSound(notification) {
+  try {
+    const { LocalNotifications } = await import('@capacitor/local-notifications')
+    await LocalNotifications.createChannel({
+      id: 'order_updates_partner',
+      name: 'تحديثات الطلبات',
+      description: 'إشعارات الطلبات الواردة',
+      importance: 5,
+      sound: 'default',
+      vibration: true,
+      lights: true,
+      lightColor: '#ee7b26',
+    })
+    await LocalNotifications.schedule({
+      notifications: [{
+        id: Math.floor(Math.random() * 100000),
+        title: notification?.title || '🔔 طلب جديد!',
+        body: notification?.body || '',
+        channelId: 'order_updates_partner',
+        sound: 'default',
+        smallIcon: 'ic_stat_icon_config_sample',
+        iconColor: '#ee7b26',
+      }]
+    })
+  } catch (e) {
+    console.warn('R2C Partner: LocalNotifications not available', e?.message)
+  }
+}
+
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState('login')
   const [currentOrder, setCurrentOrder] = useState(null)
@@ -295,6 +325,8 @@ export default function App() {
         if (pushedOrderId) {
           showToast(notification?.title || '🔔 طلب جديد وارد!', 'success')
         }
+        // عرض إشعار محلي بصوت لأن FCM لا يُصدر صوتاً وهو مفتوح
+        showLocalNotificationWithSound(notification)
       })
 
       actionListener = await PushNotifications.addListener('pushNotificationActionPerformed', (event) => {
