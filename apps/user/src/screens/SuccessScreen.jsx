@@ -171,9 +171,9 @@ export default function SuccessScreen() {
                     </div>
                 )}
 
-                {/* QR Code */}
+                {/* QR Code + رمز الاستلام */}
                 <div
-                    className="qr-container mb-6 shadow-md rounded-3xl p-4"
+                    className="qr-container mb-4 shadow-md rounded-3xl p-4"
                     style={{
                         border: `4px solid ${isReady ? '#10b981' : '#ee7b26'}`,
                         boxShadow: isReady ? '0 0 30px rgba(16,185,129,0.4)' : '0 4px 20px rgba(238,123,38,0.2)',
@@ -181,14 +181,52 @@ export default function SuccessScreen() {
                     }}
                 >
                     {orderData?.qrCode ? (
-                        <QrImage qrCode={orderData.qrCode} size={220} />
+                        <QrImage qrCode={orderData.qrCode} size={200} />
                     ) : (
-                        <div style={{ width: 220, height: 220, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+                        <div style={{ width: 200, height: 200, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
                             <div className="spinner" style={{ width: 40, height: 40 }} />
                             <p style={{ fontSize: 13, color: '#9ca3af', fontWeight: 600 }}>في انتظار قبول الفرع...</p>
                         </div>
                     )}
                 </div>
+
+                {/* رمز الاستلام القصير */}
+                {orderData?.pickupCode && (
+                    <div style={{
+                        width: '100%',
+                        maxWidth: 320,
+                        marginBottom: 20,
+                        background: isReady ? '#f0fdf4' : '#fff7ed',
+                        border: `2px dashed ${isReady ? '#10b981' : '#ee7b26'}`,
+                        borderRadius: 20,
+                        padding: '14px 20px',
+                        textAlign: 'center',
+                    }}>
+                        <p style={{ fontSize: 12, color: '#6b7280', fontWeight: 600, marginBottom: 6 }}>
+                            أو أعطِ الكاشير رمز الاستلام
+                        </p>
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 8,
+                        }}>
+                            <span style={{
+                                fontSize: 32,
+                                fontWeight: 900,
+                                fontFamily: 'monospace',
+                                letterSpacing: 6,
+                                color: isReady ? '#10b981' : '#ee7b26',
+                                userSelect: 'all',
+                            }}>
+                                {orderData.pickupCode}
+                            </span>
+                        </div>
+                        <p style={{ fontSize: 11, color: '#9ca3af', marginTop: 4 }}>
+                            يمكن إدخاله يدوياً في نظام الفرع
+                        </p>
+                    </div>
+                )}
 
                 <div className="bg-amber-50 border border-amber-200 rounded-xl px-5 py-3 mb-4 text-center max-w-sm">
                     <p className="text-amber-800 font-bold text-sm">⚠️ لن يُسلَّم الطلب إلا بعد مسح هذا الكود من قِبَل الكاشير</p>

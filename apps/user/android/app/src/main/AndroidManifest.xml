@@ -55,5 +55,7 @@
     <uses-permission android:name="android.permission.VIBRATE" />
     <!-- Android 13+ يحتاج هذا الإذن الصريح -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- LocalNotifications — صوت الإشعار داخل التطبيق -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
 
 </manifest>

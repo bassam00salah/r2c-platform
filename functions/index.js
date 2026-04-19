@@ -70,7 +70,7 @@ const PROJECT_ID = process.env.GCLOUD_PROJECT || "";
 const LOCATION = process.env.TASKS_LOCATION || "us-central1";
 const QUEUE_NAME = process.env.TASKS_QUEUE_NAME || "order-cancel-queue";
 const CANCEL_URL = process.env.TASKS_CANCEL_URL || "";
-const CANCEL_DELAY_SECONDS = 45;
+const CANCEL_DELAY_SECONDS = 20;
 const TASKS_SHARED_SECRET = process.env.TASKS_SHARED_SECRET || "";
 
 // ─── Rate Limiting ─────────────────────────────────────────────────────────
@@ -107,6 +107,14 @@ async function cancelPendingOrder(orderId, reason = "timeout") {
 // ─── Helper: توليد QR Code آمن ──────────────────────────────────────────────
 function generateQRCode() {
   return crypto.randomBytes(16).toString("hex");
+}
+
+// رمز الاستلام القصير — 6 أحرف وأرقام (أحرف كبيرة فقط لتجنب اللبس)
+function generatePickupCode() {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // بدون I,O,0,1 لتجنب اللبس البصري
+  return Array.from(crypto.randomBytes(6))
+    .map(b => chars[b % chars.length])
+    .join("");
 }
 
 
@@ -289,6 +297,7 @@ exports.createOrder = onCall(CALL_OPTIONS, async (request) => {
       city: offer.city || "",
       status: ORDER_STATUS.PENDING,
       qrCode,
+      pickupCode: generatePickupCode(),
       orderCode,
       createdAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
@@ -366,6 +375,9 @@ async function sendUserOrderNotification(orderId, orderData, newStatus) {
       notification: {
         sound: "default",
         channelId: "order_updates",
+        defaultSound: true,
+        defaultVibrateTimings: true,
+        notificationPriority: "PRIORITY_HIGH",
       },
     },
   };
@@ -668,14 +680,94 @@ exports.processCancelOrder = onRequest(async (req, res) => {
     return;
   }
 
-  const cancelled = await cancelPendingOrder(orderId, "timeout");
-  logger.info("processCancelOrder", { orderId, cancelled });
-  res.status(200).json({ cancelled, orderId });
+  // بعد انتهاء مهلة الـ 20 ثانية — نقبل الطلب تلقائياً بدل الإلغاء
+  const orderRef = db.collection("orders").doc(orderId);
+  const snap = await orderRef.get();
+
+  if (!snap.exists) {
+    res.status(404).json({ error: "Order not found", orderId });
+    return;
+  }
+
+  const order = snap.data();
+  if (order.status !== ORDER_STATUS.PENDING) {
+    // الطلب اتحل بالفعل (قُبل أو رُفض أو أُلغي)
+    logger.info("processCancelOrder: order already resolved", { orderId, status: order.status });
+    res.status(200).json({ autoAccepted: false, status: order.status, orderId });
+    return;
+  }
+
+  await orderRef.update({
+    status: ORDER_STATUS.ACCEPTED,
+    autoAccepted: true,
+    acceptedAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+
+  logger.info("processCancelOrder: auto-accepted", { orderId });
+
+  // إشعار المستخدم بالقبول التلقائي
+  try {
+    await sendUserOrderNotification(orderId, order, ORDER_STATUS.ACCEPTED);
+  } catch (notifErr) {
+    logger.warn("processCancelOrder: notification failed", { error: notifErr?.message });
+  }
+
+  res.status(200).json({ autoAccepted: true, orderId });
 });
 
 // ───────────────────────────────────────────────────────────────────────────
 // 7. Callable: المستخدم يلغي طلبه
 // ───────────────────────────────────────────────────────────────────────────
+
+// ───────────────────────────────────────────────────────────────────────────
+// القبول التلقائي بعد انتهاء مهلة الانتظار — يُستدعى من التطبيق
+// ───────────────────────────────────────────────────────────────────────────
+exports.autoAcceptOrder = onCall(CALL_OPTIONS, async (request) => {
+  const { auth, data } = request;
+
+  if (!auth) {
+    throw new HttpsError("unauthenticated", "Authentication is required.");
+  }
+
+  const orderId = assertString(data?.orderId, "orderId", { max: 100 });
+
+  const orderRef = db.collection("orders").doc(orderId);
+  const snap = await orderRef.get();
+
+  if (!snap.exists) {
+    throw new HttpsError("not-found", "Order not found.");
+  }
+
+  const order = snap.data();
+
+  if (order.userId !== auth.uid) {
+    throw new HttpsError("permission-denied", "You do not own this order.");
+  }
+
+  // لو الطلب اتحل بالفعل (قُبل أو رُفض أو أُلغي)، لا نغير شيء
+  if (order.status !== ORDER_STATUS.PENDING) {
+    return { autoAccepted: false, status: order.status };
+  }
+
+  await orderRef.update({
+    status: ORDER_STATUS.ACCEPTED,
+    autoAccepted: true,
+    acceptedAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+
+  logger.info("autoAcceptOrder: auto-accepted", { orderId, userId: auth.uid });
+
+  try {
+    await sendUserOrderNotification(orderId, order, ORDER_STATUS.ACCEPTED);
+  } catch (notifErr) {
+    logger.warn("autoAcceptOrder: notification failed", { error: notifErr?.message });
+  }
+
+  return { autoAccepted: true, orderId };
+});
+
 exports.cancelOrderOnTimeout = onCall(CALL_OPTIONS, async (request) => {
   const { auth, data } = request;
 
@@ -694,17 +786,30 @@ exports.cancelOrderOnTimeout = onCall(CALL_OPTIONS, async (request) => {
     throw new HttpsError("not-found", "Order not found.");
   }
 
-  if (snap.data().userId !== auth.uid) {
+  const order = snap.data();
+
+  if (order.userId !== auth.uid) {
     throw new HttpsError("permission-denied", "You do not own this order.");
   }
 
-  const cancelled = await cancelPendingOrder(orderId, "user_cancelled");
-  logger.info("cancelOrderOnTimeout", { orderId, cancelled, uid: auth.uid });
+  // لا نلغي الطلب لو اكتمل أو جاهز — المستخدم التزم بالدفع
+  const nonCancellableStatuses = [ORDER_STATUS.COMPLETED, ORDER_STATUS.READY];
+  if (nonCancellableStatuses.includes(order.status)) {
+    logger.info("cancelOrderOnTimeout: cannot cancel at this stage", { orderId, status: order.status });
+    return { cancelled: false, status: order.status };
+  }
 
-  return {
-    cancelled,
-    status: cancelled ? ORDER_STATUS.CANCELLED : snap.data().status,
-  };
+  // نلغي بغض النظر عن الحالة (pending أو accepted)
+  await orderRef.update({
+    status: ORDER_STATUS.CANCELLED,
+    cancelReason: "user_cancelled",
+    cancelledAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+
+  logger.info("cancelOrderOnTimeout: cancelled", { orderId, prevStatus: order.status, uid: auth.uid });
+
+  return { cancelled: true, status: ORDER_STATUS.CANCELLED };
 });
 
 // ───────────────────────────────────────────────────────────────────────────
@@ -795,9 +900,21 @@ exports.completeOrderByQR = onCall(CALL_OPTIONS, async (request) => {
 
   enforceOptionalAppCheck(request);
 
-  const qrCode = assertString(data?.qrCode, "qrCode", { max: 200 });
+  // يقبل إما qrCode الكامل أو pickupCode القصير
+  const inputCode = assertString(data?.qrCode || data?.pickupCode, "code", { max: 200 });
 
-  const ordersSnap = await db.collection("orders").where("qrCode", "==", qrCode).limit(1).get();
+  // نبحث أولاً بـ pickupCode (الأكثر احتمالاً عند الإدخال اليدوي)
+  let ordersSnap = await db.collection("orders")
+    .where("pickupCode", "==", inputCode.toUpperCase())
+    .limit(1).get();
+
+  // لو مش لاقي، نبحث بـ qrCode الكامل (مسح QR)
+  if (ordersSnap.empty) {
+    ordersSnap = await db.collection("orders")
+      .where("qrCode", "==", inputCode)
+      .limit(1).get();
+  }
+
   if (ordersSnap.empty) {
     throw new HttpsError("not-found", "عذراً، هذا الرمز غير موجود في النظام.");
   }
