@@ -1,16 +1,16 @@
 import { useState, useEffect } from 'react';
-import { useApp } from '../context/AppContext';
-import { db } from '@r2c/shared/firebase/config';
-import { getFunctions, httpsCallable } from 'firebase/functions';
 import { collection, onSnapshot } from 'firebase/firestore';
-import { auth } from '@r2c/shared/firebase/config';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { auth, db } from '@r2c/shared/firebase/config';
+import { useApp } from '../context/AppContext';
+import { AdminCard, EmptyState, Field, Notice, PageHeader, TableCard, dangerButtonStyle, inputStyle, primaryButtonStyle, secondaryButtonStyle, tableCellStyle, tableHeaderStyle } from '../components/adminUi';
 
 export default function OwnersPage() {
   const { restaurants, showToast } = useApp();
-  const [owners, setOwners]     = useState([]);
+  const [owners, setOwners] = useState([]);
   const [showForm, setShowForm] = useState(false);
-  const [loading, setLoading]   = useState(false);
-  const [form, setForm]         = useState({ email: '', password: '', restaurantId: '', name: '' });
+  const [loading, setLoading] = useState(false);
+  const [form, setForm] = useState({ email: '', password: '', restaurantId: '', name: '' });
 
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'restaurantOwners'), snap => {
@@ -25,32 +25,20 @@ export default function OwnersPage() {
   };
 
   const handleCreate = async () => {
-    if (!form.email || !form.password || !form.restaurantId || !form.name)
-      return showToast('أدخل جميع البيانات', 'error');
-    if (form.password.length < 6)
-      return showToast('كلمة المرور يجب أن تكون 6 أحرف على الأقل', 'error');
+    if (!form.email || !form.password || !form.restaurantId || !form.name) return showToast('أدخل جميع البيانات', 'error');
+    if (form.password.length < 6) return showToast('كلمة المرور يجب أن تكون 6 أحرف على الأقل', 'error');
 
     setLoading(true);
     try {
       const functions = getFunctions(auth.app);
       const createOwnerUser = httpsCallable(functions, 'createOwnerUser');
-
-      await createOwnerUser({
-        email:        form.email,
-        password:     form.password,
-        name:         form.name,
-        restaurantId: form.restaurantId,
-      });
-
+      await createOwnerUser({ email: form.email, password: form.password, name: form.name, restaurantId: form.restaurantId });
       showToast('تم إنشاء حساب المالك بنجاح ✅');
       resetForm();
     } catch (err) {
       const msg = err?.details || err?.message || 'حدث خطأ غير متوقع';
-      if (msg.includes('already-exists') || msg.includes('مستخدم بالفعل')) {
-        showToast('هذا البريد الإلكتروني مستخدم بالفعل', 'error');
-      } else {
-        showToast('حدث خطأ: ' + msg, 'error');
-      }
+      if (msg.includes('already-exists') || msg.includes('مستخدم بالفعل')) showToast('هذا البريد الإلكتروني مستخدم بالفعل', 'error');
+      else showToast('حدث خطأ: ' + msg, 'error');
     } finally {
       setLoading(false);
     }
@@ -59,8 +47,6 @@ export default function OwnersPage() {
   const handleDelete = async (ownerId, ownerEmail) => {
     if (!confirm(`هل تريد حذف حساب "${ownerEmail}"؟`)) return;
     try {
-      // ✅ إصلاح: استخدام deleteOwner Cloud Function بدلاً من deleteDoc مباشرة
-      // تُعطّل حساب Auth أولاً ثم تحذف وثيقة Firestore
       const functions = getFunctions(auth.app);
       const deleteOwner = httpsCallable(functions, 'deleteOwner');
       await deleteOwner({ ownerId });
@@ -73,100 +59,69 @@ export default function OwnersPage() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-        <h2 style={{ fontSize: '24px', fontWeight: 'bold', color: '#1a1a2e' }}>ملاك المطاعم ({owners.length})</h2>
-        <button onClick={() => setShowForm(true)} style={{ padding: '10px 20px', background: '#ee7b26', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: 'bold' }}>
-          + إضافة مالك
-        </button>
-      </div>
+      <PageHeader
+        icon="👤"
+        title={`ملاك المطاعم (${owners.length})`}
+        description="إدارة حسابات ملاك المطاعم مع الحفاظ على نفس منطق الـ Cloud Functions الحالي." 
+        badge="إدارة الصلاحيات"
+        action={<button onClick={() => setShowForm(true)} style={primaryButtonStyle}>+ إضافة مالك</button>}
+      />
 
-      {/* نموذج الإضافة */}
-      {showForm && (
-        <div style={{ background: 'white', borderRadius: '12px', padding: '24px', marginBottom: '24px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
-          <h3 style={{ fontWeight: 'bold', marginBottom: '16px' }}>إضافة مالك مطعم جديد</h3>
+      {showForm ? (
+        <AdminCard style={{ marginBottom: '24px' }}>
+          <PageHeader icon="➕" title="إضافة مالك مطعم جديد" description="سيتم إنشاء حساب تسجيل دخول جديد وربطه بمطعم واحد فقط." />
+          <Notice tone="amber">سيتم إنشاء حساب تسجيل دخول جديد بهذا البريد وكلمة المرور، وسيتمكن المالك من رؤية فروع وعروض وطلبات مطعمه فقط.</Notice>
 
-          <div style={{ background: '#fef3c7', border: '1px solid #fbbf24', borderRadius: '8px', padding: '12px 16px', marginBottom: '16px', fontSize: '13px', color: '#92400e' }}>
-            ⚠️ سيتم إنشاء حساب تسجيل دخول جديد بهذا البريد وكلمة المرور. سيتمكن المالك من رؤية فروع وعروض وطلبات مطعمه فقط.
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            <div>
-              <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px', fontWeight: '600' }}>الاسم الكامل</label>
-              <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}
-                style={{ width: '100%', padding: '8px 12px', border: '1px solid #e5e7eb', borderRadius: '8px', boxSizing: 'border-box' }} />
-            </div>
-            <div>
-              <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px', fontWeight: '600' }}>المطعم</label>
-              <select value={form.restaurantId} onChange={e => setForm({ ...form, restaurantId: e.target.value })}
-                style={{ width: '100%', padding: '8px 12px', border: '1px solid #e5e7eb', borderRadius: '8px', boxSizing: 'border-box' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginTop: '18px' }}>
+            <Field label="الاسم الكامل">
+              <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} style={inputStyle} />
+            </Field>
+            <Field label="المطعم">
+              <select value={form.restaurantId} onChange={e => setForm({ ...form, restaurantId: e.target.value })} style={inputStyle}>
                 <option value="">اختر مطعم</option>
                 {restaurants.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
               </select>
-            </div>
-            <div>
-              <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px', fontWeight: '600' }}>البريد الإلكتروني</label>
-              <input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })}
-                style={{ width: '100%', padding: '8px 12px', border: '1px solid #e5e7eb', borderRadius: '8px', boxSizing: 'border-box' }} />
-            </div>
-            <div>
-              <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px', fontWeight: '600' }}>كلمة المرور</label>
-              <input type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })}
-                style={{ width: '100%', padding: '8px 12px', border: '1px solid #e5e7eb', borderRadius: '8px', boxSizing: 'border-box' }} />
-            </div>
+            </Field>
+            <Field label="البريد الإلكتروني">
+              <input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} style={inputStyle} />
+            </Field>
+            <Field label="كلمة المرور" note="يجب ألا تقل عن 6 أحرف.">
+              <input type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} style={inputStyle} />
+            </Field>
           </div>
 
-          <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
-            <button onClick={handleCreate} disabled={loading}
-              style={{ padding: '10px 24px', background: loading ? '#9ca3af' : '#ee7b26', color: 'white', border: 'none', borderRadius: '8px', cursor: loading ? 'not-allowed' : 'pointer', fontWeight: 'bold' }}>
-              {loading ? '⏳ جاري الإنشاء...' : 'إنشاء الحساب'}
-            </button>
-            <button onClick={resetForm}
-              style={{ padding: '10px 24px', background: '#f3f4f6', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
-              إلغاء
-            </button>
+          <div style={{ display: 'flex', gap: '10px', marginTop: '20px', flexWrap: 'wrap' }}>
+            <button onClick={handleCreate} disabled={loading} style={{ ...primaryButtonStyle, opacity: loading ? 0.7 : 1, cursor: loading ? 'not-allowed' : 'pointer' }}>{loading ? '⏳ جاري الإنشاء...' : 'إنشاء الحساب'}</button>
+            <button onClick={resetForm} style={secondaryButtonStyle}>إلغاء</button>
           </div>
-        </div>
-      )}
+        </AdminCard>
+      ) : null}
 
-      {/* جدول الملاك */}
-      <div style={{ background: 'white', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
+      <TableCard>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
-            <tr style={{ background: '#f9fafb' }}>
-              {['الاسم', 'البريد الإلكتروني', 'المطعم', 'إجراءات'].map(h => (
-                <th key={h} style={{ padding: '12px 16px', textAlign: 'right', color: '#374151', fontWeight: '600' }}>{h}</th>
-              ))}
+            <tr>
+              {['الاسم', 'البريد الإلكتروني', 'المطعم', 'إجراءات'].map(h => <th key={h} style={tableHeaderStyle()}>{h}</th>)}
             </tr>
           </thead>
           <tbody>
             {owners.map(o => {
               const rest = restaurants.find(r => r.id === o.restaurantId);
               return (
-                <tr key={o.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                  <td style={{ padding: '12px 16px', fontWeight: '600' }}>{o.name || '-'}</td>
-                  <td style={{ padding: '12px 16px', color: '#6b7280' }}>{o.email}</td>
-                  <td style={{ padding: '12px 16px' }}>
-                    {rest ? (
-                      <span style={{ background: '#dbeafe', color: '#1d4ed8', padding: '4px 10px', borderRadius: '20px', fontSize: '13px', fontWeight: '600' }}>
-                        {rest.name}
-                      </span>
-                    ) : <span style={{ color: '#ef4444' }}>مطعم غير موجود</span>}
+                <tr key={o.id}>
+                  <td style={tableCellStyle({ fontWeight: 800 })}>{o.name || '-'}</td>
+                  <td style={tableCellStyle({ color: '#6b7280' })}>{o.email}</td>
+                  <td style={tableCellStyle()}>
+                    {rest ? <span style={{ background: '#dbeafe', color: '#1d4ed8', padding: '5px 10px', borderRadius: '999px', fontSize: '12px', fontWeight: 800 }}>{rest.name}</span> : <span style={{ color: '#ef4444' }}>مطعم غير موجود</span>}
                   </td>
-                  <td style={{ padding: '12px 16px' }}>
-                    <button onClick={() => handleDelete(o.id, o.email)}
-                      style={{ padding: '6px 14px', background: '#fee2e2', color: '#dc2626', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>
-                      حذف
-                    </button>
-                  </td>
+                  <td style={tableCellStyle()}><button onClick={() => handleDelete(o.id, o.email)} style={dangerButtonStyle}>حذف</button></td>
                 </tr>
               );
             })}
-            {owners.length === 0 && (
-              <tr><td colSpan={4} style={{ textAlign: 'center', padding: '48px', color: '#9ca3af' }}>لا يوجد ملاك مطاعم حتى الآن</td></tr>
-            )}
           </tbody>
         </table>
-      </div>
+        {owners.length === 0 ? <EmptyState icon="👤" text="لا يوجد ملاك مطاعم حتى الآن" /> : null}
+      </TableCard>
     </div>
   );
 }

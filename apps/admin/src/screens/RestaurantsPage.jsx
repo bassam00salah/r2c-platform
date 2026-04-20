@@ -1,21 +1,20 @@
 import { useState, useEffect } from 'react';
-import { useApp } from '../context/AppContext';
-import { db } from '@r2c/shared/firebase/config';
 import { collection, addDoc, doc, updateDoc, deleteDoc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '@r2c/shared/firebase/config';
+import { useApp } from '../context/AppContext';
+import { AdminCard, EmptyState, Field, ImagePreview, Notice, PageHeader, primaryButtonStyle, secondaryButtonStyle, dangerButtonStyle, inputStyle, TableCard, tableCellStyle, tableHeaderStyle } from '../components/adminUi';
 
 export default function RestaurantsPage() {
   const { restaurants, showToast } = useApp();
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
-  const [cities, setCities] = useState(['الدمام','الخبر','الجبيل','القطيف']);
+  const [cities, setCities] = useState(['الدمام', 'الخبر', 'الجبيل', 'القطيف']);
   const [form, setForm] = useState({ name: '', category: '', city: 'الدمام', imageUrl: '', coverImageUrl: '' });
 
   useEffect(() => {
     getDoc(doc(db, 'system', 'settings')).then(d => {
-      if (d.exists() && d.data().cities) {
-        setCities(d.data().cities);
-      }
+      if (d.exists() && d.data().cities) setCities(d.data().cities);
     });
   }, []);
 
@@ -38,7 +37,9 @@ export default function RestaurantsPage() {
         showToast('تم إضافة المطعم');
       }
       resetForm();
-    } catch { showToast('حدث خطأ', 'error'); }
+    } catch {
+      showToast('حدث خطأ', 'error');
+    }
   };
 
   const handleDelete = async (id, name) => {
@@ -49,106 +50,105 @@ export default function RestaurantsPage() {
 
   const handleEdit = (r) => {
     setEditing(r);
-    setForm({ name: r.name||'', category: r.category||'', city: r.city||cities[0]||'الدمام', imageUrl: r.imageUrl||'', coverImageUrl: r.coverImageUrl||'' });
+    setForm({ name: r.name || '', category: r.category || '', city: r.city || cities[0] || 'الدمام', imageUrl: r.imageUrl || '', coverImageUrl: r.coverImageUrl || '' });
     setShowForm(true);
   };
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-        <h2 style={{ fontSize: '24px', fontWeight: 'bold', color: '#1a1a2e' }}>المطاعم ({restaurants.length})</h2>
-        <button onClick={() => setShowForm(true)} style={{ padding: '10px 20px', background: '#ee7b26', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: 'bold' }}>+ إضافة مطعم</button>
-      </div>
+      <PageHeader
+        icon="🍽️"
+        title={`المطاعم (${restaurants.length})`}
+        description="إدارة المطاعم وبياناتها الأساسية مع معاينة اللوجو والغلاف داخل نفس الأسلوب البصري الجديد."
+        badge="إدارة المحتوى"
+        action={<button onClick={() => setShowForm(true)} style={primaryButtonStyle}>+ إضافة مطعم</button>}
+      />
 
-      <input value={search} onChange={e => setSearch(e.target.value)} placeholder="بحث..." style={{ width: '100%', padding: '10px 16px', border: '2px solid #e5e7eb', borderRadius: '10px', marginBottom: '16px', fontSize: '15px', boxSizing: 'border-box' }} />
+      <input value={search} onChange={e => setSearch(e.target.value)} placeholder="🔍 ابحث باسم المطعم أو المدينة..." style={{ ...inputStyle, marginBottom: '16px' }} />
 
-      {showForm && (
-        <div style={{ background: 'white', borderRadius: '12px', padding: '24px', marginBottom: '24px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
-          <h3 style={{ fontWeight: 'bold', marginBottom: '16px' }}>{editing ? 'تعديل مطعم' : 'إضافة مطعم جديد'}</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+      {showForm ? (
+        <AdminCard style={{ marginBottom: '24px' }}>
+          <PageHeader
+            icon={editing ? '✏️' : '➕'}
+            title={editing ? 'تعديل مطعم' : 'إضافة مطعم جديد'}
+            description="جميع الحقول والوظائف كما هي، مع تنظيم بصري أوضح للنموذج والمعاينات."
+          />
 
-            <div>
-              <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px', fontWeight: '600' }}>اسم المطعم</label>
-              <input value={form.name} onChange={e => setForm({...form, name: e.target.value})} style={{ width: '100%', padding: '8px 12px', border: '1px solid #e5e7eb', borderRadius: '8px', boxSizing: 'border-box' }} />
-            </div>
+          <Notice tone="blue">يمكنك استخدام روابط الصور المباشرة للوجو وصورة الغلاف، وستظهر المعاينة أسفل الحقول مباشرة.</Notice>
 
-            <div>
-              <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px', fontWeight: '600' }}>التصنيف</label>
-              <input value={form.category} onChange={e => setForm({...form, category: e.target.value})} style={{ width: '100%', padding: '8px 12px', border: '1px solid #e5e7eb', borderRadius: '8px', boxSizing: 'border-box' }} />
-            </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginTop: '18px' }}>
+            <Field label="اسم المطعم">
+              <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} style={inputStyle} />
+            </Field>
 
-            <div>
-              <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px', fontWeight: '600' }}>المدينة</label>
-              <select value={form.city} onChange={e => setForm({...form, city: e.target.value})} style={{ width: '100%', padding: '8px 12px', border: '1px solid #e5e7eb', borderRadius: '8px', boxSizing: 'border-box' }}>
+            <Field label="التصنيف">
+              <input value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} style={inputStyle} />
+            </Field>
+
+            <Field label="المدينة">
+              <select value={form.city} onChange={e => setForm({ ...form, city: e.target.value })} style={inputStyle}>
                 {cities.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
-            </div>
+            </Field>
 
-            <div>
-              <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px', fontWeight: '600' }}>رابط الصورة (اللوجو)</label>
-              <input value={form.imageUrl} onChange={e => setForm({...form, imageUrl: e.target.value})} placeholder="https://example.com/logo.jpg" style={{ width: '100%', padding: '8px 12px', border: '1px solid #e5e7eb', borderRadius: '8px', boxSizing: 'border-box' }} />
-            </div>
+            <Field label="رابط الصورة (اللوجو)">
+              <input value={form.imageUrl} onChange={e => setForm({ ...form, imageUrl: e.target.value })} placeholder="https://example.com/logo.jpg" style={inputStyle} />
+            </Field>
 
-            <div>
-              <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px', fontWeight: '600' }}>رابط صورة الغلاف</label>
-              <input value={form.coverImageUrl} onChange={e => setForm({...form, coverImageUrl: e.target.value})} placeholder="https://example.com/cover.jpg" style={{ width: '100%', padding: '8px 12px', border: '1px solid #e5e7eb', borderRadius: '8px', boxSizing: 'border-box' }} />
-            </div>
-
-            {/* معاينة الصور */}
-            {(form.imageUrl || form.coverImageUrl) && (
-              <div style={{ gridColumn: '1 / -1', display: 'flex', gap: '12px' }}>
-                {form.imageUrl && (
-                  <div style={{ flex: 1 }}>
-                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: '600', color: '#6b7280' }}>معاينة اللوجو</label>
-                    <div style={{ width: 72, height: 72, borderRadius: '50%', overflow: 'hidden', border: '2px solid #e5e7eb', background: '#f9fafb' }}>
-                      <img src={form.imageUrl} alt="logo preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => e.target.style.display='none'} />
-                    </div>
-                  </div>
-                )}
-                {form.coverImageUrl && (
-                  <div style={{ flex: 3 }}>
-                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: '600', color: '#6b7280' }}>معاينة الغلاف</label>
-                    <img src={form.coverImageUrl} alt="cover preview" style={{ width: '100%', height: '100px', objectFit: 'cover', borderRadius: '10px', border: '2px solid #e5e7eb' }} onError={e => e.target.style.display='none'} />
-                  </div>
-                )}
-              </div>
-            )}
-
+            <Field label="رابط صورة الغلاف" note="يفضل أن تكون الصورة أفقية وواضحة داخل التطبيق.">
+              <input value={form.coverImageUrl} onChange={e => setForm({ ...form, coverImageUrl: e.target.value })} placeholder="https://example.com/cover.jpg" style={inputStyle} />
+            </Field>
           </div>
-          <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
-            <button onClick={handleSave} style={{ padding: '10px 24px', background: '#ee7b26', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>حفظ</button>
-            <button onClick={resetForm} style={{ padding: '10px 24px', background: '#f3f4f6', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>إلغاء</button>
-          </div>
-        </div>
-      )}
 
-      <div style={{ background: 'white', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
+          {(form.imageUrl || form.coverImageUrl) ? (
+            <div style={{ display: 'grid', gridTemplateColumns: form.imageUrl && form.coverImageUrl ? '220px 1fr' : '1fr', gap: '16px', marginTop: '18px' }}>
+              {form.imageUrl ? (
+                <div>
+                  <div style={{ color: '#6b7280', fontSize: '13px', fontWeight: 700, marginBottom: '8px' }}>معاينة اللوجو</div>
+                  <ImagePreview src={form.imageUrl} alt="logo preview" height={84} circle />
+                </div>
+              ) : null}
+              {form.coverImageUrl ? (
+                <div>
+                  <div style={{ color: '#6b7280', fontSize: '13px', fontWeight: 700, marginBottom: '8px' }}>معاينة الغلاف</div>
+                  <ImagePreview src={form.coverImageUrl} alt="cover preview" height={120} />
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
+          <div style={{ display: 'flex', gap: '10px', marginTop: '20px', flexWrap: 'wrap' }}>
+            <button onClick={handleSave} style={primaryButtonStyle}>حفظ</button>
+            <button onClick={resetForm} style={secondaryButtonStyle}>إلغاء</button>
+          </div>
+        </AdminCard>
+      ) : null}
+
+      <TableCard>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
-            <tr style={{ background: '#f9fafb' }}>
-              {['الاسم','التصنيف','المدينة','إجراءات'].map(h => (
-                <th key={h} style={{ padding: '12px 16px', textAlign: 'right', color: '#374151', fontWeight: '600' }}>{h}</th>
-              ))}
+            <tr>
+              {['الاسم', 'التصنيف', 'المدينة', 'إجراءات'].map(h => <th key={h} style={tableHeaderStyle()}>{h}</th>)}
             </tr>
           </thead>
           <tbody>
             {filtered.map(r => (
-              <tr key={r.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                <td style={{ padding: '12px 16px', fontWeight: '600' }}>{r.name}</td>
-                <td style={{ padding: '12px 16px', color: '#6b7280' }}>{r.category||'-'}</td>
-                <td style={{ padding: '12px 16px', color: '#6b7280' }}>{r.city||'-'}</td>
-                <td style={{ padding: '12px 16px' }}>
-                  <button onClick={() => handleEdit(r)} style={{ padding: '6px 14px', background: '#dbeafe', color: '#1d4ed8', border: 'none', borderRadius: '6px', cursor: 'pointer', marginLeft: '8px' }}>تعديل</button>
-                  <button onClick={() => handleDelete(r.id, r.name)} style={{ padding: '6px 14px', background: '#fee2e2', color: '#dc2626', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>حذف</button>
+              <tr key={r.id}>
+                <td style={tableCellStyle({ fontWeight: 800 })}>{r.name}</td>
+                <td style={tableCellStyle({ color: '#6b7280' })}>{r.category || '-'}</td>
+                <td style={tableCellStyle({ color: '#6b7280' })}>{r.city || '-'}</td>
+                <td style={tableCellStyle()}>
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    <button onClick={() => handleEdit(r)} style={{ ...secondaryButtonStyle, padding: '8px 14px', color: '#1d4ed8', borderColor: '#bfdbfe' }}>تعديل</button>
+                    <button onClick={() => handleDelete(r.id, r.name)} style={dangerButtonStyle}>حذف</button>
+                  </div>
                 </td>
               </tr>
             ))}
-            {filtered.length === 0 && (
-              <tr><td colSpan={4} style={{ textAlign: 'center', padding: '48px', color: '#9ca3af' }}>لا توجد مطاعم</td></tr>
-            )}
           </tbody>
         </table>
-      </div>
+        {filtered.length === 0 ? <EmptyState icon="🍽️" text="لا توجد مطاعم" /> : null}
+      </TableCard>
     </div>
   );
 }
