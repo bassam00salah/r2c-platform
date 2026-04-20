@@ -52,7 +52,7 @@ export default function WaitingScreen() {
       const status = snap.data().status
       if (status === 'accepted') {
         orderResolvedRef.current = true
-        clearOrderId()
+        // ❌ لا نمسح orderId هنا — SuccessScreen تحتاجه لعرض QR والبيانات
         setCurrentScreen('success')
       } else if (status === 'rejected') {
         orderResolvedRef.current = true

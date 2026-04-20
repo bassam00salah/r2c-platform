@@ -19,7 +19,7 @@ const updateOrderStatusFn = httpsCallable(
   'updateOrderStatus'
 );
 
-const OrderCard = ({ order, onView, showToast }) => {
+const OrderCard = ({ order, onView, showToast, onStopAlert, isAutoAcceptedAlerting }) => {
   const [loading, setLoading] = useState(false);
 
   /**
@@ -54,10 +54,11 @@ const OrderCard = ({ order, onView, showToast }) => {
     }
   };
 
-  const isPending  = order.status === ORDER_STATUS.PENDING;
-  const isAccepted = order.status === ORDER_STATUS.ACCEPTED;
-  const isReady    = order.status === ORDER_STATUS.READY;
-  const isDone     = order.status === ORDER_STATUS.COMPLETED;
+  const isPending          = order.status === ORDER_STATUS.PENDING;
+  const isAutoAccepted     = order.status === ORDER_STATUS.ACCEPTED && order.autoAccepted === true && isAutoAcceptedAlerting;
+  const isAccepted         = order.status === ORDER_STATUS.ACCEPTED && !isAutoAccepted;
+  const isReady            = order.status === ORDER_STATUS.READY;
+  const isDone             = order.status === ORDER_STATUS.COMPLETED;
 
   return (
     <div className="order-card-v2 animate-in fade-in zoom-in duration-300">
@@ -66,10 +67,11 @@ const OrderCard = ({ order, onView, showToast }) => {
       </div>
 
       <div className="absolute top-4 right-4">
-        {isPending  && <span className="bg-yellow-500/20 text-yellow-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-yellow-500/30">⏳ جديد</span>}
-        {isAccepted && <span className="bg-blue-500/20 text-blue-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-blue-500/30">✅ مقبول</span>}
-        {isReady    && <span className="bg-green-500/20 text-green-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-green-500/30">🍽️ جاهز</span>}
-        {isDone     && <span className="bg-gray-500/20 text-gray-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-gray-500/30">✓ مُسلَّم</span>}
+        {isPending       && <span className="bg-yellow-500/20 text-yellow-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-yellow-500/30">⏳ جديد</span>}
+        {isAutoAccepted  && <span className="animate-pulse bg-orange-500/20 text-orange-300 text-[10px] font-bold px-2 py-0.5 rounded-full border border-orange-500/40">⚡ قُبل تلقائياً</span>}
+        {isAccepted      && <span className="bg-blue-500/20 text-blue-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-blue-500/30">✅ مقبول</span>}
+        {isReady         && <span className="bg-green-500/20 text-green-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-green-500/30">🍽️ جاهز</span>}
+        {isDone          && <span className="bg-gray-500/20 text-gray-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-gray-500/30">✓ مُسلَّم</span>}
       </div>
 
       <div className="mt-6 text-center">
@@ -108,6 +110,20 @@ const OrderCard = ({ order, onView, showToast }) => {
                 className="flex-1 bg-[#8b151e]/20 hover:bg-[#8b151e]/40 text-red-400 px-4 py-3 rounded-xl text-xs font-bold transition-all border border-red-900/30 disabled:opacity-50"
               >
                 رفض
+              </button>
+            </div>
+          )}
+
+          {isAutoAccepted && (
+            <div className="flex flex-col gap-2">
+              <div className="rounded-xl bg-orange-500/10 border border-orange-500/30 px-3 py-2 text-center">
+                <p className="text-orange-300 text-[11px] font-bold">⚡ تم القبول تلقائياً — لم يتم الرد في الوقت المحدد</p>
+              </div>
+              <button
+                onClick={onStopAlert}
+                className="w-full animate-pulse bg-[#b33a3a] hover:bg-[#922e2e] text-white font-black py-3 rounded-xl text-sm transition-all active:scale-95 shadow-lg"
+              >
+                🔕 إيقاف التنبيه والمتابعة
               </button>
             </div>
           )}

@@ -81,9 +81,13 @@ const QRScannerScreen = ({ setCurrentScreen, showToast, branchId }) => {
   }, [branchId]);
 
   const handleManualSubmit = async () => {
-    const code = manualCode.trim();
+    const code = manualCode.trim().toUpperCase(); // pickupCode دائماً أحرف كبيرة
     if (!code) {
-      showToast('يرجى إدخال كود الطلب', 'error');
+      showToast('يرجى إدخال رمز الاستلام', 'error');
+      return;
+    }
+    if (code.length < 4) {
+      showToast('الرمز قصير جداً، تأكد من إدخاله كاملاً', 'error');
       return;
     }
     const result = await handleQRScan(code, branchId);
@@ -161,22 +165,32 @@ const QRScannerScreen = ({ setCurrentScreen, showToast, branchId }) => {
         )}
       </div>
 
-      {/* إدخال يدوي */}
+      {/* إدخال رمز الاستلام يدوياً */}
       <div className="mt-8 bg-gray-50 p-6 rounded-3xl border border-gray-100 max-w-md mx-auto">
-        <h2 className="text-xs font-bold text-gray-400 mb-4 text-center uppercase tracking-widest">إدخال يدوي للطلب</h2>
+        <div className="flex items-center justify-center gap-2 mb-1">
+          <span className="text-2xl">🔑</span>
+          <h2 className="text-base font-black text-gray-700">إدخال رمز الاستلام</h2>
+        </div>
+        <p className="text-xs text-gray-400 text-center mb-4">
+          أدخل الرمز المكوّن من 6 أحرف وأرقام الظاهر في تطبيق العميل
+        </p>
         <div className="flex gap-2">
           <input
             type="text"
-            placeholder="أدخل رمز الطلب هنا"
+            placeholder="مثال: A3K7RX"
             value={manualCode}
-            onChange={(e) => setManualCode(e.target.value)}
+            onChange={(e) => setManualCode(e.target.value.toUpperCase())}
             onKeyDown={(e) => e.key === 'Enter' && handleManualSubmit()}
-            className="flex-1 bg-white border-2 border-gray-200 rounded-2xl px-4 py-3 outline-none focus:border-green-500 transition-all text-center font-mono text-lg"
+            className="flex-1 bg-white border-2 border-gray-200 rounded-2xl px-4 py-3 outline-none focus:border-green-500 transition-all text-center font-mono text-2xl font-black tracking-widest"
             dir="ltr"
+            maxLength={8}
+            autoCapitalize="characters"
+            autoCorrect="off"
+            spellCheck={false}
           />
           <button
             onClick={handleManualSubmit}
-            className="bg-green-600 text-white px-6 py-3 rounded-2xl font-bold shadow-lg active:scale-95 transition-transform"
+            className="bg-green-600 text-white px-6 py-3 rounded-2xl font-bold shadow-lg active:scale-95 transition-transform text-sm"
           >
             تأكيد
           </button>

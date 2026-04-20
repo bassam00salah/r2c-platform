@@ -283,9 +283,17 @@ function OrdersMenuDrawer({
   )
 }
 
-function playAlertSound() {
+// --- نظام التنبيه الصوتي المستمر ---
+let alertAudioContext = null
+let alertLoopTimer = null
+let alertActive = false
+
+function playAlertBeep() {
   try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)()
+    if (!alertAudioContext) {
+      alertAudioContext = new (window.AudioContext || window.webkitAudioContext)()
+    }
+    const ctx = alertAudioContext
     const beep = (freq, start, duration) => {
       const osc = ctx.createOscillator()
       const gain = ctx.createGain()
@@ -307,6 +315,23 @@ function playAlertSound() {
   }
 }
 
+function startContinuousAlert() {
+  if (alertActive) return
+  alertActive = true
+  playAlertBeep()
+  alertLoopTimer = setInterval(() => {
+    if (alertActive) playAlertBeep()
+  }, 2500)
+}
+
+function stopContinuousAlert() {
+  alertActive = false
+  if (alertLoopTimer) {
+    clearInterval(alertLoopTimer)
+    alertLoopTimer = null
+  }
+}
+
 const DashboardScreen = ({
   branchId,
   setCurrentScreen,
@@ -317,9 +342,11 @@ const DashboardScreen = ({
   const [activeTab, setActiveTab] = useState(getInitialDashboardTab)
   const [partnerProfile, setPartnerProfile] = useState(null)
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [isAlertActive, setIsAlertActive] = useState(false)
 
   const seenOrdersRef = useRef(new Set())
   const isFirstLoadRef = useRef(true)
+  const pendingAlertOrdersRef = useRef(new Set())
 
   useEffect(() => {
     try {
@@ -395,28 +422,100 @@ const DashboardScreen = ({
       return
     }
 
+    let hasPendingAlerts = false
+
     orders.forEach((order) => {
       if (order.status === ORDER_STATUS.PENDING && !seenOrdersRef.current.has(order.id)) {
         seenOrdersRef.current.add(order.id)
-        playAlertSound()
+        pendingAlertOrdersRef.current.add(order.id)
         showToast('🔔 طلب جديد وارد!', 'success')
+        hasPendingAlerts = true
+      } else if (
+        order.status === ORDER_STATUS.ACCEPTED &&
+        order.autoAccepted === true &&
+        pendingAlertOrdersRef.current.has(order.id)
+      ) {
+        // الطلب قُبل تلقائياً — استمر في التنبيه ولا تحذفه من pendingAlertOrdersRef
+        hasPendingAlerts = true
       }
 
       if (!seenOrdersRef.current.has(order.id)) {
         seenOrdersRef.current.add(order.id)
       }
     })
+
+    if (hasPendingAlerts) {
+      startContinuousAlert()
+      setIsAlertActive(true)
+    }
   }, [orders, loading, showToast])
 
-  const newCount = orders.filter((order) => order.status === ORDER_STATUS.PENDING).length
+  // إيقاف التنبيه تلقائياً فقط إذا رُفضت جميع الطلبات (المقبولة تلقائياً تحتاج ضغط يدوي)
+  useEffect(() => {
+    if (!isAlertActive) return
+    const stillAlive = orders.some((order) => {
+      if (!pendingAlertOrdersRef.current.has(order.id)) return false
+      // طلب لسه pending → استمر
+      if (order.status === ORDER_STATUS.PENDING) return true
+      // طلب قُبل تلقائياً → استمر حتى يضغط المطعم إيقاف
+      if (order.status === ORDER_STATUS.ACCEPTED && order.autoAccepted === true) return true
+      return false
+    })
+    if (!stillAlive) {
+      stopContinuousAlert()
+      setIsAlertActive(false)
+      pendingAlertOrdersRef.current.clear()
+    }
+  }, [orders, isAlertActive])
+
+  const handleStopAlert = () => {
+    stopContinuousAlert()
+    setIsAlertActive(false)
+    pendingAlertOrdersRef.current.clear()
+  }
+
+  // إيقاف تنبيه طلب بعينه (القبول التلقائي) وتحريره لمساره الطبيعي
+  const handleStopAlertForOrder = (orderId) => {
+    pendingAlertOrdersRef.current.delete(orderId)
+    // لو مفيش طلبات تانية محتاجة تنبيه → وقّف الكل
+    const stillAlive = orders.some(
+      (o) => pendingAlertOrdersRef.current.has(o.id) &&
+        (o.status === ORDER_STATUS.PENDING ||
+          (o.status === ORDER_STATUS.ACCEPTED && o.autoAccepted === true))
+    )
+    if (!stillAlive) {
+      stopContinuousAlert()
+      setIsAlertActive(false)
+    }
+  }
+
+  const newCount = orders.filter((order) => {
+    if (order.status === ORDER_STATUS.PENDING) return true
+    if (
+      order.status === ORDER_STATUS.ACCEPTED &&
+      order.autoAccepted === true &&
+      pendingAlertOrdersRef.current.has(order.id)
+    ) return true
+    return false
+  }).length
   const acceptedCount = orders.filter(
     (order) => order.status === ORDER_STATUS.ACCEPTED || order.status === ORDER_STATUS.READY
   ).length
   const completedCount = orders.filter((order) => order.status === ORDER_STATUS.COMPLETED).length
 
   const filteredOrders = orders.filter((order) => {
-    if (activeTab === 'new') return order.status === ORDER_STATUS.PENDING
+    if (activeTab === 'new') {
+      // الطلبات الجديدة + المقبولة تلقائياً التي لم يُوقف تنبيهها بعد
+      if (order.status === ORDER_STATUS.PENDING) return true
+      if (
+        order.status === ORDER_STATUS.ACCEPTED &&
+        order.autoAccepted === true &&
+        pendingAlertOrdersRef.current.has(order.id)
+      ) return true
+      return false
+    }
     if (activeTab === 'accepted') {
+      // المقبولة تلقائياً بعد إيقاف التنبيه تنتقل هنا
       return order.status === ORDER_STATUS.ACCEPTED || order.status === ORDER_STATUS.READY
     }
     if (activeTab === 'completed') return order.status === ORDER_STATUS.COMPLETED
@@ -466,10 +565,21 @@ const DashboardScreen = ({
               </button>
 
               <div className="min-w-0 flex-1 text-right">
-                <div className="flex items-center justify-start gap-2">
+                <div className="flex items-center justify-between gap-2">
                   <h1 className="text-[20px] font-black leading-none text-[#1f1f1f] md:text-[24px]">
                     الطلبات الحالية
                   </h1>
+                  {isAlertActive && (
+                    <button
+                      type="button"
+                      onClick={handleStopAlert}
+                      className="flex animate-pulse items-center gap-1.5 rounded-xl bg-[#b33a3a] px-3 py-2 text-[12px] font-black text-white shadow-md transition-all hover:bg-[#922e2e] active:scale-95"
+                      aria-label="إيقاف التنبيه الصوتي"
+                    >
+                      <span className="text-[16px] leading-none">🔕</span>
+                      <span>إيقاف التنبيه</span>
+                    </button>
+                  )}
                 </div>
 
                 <div className="mt-2 flex flex-wrap items-center justify-start gap-2 text-[13px] text-[#707070]">
@@ -528,6 +638,12 @@ const DashboardScreen = ({
                     order={order}
                     onView={() => setCurrentScreen('orderDetail', order)}
                     showToast={showToast}
+                    isAutoAcceptedAlerting={
+                      order.status === ORDER_STATUS.ACCEPTED &&
+                      order.autoAccepted === true &&
+                      pendingAlertOrdersRef.current.has(order.id)
+                    }
+                    onStopAlert={() => handleStopAlertForOrder(order.id)}
                   />
                 ))}
               </div>

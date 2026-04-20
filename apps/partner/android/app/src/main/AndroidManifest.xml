@@ -53,5 +53,15 @@
             </intent-filter>
         </service>
 
+        <!-- FCM: الـ Channel الافتراضي للإشعارات (مطلوب Android 8+) -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="new_orders" />
+
+        <!-- FCM: أيقونة الإشعار -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@mipmap/ic_launcher" />
+
     </application>
 </manifest>

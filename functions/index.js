@@ -161,6 +161,7 @@ async function sendNewOrderNotificationToBranch(orderId, orderData) {
       priority: "high",
       notification: {
         sound: "default",
+        channelId: "new_orders",
       },
     },
   };

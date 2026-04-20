@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useApp } from '../contexts'
-// ✅ إصلاح: Firebase modular بدل db.collection()
 import { db } from '@r2c/shared'
 import { doc, onSnapshot } from 'firebase/firestore'
 
-// ✅ إصلاح: تعريف QrImage كان مفقوداً تماماً
+const STORAGE_KEY = 'r2c_current_order_id'
+
 function QrImage({ qrCode, size = 220 }) {
     const url = `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(qrCode)}`
     return (
@@ -18,7 +18,6 @@ function QrImage({ qrCode, size = 220 }) {
     )
 }
 
-// ✅ إصلاح: playReadyNotification كان مفقوداً
 function playReadyNotification(offerName) {
     try {
         const ctx = new (window.AudioContext || window.webkitAudioContext)()
@@ -27,14 +26,14 @@ function playReadyNotification(offerName) {
             const gain = ctx.createGain()
             osc.connect(gain)
             gain.connect(ctx.destination)
-            osc.type      = 'sine'
+            osc.type = 'sine'
             osc.frequency.value = freq
             gain.gain.setValueAtTime(0.3, ctx.currentTime + start)
             gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + start + dur)
             osc.start(ctx.currentTime + start)
             osc.stop(ctx.currentTime + start + dur)
         }
-        play(880, 0,    0.15)
+        play(880,  0,   0.15)
         play(1100, 0.2, 0.15)
         play(1320, 0.4, 0.3)
     } catch { /* تجاهل إذا لم يكن AudioContext متاحاً */ }
@@ -46,25 +45,44 @@ function playReadyNotification(offerName) {
 
 export default function SuccessScreen() {
     const { currentOrderId, selectedOffer, setCurrentScreen, setBottomNav, setCurrentOrderId } = useApp()
-    const [orderData,      setOrderData]      = useState(null)
-    const [timeRemaining,  setTimeRemaining]  = useState(null)
-    const [delivered,      setDelivered]      = useState(false)
-    const [isReady,        setIsReady]        = useState(false)
+
+    // ── استرجاع orderId من localStorage لو فُقد من الـ context ───────────────
+    const resolvedOrderId = currentOrderId || (() => {
+        try { return localStorage.getItem(STORAGE_KEY) } catch { return null }
+    })()
+
+    const [orderData,     setOrderData]     = useState(null)
+    const [timeRemaining, setTimeRemaining] = useState(null)
+    const [delivered,     setDelivered]     = useState(false)
+    const [isReady,       setIsReady]       = useState(false)
     const prevStatusRef = useRef(null)
 
-    // مراقبة حالة الطلب في الوقت الفعلي — Firebase modular
+    const clearAndGoHome = () => {
+        setCurrentOrderId(null)
+        try { localStorage.removeItem(STORAGE_KEY) } catch {}
+        setBottomNav('home')
+        setCurrentScreen('feed')
+    }
+
+    // ── مراقبة حالة الطلب في الوقت الفعلي ───────────────────────────────────
     useEffect(() => {
-        if (!currentOrderId) return
-        const unsub = onSnapshot(doc(db, 'orders', currentOrderId), snap => {
+        if (!resolvedOrderId) return
+
+        const unsub = onSnapshot(doc(db, 'orders', resolvedOrderId), snap => {
             if (!snap.exists()) return
             const data   = snap.data()
             const status = data.status
             setOrderData(data)
 
-            // تشغيل الصوت عند الانتقال إلى "جاهز" مرة واحدة فقط
-            if (status === 'ready' && prevStatusRef.current !== 'ready' && prevStatusRef.current !== null) {
-                playReadyNotification(data.offerName)
+            // ✅ isReady يعتمد على الحالة الحالية مباشرة — ليس فقط على الانتقال
+            if (status === 'ready') {
+                // شغّل الصوت فقط عند الانتقال (ليس عند أول load)
+                if (prevStatusRef.current !== null && prevStatusRef.current !== 'ready') {
+                    playReadyNotification(data.offerName)
+                }
                 setIsReady(true)
+            } else {
+                setIsReady(false)
             }
 
             if (status === 'completed') {
@@ -72,15 +90,20 @@ export default function SuccessScreen() {
                 setIsReady(false)
                 setTimeout(() => {
                     setCurrentOrderId(null)
+                    try { localStorage.removeItem(STORAGE_KEY) } catch {}
                     setBottomNav('home')
                     setCurrentScreen('feed')
                 }, 4000)
             }
+
             prevStatusRef.current = status
 
             // ضبط المؤقت
             if (data.acceptedAt && data.timeRemaining) {
-                const elapsed   = Math.floor((Date.now() - new Date(data.acceptedAt).getTime()) / 1000)
+                const acceptedMs = data.acceptedAt?.toMillis
+                    ? data.acceptedAt.toMillis()
+                    : new Date(data.acceptedAt).getTime()
+                const elapsed   = Math.floor((Date.now() - acceptedMs) / 1000)
                 const remaining = Math.max(0, data.timeRemaining - elapsed)
                 setTimeRemaining(remaining)
             } else if (data.timeRemaining) {
@@ -88,9 +111,10 @@ export default function SuccessScreen() {
             }
         })
         return () => unsub()
-    }, [currentOrderId, setBottomNav, setCurrentOrderId, setCurrentScreen])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [resolvedOrderId])
 
-    // العد التنازلي
+    // ── العد التنازلي ─────────────────────────────────────────────────────────
     useEffect(() => {
         if (timeRemaining === null || delivered || timeRemaining <= 0) return
         const timer = setInterval(() => {
@@ -101,41 +125,37 @@ export default function SuccessScreen() {
 
     const minutes = timeRemaining !== null ? Math.floor(timeRemaining / 60) : 0
     const seconds = timeRemaining !== null ? timeRemaining % 60 : 0
+
     const confettiPieces = useMemo(() => Array.from({ length: 20 }, (_, i) => ({
         id: i,
         left: `${(i * 37) % 100}%`,
         animationDelay: `${(i % 6) * 0.35}s`,
-        background: i % 2 === 0 ? '#ee7b26' : '#d96b1a'
+        background: i % 2 === 0 ? '#ee7b26' : '#d96b1a',
     })), [])
 
-    // شاشة التسليم الناجح
-    if (delivered) {
-        return (
-            <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6 text-center">
-                <div className="w-32 h-32 bg-green-500 rounded-full flex items-center justify-center text-6xl text-white font-bold animate-bounce shadow-lg mb-8">✓</div>
-                <h1 className="text-3xl font-bold text-green-600 mb-3">تم تسليم طلبك بنجاح! 🎉</h1>
-                <p className="text-gray-500 mb-8">نتمنى لك وجبة شهية</p>
-                <button
-                    onClick={() => { setCurrentOrderId(null); setBottomNav('home'); setCurrentScreen('feed') }}
-                    className="gradient-button text-white font-bold text-xl py-4 px-12 rounded-2xl"
-                >
-                    العودة للرئيسية
-                </button>
-            </div>
-        )
-    }
+    // ── شاشة التسليم الناجح ───────────────────────────────────────────────────
+    if (delivered) return (
+        <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6 text-center">
+            <div className="w-32 h-32 bg-green-500 rounded-full flex items-center justify-center text-6xl text-white font-bold animate-bounce shadow-lg mb-8">✓</div>
+            <h1 className="text-3xl font-bold text-green-600 mb-3">تم تسليم طلبك بنجاح! 🎉</h1>
+            <p className="text-gray-500 mb-8">نتمنى لك وجبة شهية</p>
+            <button
+                onClick={clearAndGoHome}
+                className="gradient-button text-white font-bold text-xl py-4 px-12 rounded-2xl"
+            >
+                العودة للرئيسية
+            </button>
+        </div>
+    )
 
+    // ── شاشة النجاح الرئيسية ──────────────────────────────────────────────────
     return (
         <div className="min-h-screen bg-white relative overflow-hidden">
             {confettiPieces.map((piece) => (
                 <div
                     key={piece.id}
                     className="confetti"
-                    style={{
-                        left: piece.left,
-                        animationDelay: piece.animationDelay,
-                        background: piece.background
-                    }}
+                    style={{ left: piece.left, animationDelay: piece.animationDelay, background: piece.background }}
                 />
             ))}
 
@@ -171,7 +191,7 @@ export default function SuccessScreen() {
                     </div>
                 )}
 
-                {/* QR Code + رمز الاستلام */}
+                {/* QR Code */}
                 <div
                     className="qr-container mb-4 shadow-md rounded-3xl p-4"
                     style={{
@@ -185,45 +205,50 @@ export default function SuccessScreen() {
                     ) : (
                         <div style={{ width: 200, height: 200, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
                             <div className="spinner" style={{ width: 40, height: 40 }} />
-                            <p style={{ fontSize: 13, color: '#9ca3af', fontWeight: 600 }}>في انتظار قبول الفرع...</p>
+                            <p style={{ fontSize: 13, color: '#9ca3af', fontWeight: 600 }}>جاري تحميل الكود...</p>
                         </div>
                     )}
                 </div>
 
-                {/* رمز الاستلام القصير */}
+                {/* ✅ رمز الاستلام — يظهر دائماً طالما orderData موجود */}
                 {orderData?.pickupCode && (
                     <div style={{
                         width: '100%',
                         maxWidth: 320,
                         marginBottom: 20,
                         background: isReady ? '#f0fdf4' : '#fff7ed',
-                        border: `2px dashed ${isReady ? '#10b981' : '#ee7b26'}`,
-                        borderRadius: 20,
-                        padding: '14px 20px',
+                        border: `3px solid ${isReady ? '#10b981' : '#ee7b26'}`,
+                        borderRadius: 24,
+                        padding: '18px 20px',
                         textAlign: 'center',
                     }}>
-                        <p style={{ fontSize: 12, color: '#6b7280', fontWeight: 600, marginBottom: 6 }}>
-                            أو أعطِ الكاشير رمز الاستلام
-                        </p>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 8 }}>
+                            <span style={{ fontSize: 18 }}>🔑</span>
+                            <p style={{ fontSize: 13, color: '#374151', fontWeight: 800, margin: 0 }}>
+                                رمز الاستلام البديل
+                            </p>
+                        </div>
                         <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: 8,
+                            background: 'white',
+                            borderRadius: 16,
+                            padding: '12px 16px',
+                            marginBottom: 8,
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
                         }}>
                             <span style={{
-                                fontSize: 32,
+                                fontSize: 38,
                                 fontWeight: 900,
                                 fontFamily: 'monospace',
-                                letterSpacing: 6,
+                                letterSpacing: 8,
                                 color: isReady ? '#10b981' : '#ee7b26',
                                 userSelect: 'all',
+                                display: 'block',
                             }}>
                                 {orderData.pickupCode}
                             </span>
                         </div>
-                        <p style={{ fontSize: 11, color: '#9ca3af', marginTop: 4 }}>
-                            يمكن إدخاله يدوياً في نظام الفرع
+                        <p style={{ fontSize: 11, color: '#6b7280', margin: 0, lineHeight: 1.5 }}>
+                            أعطِ هذا الرمز للكاشير إذا تعذّر مسح الـ QR
                         </p>
                     </div>
                 )}
@@ -247,7 +272,7 @@ export default function SuccessScreen() {
                 )}
 
                 <button
-                    onClick={() => { setCurrentOrderId(null); setBottomNav('home'); setCurrentScreen('feed') }}
+                    onClick={clearAndGoHome}
                     className="mt-4 text-gray-500 font-bold underline mb-10 hover:text-gray-800"
                 >
                     العودة للرئيسية
