@@ -69,7 +69,7 @@ export default function OffersPage() {
       <PageHeader
         icon="🎁"
         title={`العروض (${offers.length})`}
-        description="إدارة العروض والميديا والعروض المميزة بنفس المظهر البصري الجديد، دون تغيير أي منطق للحفظ أو التعديل."
+        description=""
         badge="إدارة العروض"
         action={<button onClick={() => setShowForm(true)} style={primaryButtonStyle}>+ إضافة عرض</button>}
       />
@@ -84,7 +84,7 @@ export default function OffersPage() {
 
       {showForm ? (
         <AdminCard style={{ marginBottom: '24px' }}>
-          <PageHeader icon={editing ? '✏️' : '➕'} title={editing ? 'تعديل عرض' : 'إضافة عرض جديد'} description="نفس الحقول الحالية، مع تنظيم أوضح للأسعار والميديا والوصف." />
+          <PageHeader icon={editing ? '✏️' : '➕'} title={editing ? 'تعديل عرض' : 'إضافة عرض جديد'} description="" />
           <Notice tone="orange">يمكنك رفع العرض كصورة أو فيديو، وتحديده كعرض مميز ليظهر في الصفحة الرئيسية.</Notice>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginTop: '18px' }}>

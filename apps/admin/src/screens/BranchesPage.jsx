@@ -184,7 +184,7 @@ export default function BranchesPage() {
       <PageHeader
         icon="📍"
         title={`الفروع (${branches.length})`}
-        description="تم الحفاظ على إنشاء حساب الفرع، اختيار الموقع على الخريطة، وتعديل بيانات الفرع كما هي في النسخة الأصلية."
+        description=""
         badge="إدارة الفروع"
         action={<button onClick={() => setShowForm(true)} style={primaryButtonStyle}>+ إضافة فرع</button>}
       />
@@ -193,7 +193,7 @@ export default function BranchesPage() {
 
       {showForm ? (
         <AdminCard style={{ marginBottom: '24px' }}>
-          <PageHeader icon="➕" title="إضافة فرع جديد" description="نفس منطق إنشاء حساب Firebase Auth عبر Cloud Function بدون تغيير." />
+          <PageHeader icon="➕" title="إضافة فرع جديد" description="" />
           <Notice tone="green">كلمة المرور <strong>لا تُحفظ</strong> في Firestore — يُنشأ حساب Firebase Auth آمن عبر Cloud Function.</Notice>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginTop: '18px' }}>

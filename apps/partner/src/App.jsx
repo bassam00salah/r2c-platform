@@ -58,7 +58,6 @@ function getOrderIdFromData(data) {
   return data.orderId || data.id || data.order_id || null
 }
 
-// ── إشعار محلي بصوت عند وصول push وهو مفتوح (Foreground) ────────────────────
 async function showLocalNotificationWithSound(notification) {
   try {
     const { LocalNotifications } = await import('@capacitor/local-notifications')
@@ -81,7 +80,7 @@ async function showLocalNotificationWithSound(notification) {
         sound: 'default',
         smallIcon: 'ic_stat_icon_config_sample',
         iconColor: '#ee7b26',
-      }]
+      }],
     })
   } catch (e) {
     console.warn('R2C Partner: LocalNotifications not available', e?.message)
@@ -192,6 +191,8 @@ export default function App() {
         }
       } else {
         setBranchId(null)
+        setPushToken(null)
+        currentPushTokenRef.current = null
         setCurrentScreen('login')
       }
       setAuthLoading(false)
@@ -312,12 +313,15 @@ export default function App() {
       registrationListener = await PushNotifications.addListener('registration', (token) => {
         const tokenValue = token?.value || ''
         if (!tokenValue) return
+
         currentPushTokenRef.current = tokenValue
         setPushToken(tokenValue)
+        console.log('✅ Push token registered:', tokenValue)
       })
 
       registrationErrorListener = await PushNotifications.addListener('registrationError', (error) => {
         console.error('فشل تسجيل Push Notifications:', error)
+        showToast('تعذر تفعيل الإشعارات على هذا الجهاز', 'error')
       })
 
       receivedListener = await PushNotifications.addListener('pushNotificationReceived', (notification) => {
@@ -325,7 +329,6 @@ export default function App() {
         if (pushedOrderId) {
           showToast(notification?.title || '🔔 طلب جديد وارد!', 'success')
         }
-        // عرض إشعار محلي بصوت لأن FCM لا يُصدر صوتاً وهو مفتوح
         showLocalNotificationWithSound(notification)
       })
 
@@ -345,39 +348,32 @@ export default function App() {
   }, [openOrderFromNotification, showToast])
 
   useEffect(() => {
-    if (!IS_NATIVE || !branchId) {
-      console.log('⛔ registerForPush skipped - IS_NATIVE:', IS_NATIVE, 'branchId:', branchId)
-      return undefined
-    }
-
-    console.log('✅ registerForPush starting for branchId:', branchId)
+    if (!IS_NATIVE || !branchId) return undefined
 
     let cancelled = false
 
     const registerForPush = async () => {
       try {
-        console.log('🔍 Checking permissions...')
         let permission = await PushNotifications.checkPermissions()
-        console.log('📋 Permission status:', JSON.stringify(permission))
+        console.log('Push permission before request:', permission)
 
-        if (permission.receive === 'prompt') {
-          console.log('🙏 Requesting permissions...')
+        if (permission.receive !== 'granted') {
           permission = await PushNotifications.requestPermissions()
-          console.log('📋 Permission after request:', JSON.stringify(permission))
+          console.log('Push permission after request:', permission)
         }
 
         if (permission.receive !== 'granted') {
-          console.log('❌ Permission denied:', permission.receive)
-          showToast('يجب السماح بالإشعارات حتى تصلك الطلبات الجديدة', 'error')
+          if (!cancelled) {
+            showToast('يجب السماح بالإشعارات حتى تصلك الطلبات الجديدة', 'error')
+          }
           return
         }
 
-        console.log('📲 Calling PushNotifications.register()...')
         await PushNotifications.register()
-        console.log('✅ register() called successfully')
       } catch (error) {
         if (!cancelled) {
-          console.error('💥 registerForPush error:', error)
+          console.error('registerForPush error:', error)
+          showToast('تعذر تفعيل الإشعارات على هذا الجهاز', 'error')
         }
       }
     }
@@ -402,7 +398,6 @@ export default function App() {
   useEffect(() => {
     if (!branchId || !pushToken) return undefined
 
-    console.log('💾 حفظ token:', pushToken, 'للفرع:', branchId)
     savePushTokenForBranch(branchId, pushToken)
   }, [branchId, pushToken, savePushTokenForBranch])
 

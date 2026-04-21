@@ -59,7 +59,7 @@ export default function RestaurantsPage() {
       <PageHeader
         icon="🍽️"
         title={`المطاعم (${restaurants.length})`}
-        description="إدارة المطاعم وبياناتها الأساسية مع معاينة اللوجو والغلاف داخل نفس الأسلوب البصري الجديد."
+        description="إدارة المطاعم وبياناتها الأساسية"
         badge="إدارة المحتوى"
         action={<button onClick={() => setShowForm(true)} style={primaryButtonStyle}>+ إضافة مطعم</button>}
       />
@@ -71,7 +71,7 @@ export default function RestaurantsPage() {
           <PageHeader
             icon={editing ? '✏️' : '➕'}
             title={editing ? 'تعديل مطعم' : 'إضافة مطعم جديد'}
-            description="جميع الحقول والوظائف كما هي، مع تنظيم بصري أوضح للنموذج والمعاينات."
+            description=""
           />
 
           <Notice tone="blue">يمكنك استخدام روابط الصور المباشرة للوجو وصورة الغلاف، وستظهر المعاينة أسفل الحقول مباشرة.</Notice>

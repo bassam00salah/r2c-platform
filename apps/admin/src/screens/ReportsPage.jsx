@@ -488,7 +488,7 @@ export default function ReportsPage() {
       <PageHeader
         icon="📊"
         title="التقارير والإحصائيات"
-        description="أضيفت فلاتر بالمطعم والفرع والعرض والوقت، وأصبحت كل الإحصائيات والرسوم والتصدير تعتمد على النتائج بعد الفلترة."
+        description=""
         badge="لوحة تحليلات"
         action={
           <button onClick={() => exportReportCSV(stats, filteredOrders, activeFilterLabels)} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '11px 18px', background: '#15487d', color: 'white', border: 'none', borderRadius: '12px', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px', boxShadow: '0 8px 20px rgba(21,72,125,0.18)' }}>

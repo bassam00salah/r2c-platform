@@ -28,7 +28,7 @@ export function InfluencersPage() {
       <PageHeader
         icon="⭐"
         title={`المؤثرون (${influencers.length})`}
-        description="إدارة المؤثرين بنفس الوظائف الحالية مع مظهر متناسق مع بقية صفحات لوحة الإدارة."
+        description=""
         badge="إدارة المؤثرين"
         action={<button onClick={() => setShowForm(true)} style={primaryButtonStyle}>+ إضافة مؤثر</button>}
       />
@@ -148,7 +148,7 @@ export function SettingsPage() {
       <PageHeader
         icon="⚙️"
         title="الإعدادات"
-        description="تم الحفاظ على نفس حقول الإعدادات العامة والمدن والتبديلات كما هي، مع تنظيم بصري أوضح."
+        description=""
         badge="إعدادات النظام"
       />
 
@@ -184,7 +184,7 @@ export function SettingsPage() {
 
         <AdminCard>
           <h3 style={{ fontWeight: 'bold', marginBottom: '16px' }}>تفعيل / تعطيل</h3>
-          <Notice tone="blue">التبديل يغيّر القيمة داخل `system/settings` مباشرة عند الحفظ، كما في النسخة الأصلية.</Notice>
+          <Notice tone="blue">التبديل يغيّر القيمة داخل `system/settings` مباشرة عند الحفظ.</Notice>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '16px' }}>
             {Object.entries(settings.toggles).map(([key, value]) => (
               <div key={key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 16px', background: '#f9fafb', borderRadius: '12px', border: '1px solid #edf0f5' }}>

@@ -169,7 +169,7 @@ export default function OrdersPage() {
       <PageHeader
         icon="📦"
         title={`الطلبات (${orders.length})`}
-        description="نفس فلاتر الحالة والزمن والرسم البياني والتصدير الموجودة في النسخة الأصلية، لكن بلغة بصرية موحدة مع لوحة الإدارة الجديدة."
+        description=""
         badge="إدارة العمليات"
         action={
           <button

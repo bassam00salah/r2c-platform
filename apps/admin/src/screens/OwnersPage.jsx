@@ -62,7 +62,7 @@ export default function OwnersPage() {
       <PageHeader
         icon="👤"
         title={`ملاك المطاعم (${owners.length})`}
-        description="إدارة حسابات ملاك المطاعم مع الحفاظ على نفس منطق الـ Cloud Functions الحالي." 
+        description=""
         badge="إدارة الصلاحيات"
         action={<button onClick={() => setShowForm(true)} style={primaryButtonStyle}>+ إضافة مالك</button>}
       />

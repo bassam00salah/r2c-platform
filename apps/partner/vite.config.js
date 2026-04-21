@@ -12,7 +12,6 @@ export default defineConfig({
   resolve: {
     alias: {
       '@r2c/shared': resolve(__dirname, '../../packages/shared/src'),
-      '@capacitor/push-notifications': resolve(__dirname, 'src/mocks/push-notifications.js'),
     },
   },
   build: {

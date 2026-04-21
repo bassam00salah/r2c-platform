@@ -268,9 +268,9 @@ export default function UserAppPage() {
     <div dir="rtl">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px', marginBottom: '24px', flexWrap: 'wrap' }}>
         <div>
-          <h2 style={{ fontSize: '24px', fontWeight: 'bold', color: '#1a1a2e', margin: 0 }}>📱 تطبيق المستخدم</h2>
+          <h2 style={{ fontSize: '24px', fontWeight: 'bold', color: '#1a1a2e', margin: 0 }}>📱 إدارة تطبيق المستخدم</h2>
           <p style={{ color: '#6b7280', marginTop: '8px', marginBottom: 0 }}>
-            إدارة بانرات تطبيق المستخدم من مكان واحد، مع الحفاظ على نفس حقول Firestore الحالية داخل <strong>system/settings</strong>.
+             <strong></strong>.
           </p>
         </div>
         <button
@@ -294,13 +294,12 @@ export default function UserAppPage() {
           <div style={{ width: '40px', height: '40px', background: '#eff6ff', color: '#2563eb', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>ℹ️</div>
           <div>
             <div style={{ fontWeight: 'bold', color: '#1a1a2e' }}>ملاحظات سريعة</div>
-            <div style={{ color: '#6b7280', fontSize: '13px', marginTop: '3px' }}>هذه الصفحة تنظّم نفس الإعدادات السابقة بصريًا فقط دون تغيير أي أسماء حقول أو منطق حفظ.</div>
+            <div style={{ color: '#6b7280', fontSize: '13px', marginTop: '3px' }}></div>
           </div>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
           {[
             'البانر الأول والثالث يدعمان شريحة أساسية + سلايدر إضافي.',
-            'تم إخفاء إعداد البانر الثاني من هذه الصفحة مع الإبقاء على قيمته الحالية كما هي في الخلفية.',
             'أي تعديل في الشرائح يحتاج الضغط على زر الحفظ ليظهر داخل التطبيق.',
           ].map((item, idx) => (
             <div key={idx} style={{ background: '#f9fafb', borderRadius: '10px', padding: '12px 14px', color: '#4b5563', fontSize: '13px', lineHeight: 1.8 }}>

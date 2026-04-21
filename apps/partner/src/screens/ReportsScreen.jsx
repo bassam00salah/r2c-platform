@@ -542,6 +542,15 @@ function csvEscape(value) {
   return `"${text.replace(/"/g, '""')}"`
 }
 
+function base64FromUtf8(text) {
+  const bytes = new TextEncoder().encode(text)
+  let binary = ''
+  bytes.forEach((byte) => {
+    binary += String.fromCharCode(byte)
+  })
+  return btoa(binary)
+}
+
 async function exportOrdersToExcelCompatibleCsv({ filteredOrders, selectedRange, selectedStatus }) {
   const headers = [
     'رقم الطلب',
@@ -586,28 +595,55 @@ async function exportOrdersToExcelCompatibleCsv({ filteredOrders, selectedRange,
   const fileName = `reports-${dateLabel}.csv`
 
   if (Capacitor.isNativePlatform()) {
-    // ✅ Android: اكتب الملف في Cache ثم افتحه
-    const base64Data = btoa(unescape(encodeURIComponent('\uFEFF' + csvContent)))
-    const result = await Filesystem.writeFile({
-      path: fileName,
+    const path = `reports/${fileName}`
+    const base64Data = base64FromUtf8(`\uFEFF${csvContent}`)
+
+    await Filesystem.writeFile({
+      path,
       data: base64Data,
       directory: Directory.Cache,
+      recursive: true,
     })
-    await FileOpener.open({
-      filePath: result.uri,
-      contentType: 'text/csv',
+
+    const fileUriResult = await Filesystem.getUri({
+      path,
+      directory: Directory.Cache,
     })
-  } else {
-    // ✅ Web/localhost: الطريقة الأصلية
-    const blob = new Blob([`\uFEFF${csvContent}`], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.setAttribute('download', fileName)
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
+
+    let opened = false
+
+    try {
+      await FileOpener.open({
+        filePath: fileUriResult.uri,
+        contentType: 'text/csv',
+        openWithDefault: true,
+      })
+      opened = true
+    } catch (openError) {
+      console.warn('تعذر فتح ملف التقرير تلقائيًا، لكن تم حفظه بنجاح:', openError)
+    }
+
+    return {
+      opened,
+      fileName,
+      uri: fileUriResult.uri,
+    }
+  }
+
+  const blob = new Blob([`\uFEFF${csvContent}`], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.setAttribute('download', fileName)
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
+
+  return {
+    opened: true,
+    fileName,
+    uri: url,
   }
 }
 
@@ -786,10 +822,18 @@ const ReportsScreen = ({ branchId, setCurrentScreen, orders = [] }) => {
   const handleExport = async () => {
     try {
       setIsExporting(true)
-      await exportOrdersToExcelCompatibleCsv({ filteredOrders, selectedRange, selectedStatus })
+      const result = await exportOrdersToExcelCompatibleCsv({ filteredOrders, selectedRange, selectedStatus })
+
+      if (Capacitor.isNativePlatform()) {
+        if (result?.opened) {
+          alert(`تم تصدير التقرير وفتحه بنجاح\n${result.fileName}`)
+        } else {
+          alert(`تم حفظ التقرير بنجاح\n${result.fileName}\nقد لا يوجد تطبيق مثبت لفتح ملفات CSV تلقائيًا.`)
+        }
+      }
     } catch (err) {
       console.error('Export failed:', err)
-      alert('فشل التصدير، حاول مرة أخرى')
+      alert('فشل حفظ ملف التقرير، حاول مرة أخرى')
     } finally {
       setTimeout(() => setIsExporting(false), 500)
     }

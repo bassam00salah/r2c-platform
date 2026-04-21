@@ -27,9 +27,9 @@ export default function LoginScreen() {
         <div style={{ padding: '56px 48px', background: 'linear-gradient(180deg, #ffffff 0%, #fff8f3 100%)' }}>
           <img src={logoSrc} alt="R2C" style={{ width: '140px', height: 'auto', marginBottom: '22px' }} />
           <h1 style={{ fontSize: '34px', fontWeight: 800, color: '#1a1a2e', margin: 0 }}>لوحة الإدارة</h1>
-          <p style={{ color: '#6b7280', marginTop: '12px', lineHeight: 1.9 }}>نفس لغة التصميم الحديثة المستخدمة داخل أقسام الإدارة، مع تجربة دخول أكثر وضوحًا وهدوءًا بصريًا.</p>
+          <p style={{ color: '#6b7280', marginTop: '12px', lineHeight: 1.9 }}>تسجيل الدخول لمديري التطبيقات والمطاعم</p>
           <div style={{ display: 'grid', gap: '12px', marginTop: '28px' }}>
-            {['إدارة المطاعم والفروع والعروض من مكان واحد', 'الوصول السريع إلى التقارير والطلبات', 'واجهة أكثر اتساقًا مع صفحة تطبيق المستخدم'].map((item, idx) => (
+            {['إدارة المطاعم والفروع والعروض من مكان واحد', 'الوصول السريع إلى التقارير والطلبات'].map((item, idx) => (
               <div key={idx} style={{ background: '#fff', border: '1px solid #edf0f5', borderRadius: '14px', padding: '14px 16px', color: '#374151', fontWeight: 600 }}>
                 ✨ {item}
               </div>
