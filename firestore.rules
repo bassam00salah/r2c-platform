@@ -155,6 +155,10 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    match /branches/{branchId}/pushTokens/{tokenId} {
+      allow read, write: if isSignedIn() && request.auth.uid == branchId;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }
