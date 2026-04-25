@@ -18,12 +18,12 @@ const BLUE_SOFT   = '#eaf1f9'
 const GOLD = '#ee7b26'
 const RED      = ORANGE
 const RED_DARK = ORANGE_DARK
-const BG = '#f4f6f9'
+const BG = '#ffffff'
 const WHITE = '#ffffff'
 const TEXT = '#111827'
 const MUTED = '#6b7280'
 const BORDER = '#e5e7eb'
-const SHADOW = '0 10px 30px rgba(238, 123, 38, 0.10)'
+const SHADOW = '0 1px 2px rgba(17, 24, 39, 0.05)'
 
 const FONT_STYLE = `
   @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500&family=Poppins:wght@300;400;500&display=swap');
@@ -53,7 +53,7 @@ const CUISINE_FILTERS = [
   { id: 'مكس',  label: 'الأكثر مبيعًا',   customImg: 'https://i.ibb.co/ccp4YM9J/image.png' },
   { id: 'بوكس', label: 'عروض لك', customImg: 'https://i.ibb.co/7tJLwNh5/file-00000000a90072439ee2eb42f6c0c720.png' },
    { id: 'برجر',   label: 'برجر', customImg: 'https://i.ibb.co/tPXQKJcL/image.png' },
-  { id: 'بيتزا',  label: 'بيتزا',  customImg: 'https://i.ibb.co/JFdjTJmP/image.png' },
+  { id: 'بيتزا',  label: 'بيتزا',  customImg: 'https://i.ibb.co/DffJ48fc/Untitled.png' },
  { id: 'شاورما', label: 'شاورما',customImg: 'https://i.ibb.co/wh2wzQbt/image.png' },
   { id: 'دجاج',   label: 'دجاج',customImg: 'https://i.ibb.co/Z6JtJbxQ/image.png' },
   { id: 'مشاوي',  label: 'مشويات', customImg: 'https://i.ibb.co/wh2wzQbt/image.png' },
@@ -100,6 +100,16 @@ function resolveRestaurantLogo(r) {
 
 function getOfferImage(offer) {
   return offer?.imageUrl || offer?.photo || offer?.thumbnailUrl || ''
+}
+
+function countryCodeToFlagEmoji(countryCode) {
+  if (!countryCode || typeof countryCode !== 'string') return '🌐'
+  const code = countryCode.trim().toUpperCase()
+  if (code.length !== 2) return '🌐'
+  return code
+    .split('')
+    .map(char => String.fromCodePoint(127397 + char.charCodeAt(0)))
+    .join('')
 }
 
 function extractOrderRestaurantKey(order) {
@@ -319,31 +329,48 @@ export default function FeedScreen() {
   const [showSideMenu, setShowSideMenu] = useState(false)
 
   const [cityName, setCityName] = useState('...')
+  const [locationCountry, setLocationCountry] = useState({ code: '', name: '', flag: '🌐' })
   const [userCoords, setUserCoords] = useState(null)
   useEffect(() => {
     const reverseGeocode = async (lat, lng) => {
       try {
         const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=ar`)
         const data = await res.json()
+        const address = data.address || {}
+        const countryCode = address.country_code || ''
+
         setCityName(
-          data.address?.city ||
-          data.address?.town ||
-          data.address?.village ||
-          data.address?.county ||
-          data.address?.state ||
+          address.city ||
+          address.town ||
+          address.village ||
+          address.county ||
+          address.state ||
           'موقعك'
         )
+        setLocationCountry({
+          code: countryCode,
+          name: address.country || '',
+          flag: countryCodeToFlagEmoji(countryCode),
+        })
       } catch {
         setCityName('موقعك')
+        setLocationCountry({ code: '', name: '', flag: '🌐' })
       }
     }
-    if (!navigator.geolocation) { setCityName('موقعك'); return }
+    if (!navigator.geolocation) {
+      setCityName('موقعك')
+      setLocationCountry({ code: '', name: '', flag: '🌐' })
+      return
+    }
     navigator.geolocation.getCurrentPosition(
       pos => {
         setUserCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude })
         reverseGeocode(pos.coords.latitude, pos.coords.longitude)
       },
-      () => setCityName('موقعك'),
+      () => {
+        setCityName('موقعك')
+        setLocationCountry({ code: '', name: '', flag: '🌐' })
+      },
       { timeout: 6000, maximumAge: 300000 }
     )
   }, [])
@@ -715,56 +742,199 @@ export default function FeedScreen() {
       <div dir="rtl" style={{ background: BG, minHeight: '100vh', paddingBottom: 96, color: TEXT }}>
         <div style={{
           position: 'sticky', top: 0, zIndex: 20,
-          padding: '12px 12px 10px',
-          background: 'rgba(255,255,255,0)',
-          backdropFilter: 'blur(8px)',
+          padding: '14px 12px 10px',
+          background: WHITE,
+          boxShadow: 'none',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {/* زر القائمة - يمين */}
             <button
               onClick={() => setShowSideMenu(true)}
               className="r2c-btn-press"
+              aria-label="فتح القائمة"
               style={{
-                width: 40, height: 40, borderRadius: 12, border: `1.5px solid ${BORDER}`,
-                background: WHITE, cursor: 'pointer', display: 'flex', flexDirection: 'column',
-                alignItems: 'center', justifyContent: 'center', gap: 5, flexShrink: 0,
-                boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                width: 42,
+                height: 42,
+                border: 'none',
+                background: 'transparent',
+                cursor: 'pointer',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 5,
+                flexShrink: 0,
+                padding: 0,
               }}
             >
-              {[0,1,2].map(i => (
-                <span key={i} style={{ display: 'block', width: i === 1 ? 14 : 18, height: 2, background: NAVY, borderRadius: 2 }} />
+              {[0, 1, 2].map(i => (
+                <span
+                  key={i}
+                  style={{
+                    display: 'block',
+                    width: i === 1 ? 20 : 28,
+                    height: 4,
+                    background: '#d1d5db',
+                    borderRadius: 999,
+                  }}
+                />
               ))}
             </button>
 
-            <div style={{ flex: 1, background: 'rgba(255,255,255,0)', borderRadius: 18, border: '1px solid rgba(238,123,38,0.22)', padding: '9px 12px', display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 13 }}>📍</span>
-              <div style={{ fontSize: 13, color: ORANGE, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {cityName}
-              </div>
+            {/* البحث في منتصف الهيدر */}
+            <div style={{ flex: 1, position: 'relative', minWidth: 0 }}>
+              <input
+                type="text"
+                dir="rtl"
+                placeholder="إيش اللي تبحث عنه؟"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                style={{
+                  width: '100%',
+                  boxSizing: 'border-box',
+                  height: 58,
+                  borderRadius: 18,
+                  border: '1.5px solid #e5e7eb',
+                  outline: 'none',
+                  background: WHITE,
+                  padding: '0 48px 0 18px',
+                  fontSize: 16,
+                  fontWeight: 500,
+                  color: TEXT,
+                  textAlign: 'center',
+                  boxShadow: 'none',
+                }}
+              />
+              <span
+                style={{
+                  position: 'absolute',
+                  right: 16,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: '#6b7280',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  pointerEvents: 'none',
+                }}
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                  <circle cx="11" cy="11" r="7" stroke="#6b7280" strokeWidth="2" />
+                  <path d="M20 20L16.65 16.65" stroke="#6b7280" strokeWidth="2" strokeLinecap="round" />
+                </svg>
+              </span>
             </div>
 
-            <div style={{ position: 'relative' }} ref={notifsRef}>
-              <button onClick={showNotifs ? () => setShowNotifs(false) : openNotifs} className="r2c-btn-press" style={headerIconBtnStyle}>🛍️
+            {/* زر الموقع/الدولة */}
+            <button
+              title={locationCountry.name ? `${cityName} - ${locationCountry.name}` : cityName}
+              type="button"
+              style={{
+                minWidth: 58,
+                height: 42,
+                padding: '0 8px',
+                borderRadius: 14,
+                border: 'none',
+                background: 'transparent',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6,
+                cursor: 'default',
+                flexShrink: 0,
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M6 9L12 15L18 9"
+                  stroke="#111827"
+                  strokeWidth="2.4"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              <span style={{ fontSize: 22, lineHeight: 1 }}>{locationCountry.flag}</span>
+            </button>
+
+            {/* زر الإشعارات - يسار */}
+            <div style={{ position: 'relative', flexShrink: 0 }} ref={notifsRef}>
+              <button
+                onClick={showNotifs ? () => setShowNotifs(false) : openNotifs}
+                className="r2c-btn-press"
+                aria-label="الإشعارات"
+                style={{
+                  width: 52,
+                  height: 52,
+                  borderRadius: 14,
+                  border: 'none',
+                  background: '#ff7a00',
+                  boxShadow: '0 8px 18px rgba(255,122,0,0.28)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  position: 'relative',
+                  flexShrink: 0,
+                }}
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M15 17H9M18 17V11C18 7.686 15.314 5 12 5C8.686 5 6 7.686 6 11V17L4.5 18.5V19H19.5V18.5L18 17Z"
+                    stroke="#ffffff"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="M10 19C10.3 20 11 20.5 12 20.5C13 20.5 13.7 20 14 19"
+                    stroke="#ffffff"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  />
+                </svg>
+
                 {unreadCount > 0 && (
-                  <span style={{
-                    position: 'absolute', top: -3, left: -3,
-                    minWidth: 18, height: 18, padding: '0 4px',
-                    borderRadius: 999, background: RED, color: '#fff',
-                    fontSize: 9, fontWeight: 500,
-                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                    border: `2px solid ${WHITE}`,
-                  }}>
+                  <span
+                    style={{
+                      position: 'absolute',
+                      top: -4,
+                      left: -4,
+                      minWidth: 18,
+                      height: 18,
+                      padding: '0 4px',
+                      borderRadius: 999,
+                      background: '#ef4444',
+                      color: '#fff',
+                      fontSize: 9,
+                      fontWeight: 700,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      border: `2px solid ${WHITE}`,
+                    }}
+                  >
                     {unreadCount > 9 ? '9+' : unreadCount}
                   </span>
                 )}
               </button>
 
               {showNotifs && (
-                <div className="r2c-fade-in" style={{
-                  position: 'absolute', top: 46, left: 0,
-                  width: 295, maxHeight: 380, overflowY: 'auto',
-                  background: WHITE, borderRadius: 20, boxShadow: '0 20px 50px rgba(0,0,0,0.2)',
-                  zIndex: 30, border: `1px solid ${BORDER}`,
-                }}>
+                <div
+                  className="r2c-fade-in"
+                  style={{
+                    position: 'absolute',
+                    top: 58,
+                    left: 0,
+                    width: 295,
+                    maxHeight: 380,
+                    overflowY: 'auto',
+                    background: WHITE,
+                    borderRadius: 20,
+                    boxShadow: '0 20px 50px rgba(0,0,0,0.2)',
+                    zIndex: 30,
+                    border: `1px solid ${BORDER}`,
+                  }}
+                >
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', borderBottom: `1px solid ${BORDER}` }}>
                     <strong style={{ fontWeight: 500, fontSize: 13 }}>الإشعارات</strong>
                     <button onClick={() => setShowNotifs(false)} style={{ border: 'none', background: 'transparent', color: MUTED, cursor: 'pointer', fontSize: 13 }}>✕</button>
@@ -790,32 +960,13 @@ export default function FeedScreen() {
                 </div>
               )}
             </div>
-
-
-          </div>
-
-          <div style={{ position: 'relative' }}>
-            <input
-              type="text"
-              dir="rtl"
-              placeholder="ابحث في المطاعم أو العروض..."
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              style={{
-                width: '100%', boxSizing: 'border-box', height: 46,
-                borderRadius: 18, border: 'none', outline: 'none',
-                background: WHITE, padding: '0 44px 0 16px',
-                fontSize: 13, boxShadow: SHADOW, color: TEXT,
-              }}
-            />
-            <span style={{ position: 'absolute', right: 15, top: '50%', transform: 'translateY(-50%)', color: RED, fontSize: 13 }}>🔍</span>
           </div>
         </div>
 
         {!isSearching && (
           <>
             <div style={{ padding: '0 12px' }}>
-              <HeroBannerSlider
+              <MainHeroBannerSlider
                 slides={bannerSlides}
                 fallbackBanner={banner}
                 activeSlide={activeSlide}
@@ -961,19 +1112,205 @@ export default function FeedScreen() {
   )
 }
 
-const headerIconBtnStyle = {
-  width: 40,
-  height: 40,
-  borderRadius: 14,
-  border: `1.5px solid ${ORANGE}44`,
-  background: ORANGE_SOFT,
-  boxShadow: `0 2px 10px ${ORANGE}22`,
-  color: ORANGE_DARK,
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  cursor: 'pointer',
-  position: 'relative',
+
+function MainHeroBannerSlider({ slides, fallbackBanner, activeSlide, onSlideChange, onClick }) {
+  const hasSlides = Array.isArray(slides) && slides.length > 0
+  const displaySlides = hasSlides
+    ? slides
+    : (fallbackBanner?.imageUrl ? [{ ...fallbackBanner, imageUrl: fallbackBanner.imageUrl }] : [])
+  const count = displaySlides.length
+  const currentSlide = count > 0 ? displaySlides[activeSlide % count] : null
+  const isClickable = currentSlide?.restaurantId || fallbackBanner?.restaurantId
+
+  const touchStartX = useRef(0)
+  const [dragPct, setDragPct] = useState(0)
+  const [isDragging, setIsDragging] = useState(false)
+  const containerRef = useRef(null)
+
+  const getW = () => containerRef.current?.offsetWidth || 1
+
+  const normalizeDiff = (idx) => {
+    if (count <= 1) return 0
+    let diff = idx - activeSlide
+    if (diff > count / 2) diff -= count
+    if (diff < -count / 2) diff += count
+    return diff
+  }
+
+  const handleTouchStart = (e) => {
+    if (count <= 1) return
+    touchStartX.current = e.targetTouches[0].clientX
+    setIsDragging(true)
+    setDragPct(0)
+  }
+
+  const handleTouchMove = (e) => {
+    if (!isDragging || count <= 1) return
+    const delta = e.targetTouches[0].clientX - touchStartX.current
+    const pct = delta / getW()
+    setDragPct(Math.max(-0.45, Math.min(0.45, pct)))
+  }
+
+  const handleTouchEnd = () => {
+    if (count <= 1) {
+      setIsDragging(false)
+      setDragPct(0)
+      return
+    }
+
+    if (dragPct < -0.12) onSlideChange((activeSlide + 1) % count)
+    else if (dragPct > 0.12) onSlideChange((activeSlide - 1 + count) % count)
+
+    setIsDragging(false)
+    setDragPct(0)
+  }
+
+  const handleCardClick = (e, idx) => {
+    if (Math.abs(dragPct) > 0.04 || isDragging) return
+    const diff = normalizeDiff(idx)
+
+    if (diff === 0) {
+      if (isClickable) onClick?.(e)
+      return
+    }
+
+    if (count > 1) onSlideChange(idx)
+  }
+
+  if (!count) {
+    return (
+      <div
+        style={{
+          height: 188,
+          borderRadius: 26,
+          background: `linear-gradient(135deg, ${BLUE} 0%, ${BLUE_LIGHT} 50%, ${BLUE_DARK} 100%)`,
+          border: `1px solid ${BORDER}`,
+        }}
+      />
+    )
+  }
+
+  return (
+    <div
+      ref={containerRef}
+      style={{
+        position: 'relative',
+        height: 204,
+        overflow: 'hidden',
+        borderRadius: 28,
+        userSelect: 'none',
+        touchAction: 'pan-y',
+        marginTop: 2,
+      }}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
+      <div style={{ position: 'absolute', inset: '0 0 18px', overflow: 'hidden', borderRadius: 28 }}>
+        {displaySlides.map((slide, idx) => {
+          const diff = normalizeDiff(idx)
+          const visible = Math.abs(diff) <= 1 || (count === 2 && Math.abs(diff) <= 2)
+          const isActive = diff === 0
+          const x = diff * 76 + dragPct * 92
+          const scale = isActive ? 1 - Math.abs(dragPct) * 0.035 : 0.88 + Math.max(0, 1 - Math.abs(diff)) * 0.04
+          const opacity = visible ? (isActive ? 1 : 0.58) : 0
+          const blur = isActive ? 'none' : 'saturate(0.9) brightness(0.92)'
+
+          return (
+            <div
+              key={idx}
+              onClick={(e) => handleCardClick(e, idx)}
+              className="r2c-card-hover"
+              style={{
+                position: 'absolute',
+                top: 8,
+                left: '7%',
+                width: '86%',
+                height: 174,
+                borderRadius: 26,
+                overflow: 'hidden',
+                cursor: isDragging ? 'grabbing' : (isActive && isClickable ? 'pointer' : 'grab'),
+                transform: `translateX(${x}%) scale(${scale})`,
+                transformOrigin: 'center center',
+                opacity,
+                zIndex: isActive ? 5 : 3 - Math.abs(diff),
+                boxShadow: isActive
+                  ? '0 18px 38px rgba(17,24,39,0.16)'
+                  : '0 10px 22px rgba(17,24,39,0.08)',
+                border: isActive ? '1px solid rgba(255,255,255,0.95)' : '1px solid rgba(229,231,235,0.9)',
+                background: `linear-gradient(135deg, ${BLUE} 0%, ${BLUE_LIGHT} 50%, ${BLUE_DARK} 100%)`,
+                transition: isDragging
+                  ? 'none'
+                  : 'transform 0.52s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.32s ease, box-shadow 0.32s ease',
+                willChange: 'transform, opacity',
+              }}
+            >
+              <img
+                src={slide.imageUrl}
+                alt={slide.restaurantName || `banner-${idx}`}
+                draggable="false"
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                  display: 'block',
+                  pointerEvents: 'none',
+                  filter: blur,
+                  transform: isActive ? `scale(${1.025 + Math.abs(dragPct) * 0.025})` : 'scale(1.02)',
+                  transition: isDragging ? 'none' : 'transform 1.8s ease, filter 0.32s ease',
+                }}
+              />
+              <div
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  pointerEvents: 'none',
+                  background: isActive
+                    ? 'linear-gradient(180deg, rgba(0,0,0,0.00) 48%, rgba(0,0,0,0.18) 100%)'
+                    : 'rgba(255,255,255,0.24)',
+                }}
+              />
+            </div>
+          )
+        })}
+      </div>
+
+      {count > 1 && (
+        <div
+          style={{
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            gap: 7,
+            height: 18,
+          }}
+        >
+          {displaySlides.map((_, idx) => (
+            <button
+              key={idx}
+              onClick={e => { e.stopPropagation(); onSlideChange(idx) }}
+              aria-label={`عرض البانر ${idx + 1}`}
+              style={{
+                width: idx === activeSlide ? 24 : 7,
+                height: 7,
+                borderRadius: 999,
+                border: 'none',
+                padding: 0,
+                cursor: 'pointer',
+                background: idx === activeSlide ? ORANGE : '#d1d5db',
+                opacity: idx === activeSlide ? 1 : 0.78,
+                transition: 'width 0.36s cubic-bezier(0.22, 1, 0.36, 1), background 0.28s ease, opacity 0.28s ease',
+              }}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  )
 }
 
 function HeroBannerSlider({ slides, fallbackBanner, activeSlide, onSlideChange, onClick }) {
@@ -1120,8 +1457,8 @@ function ExploreCategoryCard({ item, active }) {
         background: WHITE,
         border: active ? `2.5px solid ${ORANGE}` : `2px solid ${BORDER}`,
         boxShadow: active
-          ? `0 4px 16px ${ORANGE}55`
-          : '0 2px 10px rgba(0,0,0,0.09)',
+          ? `0 3px 10px ${ORANGE}33`
+          : 'none',
         flexShrink: 0,
         transition: 'border 0.18s, box-shadow 0.18s',
       }}>
@@ -1271,16 +1608,16 @@ function FeaturedOfferCard({ offer, onOpenOffer }) {
         borderRadius: 18,
         overflow: 'hidden',
         background: WHITE,
-        boxShadow: '0 4px 16px rgba(238,123,38,0.15)',
+        boxShadow: '0 1px 2px rgba(17,24,39,0.06)',
         border: `1.5px solid ${ORANGE_SOFT}`,
         transition: 'all 0.3s ease',
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.boxShadow = '0 8px 28px rgba(238,123,38,0.25)'
+        e.currentTarget.style.boxShadow = '0 4px 14px rgba(17,24,39,0.10)'
         e.currentTarget.style.transform = 'translateY(-6px)'
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.boxShadow = '0 4px 16px rgba(238,123,38,0.15)'
+        e.currentTarget.style.boxShadow = '0 1px 2px rgba(17,24,39,0.06)'
         e.currentTarget.style.transform = 'translateY(0)'
       }}
     >
@@ -1438,8 +1775,8 @@ function ProductCard({ offer, onOpenOffer, onOpenRestaurant }) {
   const oldPrice = offer.oldPrice ?? offer.originalPrice ?? null
   const restName = offer.restaurantName || offer.restaurant || ''
   return (
-    <div className="r2c-card-hover" onClick={() => onOpenOffer(offer)} style={{ width: 162, flexShrink: 0, background: WHITE, borderRadius: 18, overflow: 'hidden', boxShadow: SHADOW, cursor: 'pointer' }}>
-      <div style={{ height: 118, background: '#f7f7f7', position: 'relative' }}>
+    <div className="r2c-card-hover" onClick={() => onOpenOffer(offer)} style={{ width: 162, flexShrink: 0, background: WHITE, borderRadius: 18, overflow: 'hidden', boxShadow: SHADOW, border: `1px solid ${BORDER}`, cursor: 'pointer' }}>
+      <div style={{ height: 118, background: '#fafafa', position: 'relative' }}>
         <OfferImage offer={offer} size="medium" />
       </div>
       <div style={{ padding: '10px 10px 12px' }}>
@@ -1578,9 +1915,9 @@ function RestaurantCard({ restaurant: r, onClick }) {
   const categories = normalizeRestaurantCategories(r)
   const logoSrc = resolveRestaurantLogo(r)
   return (
-    <div onClick={onClick} className="r2c-card-hover" style={{ background: WHITE, borderRadius: 20, overflow: 'hidden', boxShadow: SHADOW, cursor: 'pointer' }}>
+    <div onClick={onClick} className="r2c-card-hover" style={{ background: WHITE, borderRadius: 20, overflow: 'hidden', boxShadow: SHADOW, border: `1px solid ${BORDER}`, cursor: 'pointer' }}>
       <div style={{ display: 'flex', gap: 12, padding: 14, alignItems: 'center' }}>
-        <div style={{ width: 62, height: 62, borderRadius: 18, overflow: 'hidden', background: '#f3f4f6', flexShrink: 0, border: `1px solid ${BORDER}` }}>
+        <div style={{ width: 62, height: 62, borderRadius: 18, overflow: 'hidden', background: '#fafafa', flexShrink: 0, border: `1px solid ${BORDER}` }}>
           {logoSrc ? (
             <img src={logoSrc} alt={r.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { e.currentTarget.style.display = 'none' }} />
           ) : (
@@ -1605,7 +1942,7 @@ function RestaurantCard({ restaurant: r, onClick }) {
 
 function FilterChip({ children, active, onClick, icon }) {
   return (
-    <button onClick={onClick} className="r2c-btn-press" style={{ border: `1.5px solid ${active ? ORANGE : BORDER}`, background: active ? ORANGE_SOFT : WHITE, color: active ? ORANGE_DARK : '#374151', borderRadius: 999, padding: '8px 14px', fontSize: 13, fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 5, boxShadow: active ? '0 6px 18px rgba(238,123,38,0.18)' : '0 2px 8px rgba(0,0,0,0.04)' }}>
+    <button onClick={onClick} className="r2c-btn-press" style={{ border: `1.5px solid ${active ? ORANGE : BORDER}`, background: active ? ORANGE_SOFT : WHITE, color: active ? ORANGE_DARK : '#374151', borderRadius: 999, padding: '8px 14px', fontSize: 13, fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 5, boxShadow: active ? '0 3px 10px rgba(238,123,38,0.12)' : 'none' }}>
       {icon ? <span>{icon}</span> : null}
       {children}
     </button>
@@ -1614,7 +1951,7 @@ function FilterChip({ children, active, onClick, icon }) {
 
 function InfoPill({ children, icon }) {
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: '#f7f7f8', color: '#4b5563', borderRadius: 10, padding: '4px 8px', fontSize: 11, fontWeight: 500 }}>
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: '#fafafa', color: '#4b5563', borderRadius: 10, padding: '4px 8px', fontSize: 11, fontWeight: 500, border: `1px solid ${BORDER}` }}>
       <span>{icon}</span>
       <span>{children}</span>
     </span>
