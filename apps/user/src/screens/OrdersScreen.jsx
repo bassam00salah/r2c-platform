@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { useApp } from '../contexts'
-import BackButton from '../components/BackButton'
 
 // ✅ إصلاح: تعريف OrderQRModal كان مفقوداً تماماً
 function OrderQRModal({ order, onClose }) {
@@ -99,11 +98,6 @@ export default function OrdersScreen() {
 
     return (
         <div className="min-h-screen bg-white text-gray-900 pb-24">
-            {/* Header */}
-            <div className="sticky top-0 bg-white border-b border-gray-100 z-10 px-4 py-3 shadow-sm flex items-center gap-4 mb-2">
-                <BackButton onClick={() => { setBottomNav('home'); setCurrentScreen('feed') }} />
-                <h2 className="text-xl font-bold text-[#15487d]">طلباتي</h2>
-            </div>
             <div className="p-6 pt-4">
 
             <div className="flex bg-gray-50 rounded-xl p-1 mb-6 border border-gray-100">

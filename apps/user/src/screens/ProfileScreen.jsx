@@ -3,7 +3,6 @@ import { useApp } from '../contexts'
 import { auth, db } from '@r2c/shared'
 import { signOut, updateProfile } from 'firebase/auth'
 import { doc, setDoc, updateDoc } from 'firebase/firestore'
-import BackButton from '../components/BackButton'
 
 // ── أيقونات SVG مدمجة ──────────────────────────────────────────────
 const EditIcon = () => (
@@ -133,7 +132,7 @@ function EditableField({ icon, label, value, placeholder, onSave, type = 'text',
 
 // ── الشاشة الرئيسية ───────────────────────────────────────────────────
 export default function ProfileScreen() {
-  const { profileData, setProfileData, setBottomNav, setCurrentScreen, viewMode } = useApp()
+  const { profileData, setProfileData, setCurrentScreen } = useApp()
   const [successMsg, setSuccessMsg] = useState('')
 
   const showSuccess = (msg) => {
@@ -171,11 +170,6 @@ export default function ProfileScreen() {
   return (
     <div className="min-h-screen bg-white pb-24">
 
-      {/* ── شريط العنوان ── */}
-      <div className="sticky top-0 bg-white border-b border-gray-100 z-10 px-4 py-3 shadow-sm flex items-center gap-4">
-        <BackButton onClick={() => { setBottomNav('home'); setCurrentScreen(viewMode) }} />
-        <h1 className="text-xl font-bold text-[#15487d]">إدارة الحساب</h1>
-      </div>
 
       {/* ── رسالة النجاح ── */}
       {successMsg && (

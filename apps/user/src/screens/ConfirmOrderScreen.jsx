@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import { useApp } from '../contexts'
 import { functions, db, haversineKm } from '@r2c/shared'
 import OfferImage from '../components/OfferImage'
-import BackButton from '../components/BackButton'
 import { httpsCallable } from 'firebase/functions'
 import { collection, query, where, getDocs } from 'firebase/firestore'
 
@@ -102,31 +101,84 @@ export default function ConfirmOrderScreen() {
     }
   }
 
+  const price = selectedOffer.price ?? selectedOffer.finalPrice
+  const restaurantName = selectedOffer.restaurantName || selectedOffer.restaurant
+
   return (
-    <div className="min-h-screen bg-white pb-24">
-      {/* Header */}
-      <div className="sticky top-0 bg-white border-b border-gray-100 z-10 px-4 py-3 shadow-sm flex items-center gap-4 mb-2">
-        <BackButton onClick={() => setCurrentScreen('offerDetails')} />
-        <h1 className="text-xl font-bold text-[#15487d]">تأكيد الطلب</h1>
-      </div>
-      <div className="p-6 pt-4">
-      <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden mb-4">
-        <OfferImage offer={selectedOffer} />
-        <div className="p-4">
-          <h2 className="text-xl font-bold mb-1">{selectedOffer.name}</h2>
-          <p className="text-gray-500 text-sm">{selectedOffer.restaurantName || selectedOffer.restaurant}</p>
-          <p className="text-[#ee7b26] font-black mt-2">{selectedOffer.price ?? selectedOffer.finalPrice} ر.س</p>
+    <div className="min-h-screen bg-white pb-24 overflow-x-hidden">
+      <style>{`
+        .confirm-order-hero-media,
+        .confirm-order-hero-media > * {
+          width: 100%;
+          height: 100%;
+        }
+
+        .confirm-order-hero-media img,
+        .confirm-order-hero-media video {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          display: block;
+        }
+      `}</style>
+
+      {/* صورة العرض ممتدة لأعلى الشاشة وخلف الهيدر الشفاف */}
+      <div
+        className="relative overflow-visible"
+        style={{
+          height: 'calc(300px + 88px + env(safe-area-inset-top, 0px))',
+          marginTop: 'calc(-88px - env(safe-area-inset-top, 0px))',
+        }}
+      >
+        <div className="absolute inset-0 overflow-hidden bg-gray-100">
+          <div className="confirm-order-hero-media absolute inset-0">
+            <OfferImage offer={selectedOffer} size="large" />
+          </div>
+          <div className="absolute inset-0 bg-gradient-to-b from-black/35 via-black/8 to-transparent pointer-events-none" />
         </div>
       </div>
-      {errorMsg && <div className="bg-red-50 border border-red-200 rounded-2xl p-4 mb-4 text-center"><p className="text-red-700 font-bold text-sm">{errorMsg}</p><button onClick={() => setErrorMsg('')} className="text-red-500 text-xs underline mt-1">إغلاق</button></div>}
-      {needsLocation && <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-4"><p className="text-amber-800 font-bold mb-3">نحتاج موقعك لتحديد أقرب فرع مناسب</p><button onClick={requestLocationAndRetry} className="w-full py-3 rounded-xl text-white font-bold" style={{ background: '#ee7b26' }}>{locating ? 'جاري تحديد الموقع...' : 'تحديد موقعي الآن'}</button></div>}
-      <div className="bg-gray-50 border border-gray-100 rounded-2xl p-4 mb-6">
-        <div className="font-bold mb-2">الفرع المحدد</div>
-        {loadingBranch ? <p className="text-gray-500">جاري تحديد الفرع المناسب...</p> : assignedBranch ? <div><p className="font-bold">{assignedBranch.name || 'الفرع الرئيسي'}</p><p className="text-gray-500 text-sm">{assignedBranch.address || 'بدون عنوان'}</p><p className="text-[#ee7b26] text-sm font-bold mt-1">يبعد عنك {assignedBranch.distanceLabel}</p></div> : <p className="text-red-500 font-bold">لا يوجد فرع نشط قريب منك حالياً</p>}
-      </div>
-      <button onClick={handleConfirm} disabled={loadingBranch || !assignedBranch || submitting} className="w-full py-4 rounded-2xl text-white font-black text-lg disabled:opacity-50" style={{ background: '#ee7b26' }}>
-        {submitting ? '⏳ جاري إنشاء الطلب...' : loadingBranch ? '⏳ جاري تحديد الفرع...' : !assignedBranch && !needsLocation ? '⚠️ لا يوجد فرع قريب' : 'تأكيد الطلب'}
-      </button>
+
+      <div className="relative z-10 px-6 -mt-12">
+        <div className="bg-white rounded-3xl shadow-lg border border-gray-100 p-4 mb-4">
+          <h2 className="text-xl font-bold mb-1">{selectedOffer.name}</h2>
+          <p className="text-gray-500 text-sm">{restaurantName}</p>
+          <p className="text-[#ee7b26] font-black mt-2">{price} ر.س</p>
+        </div>
+
+        {errorMsg && (
+          <div className="bg-red-50 border border-red-200 rounded-2xl p-4 mb-4 text-center">
+            <p className="text-red-700 font-bold text-sm">{errorMsg}</p>
+            <button onClick={() => setErrorMsg('')} className="text-red-500 text-xs underline mt-1">إغلاق</button>
+          </div>
+        )}
+
+        {needsLocation && (
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-4">
+            <p className="text-amber-800 font-bold mb-3">نحتاج موقعك لتحديد أقرب فرع مناسب</p>
+            <button onClick={requestLocationAndRetry} className="w-full py-3 rounded-xl text-white font-bold" style={{ background: '#ee7b26' }}>
+              {locating ? 'جاري تحديد الموقع...' : 'تحديد موقعي الآن'}
+            </button>
+          </div>
+        )}
+
+        <div className="bg-gray-50 border border-gray-100 rounded-2xl p-4 mb-6">
+          <div className="font-bold mb-2">الفرع المحدد</div>
+          {loadingBranch ? (
+            <p className="text-gray-500">جاري تحديد الفرع المناسب...</p>
+          ) : assignedBranch ? (
+            <div>
+              <p className="font-bold">{assignedBranch.name || 'الفرع الرئيسي'}</p>
+              <p className="text-gray-500 text-sm">{assignedBranch.address || 'بدون عنوان'}</p>
+              <p className="text-[#ee7b26] text-sm font-bold mt-1">يبعد عنك {assignedBranch.distanceLabel}</p>
+            </div>
+          ) : (
+            <p className="text-red-500 font-bold">لا يوجد فرع نشط قريب منك حالياً</p>
+          )}
+        </div>
+
+        <button onClick={handleConfirm} disabled={loadingBranch || !assignedBranch || submitting} className="w-full py-4 rounded-2xl text-white font-black text-lg disabled:opacity-50" style={{ background: '#ee7b26' }}>
+          {submitting ? '⏳ جاري إنشاء الطلب...' : loadingBranch ? '⏳ جاري تحديد الفرع...' : !assignedBranch && !needsLocation ? '⚠️ لا يوجد فرع قريب' : 'تأكيد الطلب'}
+        </button>
       </div>
     </div>
   )

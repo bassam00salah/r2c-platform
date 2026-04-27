@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useApp } from '../contexts'
 import OfferImage from '../components/OfferImage'
 import { db } from '@r2c/shared'
@@ -37,25 +37,6 @@ const FONT_STYLE = `
   .font-num { font-family: 'Poppins', 'Cairo', sans-serif; }
 `
 
-const STATUS_INFO = {
-  pending: { text: 'في انتظار القبول', icon: '⏳', color: '#f59e0b' },
-  accepted: { text: 'تم قبول طلبك', icon: '✅', color: '#10b981' },
-  ready: { text: 'طلبك جاهز', icon: '🎉', color: ORANGE },
-  completed: { text: 'اكتمل الطلب', icon: '✔️', color: MUTED },
-  rejected: { text: 'تم رفض الطلب', icon: '❌', color: '#ef4444' },
-  cancelled: { text: 'تم إلغاء الطلب', icon: '🚫', color: MUTED },
-}
-
-function timeAgo(order) {
-  const ms = order.updatedAt?.toMillis?.() ?? order.createdAt?.toMillis?.() ?? 0
-  if (!ms) return ''
-  const diff = Math.floor((Date.now() - ms) / 60000)
-  if (diff < 1) return 'الآن'
-  if (diff < 60) return `منذ ${diff} دقيقة`
-  const h = Math.floor(diff / 60)
-  if (h < 24) return `منذ ${h} ساعة`
-  return `منذ ${Math.floor(h / 24)} يوم`
-}
 
 function toNumber(value) {
   const n = Number(value)
@@ -150,7 +131,7 @@ function formatPrice(value) {
 
 export default function ExploreScreen() {
   const {
-    offers, orders, setCurrentScreen, setSelectedOffer, setSelectedRestaurant, setBottomNav, setActiveOrdersTab
+    offers, setCurrentScreen, setSelectedOffer, setSelectedRestaurant, setBottomNav, globalHeaderSearchQuery
   } = useApp()
 
   const [activeCategory, setActiveCategory] = useState(() => {
@@ -171,15 +152,7 @@ export default function ExploreScreen() {
     }
   })
 
-  const [searchQuery, setSearchQuery] = useState('')
-  const [showSearchBox, setShowSearchBox] = useState(false)
-  const searchInputRef = useRef(null)
-
-  const [showNotifs, setShowNotifs] = useState(false)
-  const [seenKeys, setSeenKeys] = useState(() => {
-    try { return new Set(JSON.parse(localStorage.getItem('r2c_seen') || '[]')) } catch { return new Set() }
-  })
-  const notifsRef = useRef(null)
+  const searchQuery = globalHeaderSearchQuery || ''
 
   const [restaurantDataById, setRestaurantDataById] = useState({})
 
@@ -198,20 +171,6 @@ export default function ExploreScreen() {
     setBottomNav('explore')
   }, [setBottomNav])
 
-  useEffect(() => {
-    if (!showSearchBox) return undefined
-    const id = setTimeout(() => searchInputRef.current?.focus(), 60)
-    return () => clearTimeout(id)
-  }, [showSearchBox])
-
-  useEffect(() => {
-    if (!showNotifs) return undefined
-    const h = e => {
-      if (notifsRef.current && !notifsRef.current.contains(e.target)) setShowNotifs(false)
-    }
-    document.addEventListener('mousedown', h)
-    return () => document.removeEventListener('mousedown', h)
-  }, [showNotifs])
 
   useEffect(() => {
     try { localStorage.setItem('r2c_explore_display_mode', displayMode) } catch {}
@@ -287,26 +246,6 @@ export default function ExploreScreen() {
     })
   }, [offers, activeCategory, featuredOffersSnapshot, searchQuery, restaurantDataById])
 
-  const notifOrders = useMemo(() => {
-    if (!orders) return []
-    return [...orders]
-      .filter(o => o.status && STATUS_INFO[o.status])
-      .sort((a, b) => {
-        const t = x => x.updatedAt?.toMillis?.() ?? x.createdAt?.toMillis?.() ?? 0
-        return t(b) - t(a)
-      })
-      .slice(0, 15)
-  }, [orders])
-
-  const unreadCount = notifOrders.filter(o => !seenKeys.has(`${o.id}_${o.status}`)).length
-
-  const openNotifs = () => {
-    setShowNotifs(true)
-    const keys = notifOrders.map(o => `${o.id}_${o.status}`)
-    const next = new Set([...seenKeys, ...keys])
-    setSeenKeys(next)
-    try { localStorage.setItem('r2c_seen', JSON.stringify([...next])) } catch {}
-  }
 
   const handleOfferClick = (offer) => {
     setSelectedOffer(offer)
@@ -324,10 +263,6 @@ export default function ExploreScreen() {
     setCurrentScreen('restaurantProfile')
   }
 
-  const handleBack = () => {
-    setBottomNav('home')
-    setCurrentScreen('feed')
-  }
 
   const toggleDisplayMode = () => {
     setDisplayMode(current => current === 'grid' ? 'list' : 'grid')
@@ -353,251 +288,6 @@ export default function ExploreScreen() {
       `}</style>
 
       <div dir="rtl" style={{ background: BG, minHeight: '100vh', color: TEXT, paddingBottom: 96 }}>
-        {/* Header */}
-        <div style={{
-          position: 'sticky',
-          top: 0,
-          zIndex: 20,
-          background: WHITE,
-          borderBottom: `1px solid ${BORDER}`,
-          padding: '14px 12px 10px',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <button
-              onClick={handleBack}
-              aria-label="رجوع"
-              className="r2c-btn-press"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: 42,
-                height: 42,
-                borderRadius: 14,
-                border: `1px solid ${BORDER}`,
-                background: WHITE,
-                boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
-                cursor: 'pointer',
-                color: TEXT,
-                userSelect: 'none',
-                WebkitTapHighlightColor: 'transparent',
-                flexShrink: 0,
-              }}
-            >
-              <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="9 18 15 12 9 6" />
-              </svg>
-            </button>
-
-            <h1 style={{
-              fontSize: 19,
-              fontWeight: 800,
-              margin: 0,
-              flex: 1,
-              textAlign: 'center',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-            }}>
-              استكشف العروض
-            </h1>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-              <button
-                onClick={() => {
-                  if (showSearchBox && searchQuery) setSearchQuery('')
-                  setShowSearchBox(prev => !prev)
-                }}
-                aria-label="بحث"
-                className="r2c-btn-press"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  width: 42,
-                  height: 42,
-                  borderRadius: 14,
-                  border: `1px solid ${BORDER}`,
-                  background: WHITE,
-                  boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
-                  cursor: 'pointer',
-                  color: showSearchBox ? ORANGE_DARK : '#374151',
-                  userSelect: 'none',
-                  WebkitTapHighlightColor: 'transparent',
-                }}
-              >
-                <SearchHeaderIcon />
-              </button>
-
-              <div style={{ position: 'relative', flexShrink: 0 }} ref={notifsRef}>
-                <button
-                  onClick={showNotifs ? () => setShowNotifs(false) : openNotifs}
-                  aria-label="الإشعارات"
-                  className="r2c-btn-press"
-                  style={{
-                    position: 'relative',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    width: 42,
-                    height: 42,
-                    borderRadius: 14,
-                    border: 'none',
-                    background: ORANGE,
-                    boxShadow: '0 8px 18px rgba(238,123,38,0.28)',
-                    cursor: 'pointer',
-                    color: WHITE,
-                    userSelect: 'none',
-                    WebkitTapHighlightColor: 'transparent',
-                  }}
-                >
-                  <BellHeaderIcon />
-
-                  {unreadCount > 0 && (
-                    <span style={{
-                      position: 'absolute',
-                      top: -4,
-                      left: -4,
-                      minWidth: 18,
-                      height: 18,
-                      padding: '0 4px',
-                      borderRadius: 999,
-                      background: '#ef4444',
-                      color: '#fff',
-                      fontSize: 9,
-                      fontWeight: 800,
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      border: `2px solid ${WHITE}`,
-                    }}>
-                      {unreadCount > 9 ? '9+' : unreadCount}
-                    </span>
-                  )}
-                </button>
-
-                {showNotifs && (
-                  <div
-                    className="r2c-fade-in"
-                    style={{
-                      position: 'absolute',
-                      top: 50,
-                      left: 0,
-                      width: 295,
-                      maxHeight: 380,
-                      overflowY: 'auto',
-                      background: WHITE,
-                      borderRadius: 20,
-                      boxShadow: '0 20px 50px rgba(0,0,0,0.2)',
-                      zIndex: 30,
-                      border: `1px solid ${BORDER}`,
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', borderBottom: `1px solid ${BORDER}` }}>
-                      <strong style={{ fontWeight: 700, fontSize: 13 }}>الإشعارات</strong>
-                      <button onClick={() => setShowNotifs(false)} style={{ border: 'none', background: 'transparent', color: MUTED, cursor: 'pointer', fontSize: 13 }}>✕</button>
-                    </div>
-                    {notifOrders.length === 0 ? (
-                      <div style={{ padding: '24px 20px', textAlign: 'center', color: MUTED, fontSize: 13 }}>لا توجد إشعارات</div>
-                    ) : notifOrders.map(order => {
-                      const info = STATUS_INFO[order.status] || STATUS_INFO.pending
-                      const seen = seenKeys.has(`${order.id}_${order.status}`)
-                      return (
-                        <div
-                          key={`${order.id}_${order.status}`}
-                          onClick={() => {
-                            setShowNotifs(false)
-                            setActiveOrdersTab?.('current')
-                            setCurrentScreen('orders')
-                          }}
-                          style={{ padding: '12px 16px', borderBottom: `1px solid ${BORDER}`, cursor: 'pointer', background: seen ? WHITE : '#fff4ef' }}
-                        >
-                          <div style={{ display: 'flex', gap: 10 }}>
-                            <div style={{ width: 36, height: 36, borderRadius: 18, flexShrink: 0, background: `${info.color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{info.icon}</div>
-                            <div>
-                              <div style={{ fontSize: 13, fontWeight: 700, color: info.color }}>{info.text}</div>
-                              <div style={{ fontSize: 12, color: TEXT, marginTop: 2 }}>{order.offerName || order.offer?.name || 'طلب'}</div>
-                              <div style={{ fontSize: 11, color: MUTED, marginTop: 1 }}>{timeAgo(order)}</div>
-                            </div>
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {showSearchBox && (
-            <div className="r2c-fade-in" style={{ marginTop: 12, position: 'relative' }}>
-              <input
-                ref={searchInputRef}
-                type="text"
-                dir="rtl"
-                placeholder="اكتبي كلمة البحث هنا"
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                style={{
-                  width: '100%',
-                  boxSizing: 'border-box',
-                  height: 50,
-                  borderRadius: 16,
-                  border: '1.5px solid #e5e7eb',
-                  outline: 'none',
-                  background: WHITE,
-                  padding: '0 46px 0 42px',
-                  fontSize: 15,
-                  fontWeight: 600,
-                  color: TEXT,
-                  textAlign: 'center',
-                  boxShadow: '0 6px 16px rgba(17,24,39,0.045)',
-                }}
-              />
-              <span style={{
-                position: 'absolute',
-                right: 16,
-                top: '50%',
-                transform: 'translateY(-50%)',
-                color: '#6b7280',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                pointerEvents: 'none',
-              }}>
-                <SearchHeaderIcon />
-              </span>
-              {(searchQuery || showSearchBox) && (
-                <button
-                  onClick={() => {
-                    if (searchQuery) setSearchQuery('')
-                    else setShowSearchBox(false)
-                  }}
-                  aria-label="مسح البحث"
-                  style={{
-                    position: 'absolute',
-                    left: 10,
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    width: 30,
-                    height: 30,
-                    borderRadius: '50%',
-                    border: 'none',
-                    background: '#f3f4f6',
-                    color: MUTED,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  ✕
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-
         {/* Category Icons Filter */}
         <div style={{ padding: '12px 12px 8px', background: WHITE }}>
           <div
@@ -1189,34 +879,6 @@ function EmptyOffers() {
 }
 
 
-function SearchHeaderIcon() {
-  return (
-    <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="11" cy="11" r="7" />
-      <line x1="20" y1="20" x2="16.65" y2="16.65" />
-    </svg>
-  )
-}
-
-function BellHeaderIcon() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-      <path
-        d="M15 17H9M18 17V11C18 7.686 15.314 5 12 5C8.686 5 6 7.686 6 11V17L4.5 18.5V19H19.5V18.5L18 17Z"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M10 19C10.3 20 11 20.5 12 20.5C13 20.5 13.7 20 14 19"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-    </svg>
-  )
-}
 
 function GridIcon() {
   return (

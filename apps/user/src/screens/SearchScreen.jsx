@@ -1,7 +1,6 @@
-import { useState, useMemo, useEffect, useRef } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useApp } from '../contexts'
 import OfferImage from '../components/OfferImage'
-import BackButton from '../components/BackButton'
 import { db } from '@r2c/shared/firebase/config'
 import { doc, getDoc, collection, onSnapshot } from 'firebase/firestore'
 
@@ -15,37 +14,18 @@ const CUSTOM_CATEGORIES = [
     { id: 'sweets',   label: 'حلويات',       emoji: '🍰' },
 ]
 
-const STATUS_INFO = {
-    pending:   { text: 'في انتظار القبول',  icon: '⏳', color: '#f59e0b' },
-    accepted:  { text: 'تم قبول طلبك ✅',   icon: '✅', color: '#10b981' },
-    ready:     { text: 'طلبك جاهز! 🎉',     icon: '🎉', color: ORANGE    },
-    completed: { text: 'اكتمل الطلب',       icon: '✔️', color: '#6b7280' },
-    rejected:  { text: 'تم رفض الطلب',      icon: '❌', color: '#ef4444' },
-    cancelled: { text: 'تم إلغاء الطلب',    icon: '🚫', color: '#6b7280' },
-}
-
-function timeAgo(order) {
-    const ms = order.updatedAt?.toMillis?.() ?? order.createdAt?.toMillis?.() ?? 0
-    if (!ms) return ''
-    const diff = Math.floor((Date.now() - ms) / 60000)
-    if (diff < 1)  return 'الآن'
-    if (diff < 60) return 'منذ ' + diff + ' دقيقة'
-    const h = Math.floor(diff / 60)
-    if (h < 24) return 'منذ ' + h + ' ساعة'
-    return 'منذ ' + Math.floor(h / 24) + ' يوم'
-}
 
 export default function SearchScreen() {
     const {
         offers,
-        orders,
         loadingOffers,
         setCurrentScreen,
         setSelectedOffer,
         setSelectedRestaurant,
+        globalHeaderSearchQuery,
     } = useApp()
 
-    const [searchQuery, setSearchQuery]       = useState('')
+    const searchQuery = globalHeaderSearchQuery || ''
     const [activeCategory, setActiveCategory] = useState(null)
     const [sortBy, setSortBy]                 = useState('default')
     const [showSortMenu, setShowSortMenu]     = useState(false)
@@ -59,43 +39,6 @@ export default function SearchScreen() {
         return () => unsub()
     }, [])
 
-    // الإشعارات
-    const [showNotifs, setShowNotifs] = useState(false)
-    const [seenKeys, setSeenKeys]     = useState(() => {
-        try { return new Set(JSON.parse(localStorage.getItem('r2c_seen') || '[]')) }
-        catch { return new Set() }
-    })
-    const notifsRef = useRef(null)
-
-    const notifOrders = useMemo(() => {
-        if (!orders) return []
-        return [...orders]
-            .filter(o => o.status && STATUS_INFO[o.status])
-            .sort((a, b) => {
-                const t = o => o.updatedAt?.toMillis?.() ?? o.createdAt?.toMillis?.() ?? 0
-                return t(b) - t(a)
-            })
-            .slice(0, 15)
-    }, [orders])
-
-    const unreadCount = notifOrders.filter(o => !seenKeys.has(o.id + '_' + o.status)).length
-
-    const openNotifs = () => {
-        setShowNotifs(true)
-        const keys = notifOrders.map(o => o.id + '_' + o.status)
-        const next = new Set([...seenKeys, ...keys])
-        setSeenKeys(next)
-        try { localStorage.setItem('r2c_seen', JSON.stringify([...next])) } catch {}
-    }
-
-    useEffect(() => {
-        if (!showNotifs) return
-        const handler = (e) => {
-            if (notifsRef.current && !notifsRef.current.contains(e.target)) setShowNotifs(false)
-        }
-        document.addEventListener('mousedown', handler)
-        return () => document.removeEventListener('mousedown', handler)
-    }, [showNotifs])
 
     // البانر من Firestore
     const [bannerRestaurantId, setBannerRestaurantId]     = useState(null)
@@ -218,129 +161,6 @@ export default function SearchScreen() {
 
     return (
         <div dir="rtl" style={{ background: '#f5f5f7', minHeight: '100vh', paddingBottom: 80, fontFamily: 'inherit' }}>
-
-            {/* HEADER */}
-            <div style={{
-                background: ORANGE, padding: '12px 14px 14px',
-                position: 'sticky', top: 0, zIndex: 100,
-                display: 'flex', alignItems: 'center', gap: 10,
-            }}>
-                <BackButton onClick={() => setCurrentScreen('feed')} variant="light" />
-                <div style={{ flex: 1, position: 'relative' }}>
-                    <input
-                        type="text" dir="rtl"
-                        placeholder="ابحث عن مطعم أو طبق ..."
-                        value={searchQuery}
-                        onChange={e => setSearchQuery(e.target.value)}
-                        style={{
-                            width: '100%', boxSizing: 'border-box',
-                            background: '#fff', border: 'none', borderRadius: 25,
-                            padding: '10px 42px 10px 16px',
-                            fontSize: 14, color: '#333', outline: 'none', fontFamily: 'inherit',
-                        }}
-                    />
-                    <span style={{
-                        position: 'absolute', right: 14, top: '50%',
-                        transform: 'translateY(-50%)', fontSize: 16,
-                        color: '#aaa', pointerEvents: 'none',
-                    }}>🔍</span>
-                </div>
-
-                {/* زر الجرس */}
-                <div style={{ position: 'relative', flexShrink: 0 }} ref={notifsRef}>
-                    <button
-                        onClick={showNotifs ? () => setShowNotifs(false) : openNotifs}
-                        style={{
-                            width: 40, height: 40, borderRadius: '50%',
-                            background: showNotifs ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.2)',
-                            border: '2px solid rgba(255,255,255,0.4)',
-                            fontSize: 18, cursor: 'pointer',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            position: 'relative',
-                        }}
-                    >
-                        🔔
-                        {unreadCount > 0 && (
-                            <span style={{
-                                position: 'absolute', top: -4, left: -4,
-                                background: '#ef4444', color: '#fff',
-                                fontSize: 10, fontWeight: 800,
-                                width: 18, height: 18, borderRadius: '50%',
-                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                border: '2px solid ' + ORANGE,
-                            }}>
-                                {unreadCount > 9 ? '9+' : unreadCount}
-                            </span>
-                        )}
-                    </button>
-
-                    {/* لوحة الإشعارات */}
-                    {showNotifs && (
-                        <div style={{
-                            position: 'absolute', top: 48, left: 0,
-                            width: 300, maxHeight: 420,
-                            background: '#fff', borderRadius: 16,
-                            boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
-                            overflowY: 'auto', zIndex: 200,
-                            border: '1px solid #f0f0f0',
-                        }}>
-                            <div style={{
-                                padding: '14px 16px', borderBottom: '1px solid #f3f4f6',
-                                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                                position: 'sticky', top: 0, background: '#fff', zIndex: 1,
-                            }}>
-                                <span style={{ fontWeight: 800, fontSize: 15, color: NAVY }}>الإشعارات</span>
-                                <button onClick={() => setShowNotifs(false)} style={{ background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', color: '#9ca3af' }}>✕</button>
-                            </div>
-
-                            {notifOrders.length === 0 ? (
-                                <div style={{ padding: '32px 16px', textAlign: 'center', color: '#9ca3af' }}>
-                                    <div style={{ fontSize: 40, marginBottom: 10 }}>🔔</div>
-                                    <p style={{ fontWeight: 600, margin: 0 }}>لا توجد إشعارات</p>
-                                </div>
-                            ) : (
-                                notifOrders.map(order => {
-                                    const info = STATUS_INFO[order.status] || { text: order.status, icon: '📋', color: '#6b7280' }
-                                    return (
-                                        <div
-                                            key={order.id + '_' + order.status}
-                                            onClick={() => { setShowNotifs(false); setCurrentScreen('orders') }}
-                                            style={{
-                                                padding: '12px 16px', borderBottom: '1px solid #f9fafb',
-                                                display: 'flex', alignItems: 'flex-start', gap: 12,
-                                                cursor: 'pointer',
-                                            }}
-                                            onMouseEnter={e => e.currentTarget.style.background = '#fafafa'}
-                                            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                                        >
-                                            <div style={{
-                                                width: 38, height: 38, borderRadius: '50%', flexShrink: 0,
-                                                background: info.color + '18',
-                                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                fontSize: 18,
-                                            }}>
-                                                {info.icon}
-                                            </div>
-                                            <div style={{ flex: 1 }}>
-                                                <p style={{ margin: 0, fontWeight: 700, fontSize: 13, color: info.color }}>
-                                                    {info.text}
-                                                </p>
-                                                <p style={{ margin: '3px 0 0', fontSize: 12, color: '#6b7280' }}>
-                                                    {order.offerName || order.offer?.name || 'طلب'}
-                                                    {order.restaurantName ? ' · ' + order.restaurantName : ''}
-                                                </p>
-                                                <p style={{ margin: '2px 0 0', fontSize: 11, color: '#c0c0c0' }}>
-                                                    {timeAgo(order)}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    )
-                                })
-                            )}
-                        </div>
-                    )}
-                </div>
-            </div>
 
             {/* SEARCH RESULTS */}
             {isSearching ? (

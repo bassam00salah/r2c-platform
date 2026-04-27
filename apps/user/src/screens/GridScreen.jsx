@@ -1,11 +1,10 @@
 import { useState } from 'react'
 import { useApp } from '../contexts'
 import OfferImage from '../components/OfferImage'
-import BackButton from '../components/BackButton'
 
 export default function GridScreen() {
-    const { offers, setSelectedOffer, setCurrentScreen } = useApp()
-    const [searchQuery, setSearchQuery]   = useState('')
+    const { offers, setSelectedOffer, setCurrentScreen, globalHeaderSearchQuery } = useApp()
+    const searchQuery = globalHeaderSearchQuery || ''
     const [selectedCity, setSelectedCity] = useState('الكل')
 
     const cities = ['الكل', ...Array.from(new Set((offers || []).map(o => o.city).filter(Boolean)))]
@@ -22,34 +21,7 @@ export default function GridScreen() {
 
     return (
         <div className="min-h-screen bg-white pb-24">
-            {/* Header */}
-            <div className="sticky top-0 bg-white border-b border-gray-100 z-10 shadow-sm">
-                <div className="px-4 pt-3 pb-2 flex items-center gap-3">
-                    <BackButton onClick={() => setCurrentScreen('feed')} />
-                    <h1 className="text-xl font-bold text-[#15487d]">البحث والاستكشاف</h1>
-                </div>
-                <div className="px-4 pb-2">
-                    <div className="relative">
-                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-lg">🔍</span>
-                        <input
-                            type="text"
-                            className="search-bar pr-10"
-                            placeholder="ابحث عن عرض أو مطعم..."
-                            value={searchQuery}
-                            onChange={e => setSearchQuery(e.target.value)}
-                        />
-                        {searchQuery && (
-                            <button
-                                onClick={() => setSearchQuery('')}
-                                className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xl"
-                            >
-                                ✕
-                            </button>
-                        )}
-                    </div>
-                </div>
-
-                {/* فلتر المدن */}
+            {/* فلتر المدن */}
                 <div className="flex gap-2 px-4 pb-3 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
                     {cities.map(city => (
                         <button
@@ -61,7 +33,6 @@ export default function GridScreen() {
                         </button>
                     ))}
                 </div>
-            </div>
 
             {/* عداد النتائج */}
             <div className="px-4 py-2 text-sm text-gray-400 font-semibold">

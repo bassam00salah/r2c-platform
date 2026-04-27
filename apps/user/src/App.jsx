@@ -19,6 +19,7 @@ import ExploreScreen from './screens/ExploreScreen'
 // Components
 import BottomNav from './components/BottomNav'
 import StatusBarSync from './components/StatusBarSync'
+import UserAppHeader from './components/UserAppHeader'
 
 const SCREENS = {
   auth: AuthScreen,
@@ -38,6 +39,7 @@ const SCREENS = {
 }
 
 const WITH_NAV = ['feed', 'grid', 'search', 'restaurantProfile', 'offerDetails', 'orders', 'profile', 'explore']
+const WITH_HEADER = ['grid', 'search', 'restaurantProfile', 'offerDetails', 'confirmOrder', 'waiting', 'success', 'orders', 'profile', 'empty', 'explore']
 
 const LOADING_WRAPPER_STYLE = {
   minHeight: '100vh',
@@ -76,6 +78,7 @@ export default function App() {
   }
 
   const Screen = SCREENS[activeScreen] ?? SCREENS.feed
+  const showHeader = WITH_HEADER.includes(activeScreen)
 
   return (
     <>
@@ -87,6 +90,7 @@ export default function App() {
           paddingTop: 'var(--r2c-statusbar-space-active)',
         }}
       >
+        {showHeader && <UserAppHeader />}
         <Screen />
         {WITH_NAV.includes(activeScreen) && <BottomNav />}
       </div>

@@ -4,7 +4,7 @@ import OfferImage from '../components/OfferImage'
 // تأكد من مسار BackButton إذا كنت تستخدمه، في الكود الأصلي لم يكن مستخدماً في الـ JSX
 // import BackButton from '../components/BackButton'
 import { db } from '@r2c/shared'
-import { collection, query, where, limit, getDocs, doc, getDoc } from 'firebase/firestore'
+import { collection, query, where, limit, getDocs, doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore'
 
 const ORANGE = '#ee7b26'
 const NAVY = '#0d1f35'
@@ -13,6 +13,9 @@ const TEXT = '#111827'
 const MUTED = '#6b7280'
 const BORDER = '#e5e7eb'
 const BG = '#f8fafc' // تم تفتيح لون الخلفية قليلاً لتباين أفضل
+const HEADER_OVERLAP = 88
+const COVER_BASE_HEIGHT = 220
+const COVER_HEIGHT = `calc(${COVER_BASE_HEIGHT}px + ${HEADER_OVERLAP}px + env(safe-area-inset-top, 0px))`
 
 // ── خريطة OpenStreetMap عبر iframe ─────────────────────────────────────────────
 function BranchMap({ lat, lng, name }) {
@@ -72,10 +75,45 @@ function BranchMap({ lat, lng, name }) {
 }
 
 export default function RestaurantProfileScreen() {
-  const { offers, selectedRestaurant, setSelectedOffer, setCurrentScreen, viewMode } = useApp()
+  const { offers, selectedRestaurant, setSelectedOffer, setCurrentScreen, user } = useApp()
   const [branchStatus, setBranchStatus] = useState(null)
   const [nearestBranch, setNearestBranch] = useState(null)
   const [restaurantData, setRestaurantData] = useState(null)
+  const [isFavorite, setIsFavorite] = useState(false)
+  const [favLoading, setFavLoading] = useState(false)
+
+  // ── قراءة حالة المفضلة من Firestore ───────────────────────────────────────
+  useEffect(() => {
+    if (!user?.uid || !selectedRestaurant?.id) return
+    const favRef = doc(db, 'users', user.uid, 'favorites', selectedRestaurant.id)
+    getDoc(favRef).then(snap => setIsFavorite(snap.exists())).catch(() => {})
+  }, [user?.uid, selectedRestaurant?.id])
+
+  // ── تبديل المفضلة ──────────────────────────────────────────────────────────
+  const toggleFavorite = async () => {
+    if (favLoading) return
+    const newValue = !isFavorite
+    setIsFavorite(newValue) // تغيير فوري بدون انتظار Firestore
+    if (!user?.uid || !selectedRestaurant?.id) return
+    setFavLoading(true)
+    const favRef = doc(db, 'users', user.uid, 'favorites', selectedRestaurant.id)
+    try {
+      if (!newValue) {
+        await deleteDoc(favRef)
+      } else {
+        await setDoc(favRef, {
+          restaurantId: selectedRestaurant.id,
+          name: selectedRestaurant.name || '',
+          savedAt: new Date().toISOString(),
+        })
+      }
+    } catch (err) {
+      console.error('R2C: failed to toggle favorite', err)
+      setIsFavorite(!newValue) // تراجع عند الفشل
+    } finally {
+      setFavLoading(false)
+    }
+  }
 
   useEffect(() => {
     if (!selectedRestaurant?.id) return
@@ -132,79 +170,24 @@ export default function RestaurantProfileScreen() {
       paddingBottom: 96,
       fontFamily: 'system-ui, -apple-system, sans-serif'
     }}>
-      {/* Header */}
+      {/* معلومات المطعم - صورة الغلاف ممتدة خلف الهيدر الشفاف */}
       <div style={{
-        position: 'sticky',
-        top: 0,
-        zIndex: 20,
-        background: 'rgba(255, 255, 255, 0.95)',
-        backdropFilter: 'blur(12px)',
-        WebkitBackdropFilter: 'blur(12px)',
-        padding: '16px',
-        borderBottom: `1px solid ${BORDER}`,
-        display: 'flex',
-        alignItems: 'center',
-        gap: 16,
-      }}>
-        <button
-          onClick={() => setCurrentScreen(viewMode)}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: 36,
-            height: 36,
-            borderRadius: '50%',
-            border: `1px solid ${BORDER}`,
-            background: WHITE,
-            cursor: 'pointer',
-            color: NAVY,
-            transition: 'all 0.2s ease',
-            padding: 0
-          }}
-          onMouseEnter={e => {
-            e.currentTarget.style.background = BG
-            e.currentTarget.style.borderColor = '#d1d5db'
-          }}
-          onMouseLeave={e => {
-            e.currentTarget.style.background = WHITE
-            e.currentTarget.style.borderColor = BORDER
-          }}
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="10 19 16 12 10 5" />
-          </svg>
-        </button>
-        <h1 style={{
-          fontSize: 18,
-          fontWeight: 700,
-          color: NAVY,
-          margin: 0,
-          flex: 1,
-          whiteSpace: 'nowrap',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-        }}>
-          {selectedRestaurant?.name}
-        </h1>
-      </div>
-
-      {/* معلومات المطعم - صورة الغلاف مع بيانات شفافة أسفلها */}
-      <div style={{
-        margin: '16px',
+        margin: 0,
+        marginTop: `calc(-${HEADER_OVERLAP}px - env(safe-area-inset-top, 0px))`,
+        marginBottom: 20,
       }}>
         <div style={{
           position: 'relative',
-          borderRadius: 24,
           overflow: 'visible',
-          minHeight: 168,
+          minHeight: COVER_HEIGHT,
         }}>
           <div style={{
-            borderRadius: 24,
             overflow: 'hidden',
-            minHeight: 168,
+            minHeight: COVER_HEIGHT,
             background: 'linear-gradient(180deg, #d1d5db 0%, #e5e7eb 100%)',
-            border: `1px solid ${BORDER}`,
+            borderBottomLeftRadius: 28,
+            borderBottomRightRadius: 28,
+            boxShadow: '0 10px 28px rgba(15,23,42,0.08)',
           }}>
             {restaurantData?.coverImageUrl || restaurantData?.imageUrl ? (
               <img
@@ -212,7 +195,7 @@ export default function RestaurantProfileScreen() {
                 alt={selectedRestaurant?.name}
                 style={{
                   width: '100%',
-                  height: 168,
+                  height: COVER_HEIGHT,
                   objectFit: 'cover',
                   display: 'block',
                 }}
@@ -225,7 +208,7 @@ export default function RestaurantProfileScreen() {
             <div style={{
               position: 'absolute',
               inset: 0,
-              background: 'linear-gradient(180deg, rgba(15,23,42,0.08) 0%, rgba(15,23,42,0.18) 100%)',
+              background: 'linear-gradient(180deg, rgba(15,23,42,0.42) 0%, rgba(15,23,42,0.18) 34%, rgba(15,23,42,0.08) 62%, rgba(15,23,42,0.20) 100%)',
               pointerEvents: 'none'
             }} />
           </div>
@@ -245,7 +228,7 @@ export default function RestaurantProfileScreen() {
             justifyContent: 'center',
             background: WHITE,
             boxShadow: '0 10px 24px rgba(0,0,0,0.12)',
-            zIndex: 2,
+            zIndex: 5,
           }}>
             {restaurantData?.imageUrl ? (
               <img
@@ -274,7 +257,7 @@ export default function RestaurantProfileScreen() {
         </div>
 
         <div style={{
-          padding: '56px 12px 0',
+          padding: '58px 16px 0',
           textAlign: 'center',
           background: 'transparent',
         }}>
@@ -353,6 +336,36 @@ export default function RestaurantProfileScreen() {
             }}>
               ⭐ 4.8
             </span>
+            <button
+              onClick={toggleFavorite}
+              disabled={favLoading}
+              style={{
+                background: isFavorite ? '#fef2f2' : '#f1f5f9',
+                border: `1px solid ${isFavorite ? '#fecaca' : '#e2e8f0'}`,
+                borderRadius: 12,
+                padding: '6px 14px',
+                cursor: favLoading ? 'default' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 5,
+                fontSize: 13,
+                fontWeight: 700,
+                color: isFavorite ? '#ef4444' : MUTED,
+                transition: 'all 0.2s ease',
+                transform: isFavorite ? 'scale(1.05)' : 'scale(1)',
+                opacity: favLoading ? 0.6 : 1,
+              }}
+            >
+              <span style={{
+                fontSize: 16,
+                transition: 'transform 0.2s ease',
+                display: 'inline-block',
+                transform: isFavorite ? 'scale(1.15)' : 'scale(1)',
+              }}>
+                {isFavorite ? '❤️' : '🤍'}
+              </span>
+              {favLoading ? '...' : isFavorite ? 'محفوظ' : 'حفظ'}
+            </button>
           </div>
         </div>
       </div>

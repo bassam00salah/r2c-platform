@@ -59,6 +59,7 @@ export function NavigationProvider({ children }) {
   const [viewMode, setViewMode]               = useState('feed')
   const [bottomNav, setBottomNav]             = useState('home')
   const [activeOrdersTab, setActiveOrdersTab] = useState('current')
+  const [globalHeaderSearchQuery, setGlobalHeaderSearchQuery] = useState('')
 
   const [locationAsked, setLocationAsked] = useState(() => {
     try { return !!localStorage.getItem('r2c_location_asked') } catch { return false }
@@ -202,8 +203,9 @@ export function NavigationProvider({ children }) {
     viewMode, setViewMode,
     bottomNav, setBottomNav,
     activeOrdersTab, setActiveOrdersTab,
+    globalHeaderSearchQuery, setGlobalHeaderSearchQuery,
     locationAsked, markLocationAsked,
-  }), [currentScreen, setCurrentScreen, goBack, userLocation, viewMode, bottomNav, activeOrdersTab, locationAsked, markLocationAsked])
+  }), [currentScreen, setCurrentScreen, goBack, userLocation, viewMode, bottomNav, activeOrdersTab, globalHeaderSearchQuery, locationAsked, markLocationAsked])
 
   return <NavigationContext.Provider value={value}>{children}</NavigationContext.Provider>
 }
