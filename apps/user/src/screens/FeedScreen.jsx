@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { useApp } from '../contexts'
 import OfferImage from '../components/OfferImage'
 import { db } from '@r2c/shared/firebase/config'
@@ -204,6 +205,187 @@ function pickCuisineImage(filter, offers, restaurants) {
 }
 
 
+// ── خريطة اختيار الموقع ────────────────────────────────────────────────────
+function MapPickerModal({ initialCoords, onConfirm, onClose }) {
+  const mapRef = useRef(null)
+  const mapInstanceRef = useRef(null)
+  const markerRef = useRef(null)
+  const [pickedCoords, setPickedCoords] = useState(initialCoords)
+  const [pickedAddress, setPickedAddress] = useState('جاري التحديد...')
+  const [loading, setLoading] = useState(false)
+
+  // تحميل Leaflet CSS + JS ديناميكياً
+  useEffect(() => {
+    const loadLeaflet = () => {
+      return new Promise((resolve) => {
+        if (window.L) { resolve(); return }
+
+        // CSS
+        if (!document.getElementById('leaflet-css')) {
+          const link = document.createElement('link')
+          link.id = 'leaflet-css'
+          link.rel = 'stylesheet'
+          link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'
+          document.head.appendChild(link)
+        }
+
+        // JS
+        if (!document.getElementById('leaflet-js')) {
+          const script = document.createElement('script')
+          script.id = 'leaflet-js'
+          script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'
+          script.onload = resolve
+          document.head.appendChild(script)
+        } else {
+          resolve()
+        }
+      })
+    }
+
+    loadLeaflet().then(() => {
+      if (!mapRef.current || mapInstanceRef.current) return
+      const L = window.L
+
+      const map = L.map(mapRef.current, {
+        center: [initialCoords.lat, initialCoords.lng],
+        zoom: 13,
+        zoomControl: true,
+      })
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap',
+        maxZoom: 19,
+      }).addTo(map)
+
+      // Custom orange marker icon
+      const orangeIcon = L.divIcon({
+        html: `<div style="
+          width:36px;height:36px;border-radius:50% 50% 50% 0;
+          background:#ee7b26;border:3px solid #fff;
+          box-shadow:0 3px 12px rgba(238,123,38,0.5);
+          transform:rotate(-45deg);
+          display:flex;align-items:center;justify-content:center;
+        "></div>`,
+        className: '',
+        iconSize: [36, 36],
+        iconAnchor: [18, 36],
+      })
+
+      const marker = L.marker([initialCoords.lat, initialCoords.lng], {
+        icon: orangeIcon,
+        draggable: true,
+      }).addTo(map)
+
+      markerRef.current = marker
+
+      const reverseGeo = async (lat, lng) => {
+        setLoading(true)
+        try {
+          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=ar`)
+          const data = await res.json()
+          const a = data.address || {}
+          const city = a.city || a.town || a.village || a.county || a.state || ''
+          const country = a.country || ''
+          setPickedAddress(city ? `${city}، ${country}` : country || 'موقع غير معروف')
+        } catch {
+          setPickedAddress('موقع محدد')
+        } finally {
+          setLoading(false)
+        }
+      }
+
+      marker.on('dragend', () => {
+        const latlng = marker.getLatLng()
+        setPickedCoords({ lat: latlng.lat, lng: latlng.lng })
+        reverseGeo(latlng.lat, latlng.lng)
+      })
+
+      map.on('click', (e) => {
+        marker.setLatLng(e.latlng)
+        setPickedCoords({ lat: e.latlng.lat, lng: e.latlng.lng })
+        reverseGeo(e.latlng.lat, e.latlng.lng)
+      })
+
+      mapInstanceRef.current = map
+      reverseGeo(initialCoords.lat, initialCoords.lng)
+    })
+
+    return () => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove()
+        mapInstanceRef.current = null
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  return (
+    <div
+      dir="rtl"
+      style={{
+        position: 'fixed', inset: 0, zIndex: 100,
+        display: 'flex', flexDirection: 'column',
+        background: '#fff',
+      }}
+    >
+      {/* Header */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 12,
+        padding: '14px 16px',
+        borderBottom: '1px solid #e5e7eb',
+        background: '#fff',
+        flexShrink: 0,
+      }}>
+        <button
+          onClick={onClose}
+          style={{
+            width: 38, height: 38, borderRadius: '50%',
+            border: 'none', background: '#f5f6f8',
+            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            flexShrink: 0,
+          }}
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>اختر موقعك</div>
+          <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {loading ? 'جاري التحديد...' : pickedAddress}
+          </div>
+        </div>
+      </div>
+
+      {/* Map */}
+      <div ref={mapRef} style={{ flex: 1, minHeight: 0 }} />
+
+      {/* Confirm button */}
+      <div style={{
+        padding: '16px 16px calc(env(safe-area-inset-bottom, 0px) + 80px)',
+        background: '#fff',
+        borderTop: '1px solid #e5e7eb',
+        flexShrink: 0,
+      }}>
+        <button
+          onClick={() => onConfirm(pickedCoords)}
+          style={{
+            width: '100%', height: 50,
+            background: '#ee7b26', color: '#fff',
+            border: 'none', borderRadius: 16,
+            fontSize: 15, fontWeight: 600,
+            cursor: 'pointer',
+            boxShadow: '0 4px 14px rgba(238,123,38,0.35)',
+          }}
+        >
+          📍 تأكيد الموقع
+        </button>
+      </div>
+    </div>
+  )
+}
+
+
 // ── القائمة الجانبية ────────────────────────────────────────────────────────
 function SideMenu({ isOpen, onClose, setCurrentScreen, profileData, onScrollToTopSellers, onScrollToRestaurants, setActiveOrdersTab }) {
 
@@ -299,19 +481,34 @@ function SideMenu({ isOpen, onClose, setCurrentScreen, profileData, onScrollToTo
   }
   const iconWrap = { width: 38, height: 38, borderRadius: 10, background: '#f5f6f8', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#374151' }
 
-  return (
-    <>
-      {isOpen && (
-        <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 40 }} />
-      )}
+  const DRAWER_W = 295
 
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 40,
+      pointerEvents: isOpen ? 'auto' : 'none',
+    }}>
+      {/* backdrop */}
+      <div
+        onClick={onClose}
+        style={{
+          position: 'absolute', inset: 0,
+          background: 'rgba(0,0,0,0.4)',
+          opacity: isOpen ? 1 : 0,
+          transition: 'opacity 0.28s cubic-bezier(0.4,0,0.2,1)',
+          pointerEvents: isOpen ? 'auto' : 'none',
+        }}
+      />
+
+      {/* drawer panel */}
       <div style={{
-        position: 'fixed', top: 0, right: 0, height: '100%', width: 295,
-        background: WHITE, zIndex: 50,
+        position: 'absolute', top: 0, right: 0, height: '100%', width: DRAWER_W,
+        background: WHITE,
         boxShadow: '-4px 0 24px rgba(0,0,0,0.12)',
-        transform: isOpen ? 'translateX(0)' : 'translateX(100%)',
+        transform: isOpen ? 'translateX(0)' : `translateX(${DRAWER_W}px)`,
         transition: 'transform 0.28s cubic-bezier(0.4,0,0.2,1)',
         display: 'flex', flexDirection: 'column', overflowY: 'auto',
+        pointerEvents: isOpen ? 'auto' : 'none',
       }} dir="rtl">
 
         <div style={{ padding: '52px 20px 20px', background: WHITE, borderBottom: `1px solid ${BORDER}`, position: 'relative' }}>
@@ -356,7 +553,7 @@ function SideMenu({ isOpen, onClose, setCurrentScreen, profileData, onScrollToTo
         </div>
 
       </div>
-    </>
+    </div>
   )
 }
 
@@ -373,6 +570,14 @@ export default function FeedScreen() {
   const [activeCustomCat, setActiveCustomCat] = useState(null)
   const [sortBy, setSortBy] = useState('default')
   const [showNotifs, setShowNotifs] = useState(false)
+  const [showLocationSheet, setShowLocationSheet] = useState(false)
+  const [showMapPicker, setShowMapPicker] = useState(false)
+
+  // أغلق الـ sheet تلقائياً عند تغيير الشاشة
+  useEffect(() => {
+    setShowLocationSheet(false)
+    setShowMapPicker(false)
+  }, [setCurrentScreen])
   const [seenKeys, setSeenKeys] = useState(() => {
     try { return new Set(JSON.parse(localStorage.getItem('r2c_seen') || '[]')) } catch { return new Set() }
   })
@@ -380,9 +585,32 @@ export default function FeedScreen() {
   const restaurantsSectionRef = useRef(null)
   const [showSideMenu, setShowSideMenu] = useState(false)
 
-  const [cityName, setCityName] = useState('...')
-  const [locationCountry, setLocationCountry] = useState({ code: '', name: '', flag: '🌐' })
-  const [userCoords, setUserCoords] = useState(null)
+  // ── الموقع: قراءة من localStorage أولاً ──
+  const [cityName, setCityName] = useState(() => {
+    try { return localStorage.getItem('r2c_city') || '...' } catch { return '...' }
+  })
+  const [locationCountry, setLocationCountry] = useState(() => {
+    try {
+      const saved = localStorage.getItem('r2c_country')
+      return saved ? JSON.parse(saved) : { code: '', name: '', flag: '🌐' }
+    } catch { return { code: '', name: '', flag: '🌐' } }
+  })
+  const [userCoords, setUserCoords] = useState(() => {
+    try {
+      const saved = localStorage.getItem('r2c_coords')
+      return saved ? JSON.parse(saved) : null
+    } catch { return null }
+  })
+
+  // حفظ الموقع في localStorage عند كل تغيير
+  const saveLocation = (city, country, coords) => {
+    try {
+      localStorage.setItem('r2c_city', city)
+      localStorage.setItem('r2c_country', JSON.stringify(country))
+      if (coords) localStorage.setItem('r2c_coords', JSON.stringify(coords))
+    } catch {}
+  }
+
   useEffect(() => {
     const reverseGeocode = async (lat, lng) => {
       try {
@@ -390,25 +618,21 @@ export default function FeedScreen() {
         const data = await res.json()
         const address = data.address || {}
         const countryCode = address.country_code || ''
-
-        setCityName(
-          address.city ||
-          address.town ||
-          address.village ||
-          address.county ||
-          address.state ||
-          'موقعك'
-        )
-        setLocationCountry({
-          code: countryCode,
-          name: address.country || '',
-          flag: countryCodeToFlagEmoji(countryCode),
-        })
+        const city = address.city || address.town || address.village || address.county || address.state || 'موقعك'
+        const country = { code: countryCode, name: address.country || '', flag: countryCodeToFlagEmoji(countryCode) }
+        const coords = { lat, lng }
+        setCityName(city)
+        setLocationCountry(country)
+        setUserCoords(coords)
+        saveLocation(city, country, coords)
       } catch {
         setCityName('موقعك')
         setLocationCountry({ code: '', name: '', flag: '🌐' })
       }
     }
+    // إذا كان المستخدم اختار يدوياً من قبل، لا نطلب GPS من جديد
+    const hasSaved = (() => { try { return !!localStorage.getItem('r2c_city') } catch { return false } })()
+    if (hasSaved) return
     if (!navigator.geolocation) {
       setCityName('موقعك')
       setLocationCountry({ code: '', name: '', flag: '🌐' })
@@ -416,7 +640,6 @@ export default function FeedScreen() {
     }
     navigator.geolocation.getCurrentPosition(
       pos => {
-        setUserCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude })
         reverseGeocode(pos.coords.latitude, pos.coords.longitude)
       },
       () => {
@@ -741,6 +964,41 @@ export default function FeedScreen() {
     return (personalized.length ? personalized : featuredOffers).slice(0, 6)
   }, [featuredOffers, orders, restaurants, cityName, userCoords])
 
+  const selectManualLocation = (country) => {
+    const presets = {
+      eg: { lat: 30.0444, lng: 31.2357, city: 'القاهرة', code: 'eg', name: 'مصر', flag: countryCodeToFlagEmoji('eg') },
+      sa: { lat: 24.7136, lng: 46.6753, city: 'الرياض', code: 'sa', name: 'السعودية', flag: countryCodeToFlagEmoji('sa') },
+    }
+    const p = presets[country]
+    if (!p) return
+    setShowLocationSheet(false)
+    const coords = { lat: p.lat, lng: p.lng }
+    const countryObj = { code: p.code, name: p.name, flag: p.flag }
+    setUserCoords(coords)
+    setCityName(p.city)
+    setLocationCountry(countryObj)
+    saveLocation(p.city, countryObj, coords)
+  }
+
+  const selectGPSLocation = () => {
+    setShowLocationSheet(false)
+    navigator.geolocation?.getCurrentPosition(
+      async pos => {
+        setUserCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude })
+        try {
+          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&format=json&accept-language=ar`)
+          const data = await res.json()
+          const address = data.address || {}
+          const countryCode = address.country_code || ''
+          setCityName(address.city || address.town || address.village || address.county || address.state || 'موقعك')
+          setLocationCountry({ code: countryCode, name: address.country || '', flag: countryCodeToFlagEmoji(countryCode) })
+        } catch { setCityName('موقعك') }
+      },
+      () => {},
+      { timeout: 8000 }
+    )
+  }
+
   if (loadingOffers) {
     return (
       <>
@@ -776,6 +1034,75 @@ export default function FeedScreen() {
   return (
     <>
       <SideMenu isOpen={showSideMenu} onClose={() => setShowSideMenu(false)} setCurrentScreen={setCurrentScreen} profileData={profileData} onScrollToTopSellers={onScrollToTopSellers} onScrollToRestaurants={onScrollToRestaurants} setActiveOrdersTab={setActiveOrdersTab} />
+      {/* push wrapper — تزيح الشاشة لليسار عند فتح القائمة */}
+      <div style={{
+        transform: showSideMenu ? 'translateX(-295px)' : 'translateX(0)',
+        transition: 'transform 0.28s cubic-bezier(0.4,0,0.2,1)',
+        minHeight: '100vh',
+        position: 'relative',
+      }}>
+
+      {/* Bottom Sheet - اختيار الموقع — عبر Portal خارج أي transform context */}
+      {showLocationSheet && createPortal(
+        <>
+          <div
+            onClick={() => setShowLocationSheet(false)}
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 9998 }}
+          />
+          <div
+            dir="rtl"
+            style={{
+              position: 'fixed',
+              bottom: 0, left: 0, right: 0,
+              zIndex: 9999,
+              background: WHITE,
+              borderRadius: '24px 24px 0 0',
+              padding: '0 0 calc(env(safe-area-inset-bottom, 0px) + 80px)',
+              boxShadow: '0 -8px 40px rgba(0,0,0,0.14)',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0 4px' }}>
+              <div style={{ width: 40, height: 4, borderRadius: 999, background: '#e5e7eb' }} />
+            </div>
+            <div style={{ padding: '8px 20px 16px', borderBottom: `1px solid ${BORDER}` }}>
+              <div style={{ fontSize: 15, fontWeight: 600, color: TEXT }}>اختر موقعك</div>
+              <div style={{ fontSize: 13, color: MUTED, marginTop: 3 }}>
+                {cityName !== '...' ? `موقعك الحالي: ${cityName}` : 'حدد بلدك أو موقعك'}
+              </div>
+            </div>
+            <div style={{ padding: '8px 12px 0' }}>
+              {[
+                { flag: '🇪🇬', label: 'مصر', sub: 'القاهرة', action: () => selectManualLocation('eg') },
+                { flag: '🇸🇦', label: 'السعودية', sub: 'الرياض', action: () => selectManualLocation('sa') },
+                { flag: '📍', label: 'تحديد موقعي على الخريطة', sub: 'اختر موقعك بدقة', action: () => { setShowLocationSheet(false); setShowMapPicker(true) } },
+              ].map((item, i) => (
+                <button
+                  key={i}
+                  onClick={item.action}
+                  style={{
+                    width: '100%', display: 'flex', alignItems: 'center', gap: 14,
+                    padding: '14px 12px', border: 'none', background: 'transparent',
+                    cursor: 'pointer', borderRadius: 16, textAlign: 'right',
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = '#fafafa'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                >
+                  <span style={{ fontSize: 28, lineHeight: 1, flexShrink: 0 }}>{item.flag}</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: TEXT }}>{item.label}</div>
+                    <div style={{ fontSize: 12, color: MUTED, marginTop: 2 }}>{item.sub}</div>
+                  </div>
+                  {((item.label === 'مصر' && locationCountry.code === 'eg') ||
+                    (item.label === 'السعودية' && locationCountry.code === 'sa')) && (
+                    <span style={{ color: ORANGE, fontSize: 18 }}>✓</span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        </>,
+        document.body
+      )}
       <style>{FONT_STYLE}</style>
       <style>{`
         .r2c-scrollbar::-webkit-scrollbar { display: none; }
@@ -879,8 +1206,10 @@ export default function FeedScreen() {
 
             {/* زر الموقع/الدولة */}
             <button
+              onClick={() => setShowLocationSheet(true)}
               title={locationCountry.name ? `${cityName} - ${locationCountry.name}` : cityName}
               type="button"
+              className="r2c-btn-press"
               style={{
                 minWidth: 58,
                 height: 42,
@@ -892,7 +1221,7 @@ export default function FeedScreen() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: 6,
-                cursor: 'default',
+                cursor: 'pointer',
                 flexShrink: 0,
               }}
             >
@@ -1166,6 +1495,32 @@ export default function FeedScreen() {
           )}
         </section>
       </div>
+      </div>{/* end push wrapper */}
+
+      {/* ── Map Picker Modal ── */}
+
+      {showMapPicker && (
+        <MapPickerModal
+          initialCoords={userCoords || { lat: 30.0444, lng: 31.2357 }}
+          onConfirm={async ({ lat, lng }) => {
+            setShowMapPicker(false)
+            const coords = { lat, lng }
+            setUserCoords(coords)
+            try {
+              const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=ar`)
+              const data = await res.json()
+              const address = data.address || {}
+              const countryCode = address.country_code || ''
+              const city = address.city || address.town || address.village || address.county || address.state || 'موقعك'
+              const country = { code: countryCode, name: address.country || '', flag: countryCodeToFlagEmoji(countryCode) }
+              setCityName(city)
+              setLocationCountry(country)
+              saveLocation(city, country, coords)
+            } catch { setCityName('موقعك') }
+          }}
+          onClose={() => setShowMapPicker(false)}
+        />
+      )}
     </>
   )
 }
