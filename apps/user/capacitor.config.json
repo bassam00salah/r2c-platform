@@ -17,6 +17,11 @@
         "sound",
         "alert"
       ]
+    },
+    "StatusBar": {
+      "overlaysWebView": true,
+      "style": "DARK",
+      "backgroundColor": "#FFFFFF"
     }
   }
 }

@@ -1,6 +1,3 @@
-import { useEffect, useMemo } from 'react'
-import { Capacitor } from '@capacitor/core'
-import { StatusBar, Style } from '@capacitor/status-bar'
 import { useApp } from './contexts'
 
 // Screens
@@ -21,6 +18,7 @@ import ExploreScreen from './screens/ExploreScreen'
 
 // Components
 import BottomNav from './components/BottomNav'
+import StatusBarSync from './components/StatusBarSync'
 
 const SCREENS = {
   auth: AuthScreen,
@@ -41,23 +39,6 @@ const SCREENS = {
 
 const WITH_NAV = ['feed', 'grid', 'search', 'restaurantProfile', 'offerDetails', 'orders', 'profile', 'explore']
 
-const STATUS_BAR_CONFIG = {
-  auth:              { color: '#000000', style: Style.Light, padTop: false },
-  location:          { color: '#FFFFFF', style: Style.Dark,  padTop: true },
-  feed:              { color: '#FFFFFF', style: Style.Dark,  padTop: true },
-  grid:              { color: '#ee7b26', style: Style.Light, padTop: true },
-  search:            { color: '#FFFFFF', style: Style.Dark,  padTop: true },
-  restaurantProfile: { color: '#FFFFFF', style: Style.Dark,  padTop: true },
-  offerDetails:      { color: '#FFFFFF', style: Style.Dark,  padTop: true },
-  confirmOrder:      { color: '#FFFFFF', style: Style.Dark,  padTop: true },
-  waiting:           { color: '#FFF7ED', style: Style.Dark,  padTop: true },
-  success:           { color: '#FFFFFF', style: Style.Dark,  padTop: true },
-  orders:            { color: '#FFFFFF', style: Style.Dark,  padTop: true },
-  profile:           { color: '#FFFFFF', style: Style.Dark,  padTop: true },
-  empty:             { color: '#FFFFFF', style: Style.Dark,  padTop: true },
-  explore:           { color: '#FFFFFF', style: Style.Dark,  padTop: true },
-}
-
 const LOADING_WRAPPER_STYLE = {
   minHeight: '100vh',
   display: 'flex',
@@ -75,76 +56,40 @@ const LOGO_PULSE_STYLE = {
 
 export default function App() {
   const { currentScreen, authLoading } = useApp()
-
-  const isNativeAndroid = Capacitor.getPlatform() === 'android'
-  const statusConfig = useMemo(
-    () => STATUS_BAR_CONFIG[currentScreen] ?? { color: '#FFFFFF', style: Style.Dark, padTop: true },
-    [currentScreen]
-  )
-
-  useEffect(() => {
-    if (!isNativeAndroid) return
-
-    let cancelled = false
-
-    const applyStatusBar = async () => {
-  try {
-    await StatusBar.show()
-    // overlay أولاً، ثم اللون، ثم الستايل (آخر شيء حتى لا يُعاد ضبطه)
-    await StatusBar.setOverlaysWebView({ overlay: true })
-    await StatusBar.setBackgroundColor({ color: statusConfig.color })
-    await StatusBar.setStyle({ style: statusConfig.style })
-
-    window.setTimeout(() => {
-      if (cancelled) return
-      StatusBar.setStyle({ style: statusConfig.style }).catch(() => {})
-    }, 80)
-  } catch (error) {
-    console.error('StatusBar update failed:', error)
-  }
-}
-
-    applyStatusBar()
-
-    return () => {
-      cancelled = true
-    }
-  }, [isNativeAndroid, statusConfig])
-
-  useEffect(() => {
-    document.documentElement.style.setProperty('--r2c-statusbar-color', statusConfig.color)
-    document.documentElement.style.setProperty(
-      '--r2c-statusbar-space-active',
-      isNativeAndroid && statusConfig.padTop ? 'var(--r2c-statusbar-space)' : '0px'
-    )
-  }, [isNativeAndroid, statusConfig])
+  const activeScreen = authLoading ? 'auth' : (currentScreen ?? 'feed')
 
   if (authLoading) {
     return (
-      <div style={LOADING_WRAPPER_STYLE}>
-        <style>{`
-          @keyframes r2cLogoPulse {
-            0%, 100% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(1.08); opacity: 0.86; }
-          }
-        `}</style>
-        <img src="/logo.png" alt="R2C" style={LOGO_PULSE_STYLE} />
-      </div>
+      <>
+        <StatusBarSync screen={activeScreen} />
+        <div style={LOADING_WRAPPER_STYLE}>
+          <style>{`
+            @keyframes r2cLogoPulse {
+              0%, 100% { transform: scale(1); opacity: 1; }
+              50% { transform: scale(1.08); opacity: 0.86; }
+            }
+          `}</style>
+          <img src="/logo.png" alt="R2C" style={LOGO_PULSE_STYLE} />
+        </div>
+      </>
     )
   }
 
-  const Screen = SCREENS[currentScreen] ?? SCREENS.feed
+  const Screen = SCREENS[activeScreen] ?? SCREENS.feed
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        background: 'var(--r2c-statusbar-color)',
-        paddingTop: 'var(--r2c-statusbar-space-active)',
-      }}
-    >
-      <Screen />
-      {WITH_NAV.includes(currentScreen) && <BottomNav />}
-    </div>
+    <>
+      <StatusBarSync screen={activeScreen} />
+      <div
+        style={{
+          minHeight: '100vh',
+          background: 'var(--r2c-screen-background, #ffffff)',
+          paddingTop: 'var(--r2c-statusbar-space-active)',
+        }}
+      >
+        <Screen />
+        {WITH_NAV.includes(activeScreen) && <BottomNav />}
+      </div>
+    </>
   )
 }

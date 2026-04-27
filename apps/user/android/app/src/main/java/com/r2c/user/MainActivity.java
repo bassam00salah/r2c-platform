@@ -12,6 +12,7 @@ public class MainActivity extends BridgeActivity {
 
   @Override
   public void onCreate(Bundle savedInstanceState) {
+    registerPlugin(R2CStatusBarPlugin.class);
     super.onCreate(savedInstanceState);
     createNotificationChannels();
   }

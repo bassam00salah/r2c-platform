@@ -107,12 +107,6 @@ async function showLocalNotification(notification) {
 
 initPushNotifications()
 
-if (Capacitor.getPlatform() === 'android') {
-  import('@capacitor/status-bar').then(({ StatusBar, Style }) => {
-    StatusBar.setStyle({ style: Style.Dark }).catch(() => {})
-    StatusBar.setBackgroundColor({ color: '#FFFFFF' }).catch(() => {})
-  })
-}
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

@@ -8,13 +8,32 @@
     --r2c-text:   #1a1a2e;
     --r2c-muted:  #6b7280;
     --r2c-statusbar-color: #ffffff;
+    --r2c-screen-background: #ffffff;
     --r2c-statusbar-space: max(env(safe-area-inset-top, 0px), 26px);
+    --r2c-statusbar-layer-height: 0px;
     --r2c-statusbar-space-active: 0px;
+    color-scheme: light;
 }
 
 html, body, #root {
     min-height: 100%;
+    background: var(--r2c-screen-background);
+}
+
+body {
+    margin: 0;
+}
+
+body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: var(--r2c-statusbar-layer-height);
     background: var(--r2c-statusbar-color);
+    pointer-events: none;
+    z-index: 2147483647;
 }
 
 * {

@@ -33,6 +33,15 @@ const FONT_STYLE = `
     line-height: 1.5;
   }
   .font-num { font-family: 'Poppins', 'Cairo', sans-serif; }
+  @keyframes r2c-fade-in {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .r2c-slide-in { animation: r2c-fade-in 0.35s ease forwards; }
+  @keyframes r2c-shimmer {
+    0%   { transform: translateX(-100%); opacity: 1; }
+    100% { transform: translateX(200%);  opacity: 0; }
+  }
 `
 
 const EMOJI_3D = {
@@ -48,15 +57,15 @@ const EMOJI_3D = {
 
 const CUISINE_FILTERS = [
   { id: 'all',     label: 'الكل', customImg: 'https://i.ibb.co/99HgtTDP/file-000000005e8c720aaeaaeb7347016d68.png' },
-  { id: 'featured', label: 'عروض مميزة', customImg: 'https://i.ibb.co/ymG5qHhr/image.png' },
-  { id: 'بطاطس', label: 'أفضل العروض', customImg: 'https://i.ibb.co/8DByX04b/image.png' },
+  { id: 'featured', label: 'عروض مميزة', customImg: 'https://i.ibb.co/WNGCWVD7/Untitled-2.png' },
+  { id: 'بطاطس', label: 'أفضل العروض', customImg: 'https://i.ibb.co/qM6CsKHL/image.png' },
   { id: 'مكس',  label: 'الأكثر مبيعًا',   customImg: 'https://i.ibb.co/ccp4YM9J/image.png' },
-  { id: 'بوكس', label: 'عروض لك', customImg: 'https://i.ibb.co/7tJLwNh5/file-00000000a90072439ee2eb42f6c0c720.png' },
-   { id: 'برجر',   label: 'برجر', customImg: 'https://i.ibb.co/tPXQKJcL/image.png' },
+  { id: 'بوكس', label: 'عروض لك', customImg: 'https://i.ibb.co/xqvHqJ3L/image.png' },
+   { id: 'برجر',   label: 'برجر', customImg: 'https://i.ibb.co/27rm6C8v/image.png' },
   { id: 'بيتزا',  label: 'بيتزا',  customImg: 'https://i.ibb.co/DffJ48fc/Untitled.png' },
- { id: 'شاورما', label: 'شاورما',customImg: 'https://i.ibb.co/wh2wzQbt/image.png' },
-  { id: 'دجاج',   label: 'دجاج',customImg: 'https://i.ibb.co/Z6JtJbxQ/image.png' },
-  { id: 'مشاوي',  label: 'مشويات', customImg: 'https://i.ibb.co/wh2wzQbt/image.png' },
+ { id: 'شاورما', label: 'شاورما',customImg: 'https://i.ibb.co/tTzwp6zV/image.png' },
+  { id: 'دجاج',   label: 'دجاج',customImg: 'https://i.ibb.co/9HZtbjNb/image.png' },
+  { id: 'مشاوي',  label: 'مشويات', customImg: 'https://i.ibb.co/tTzwp6zV/image.png' },
   { id: 'حلويات', label: 'حلويات',  customImg: 'https://i.ibb.co/q3tDHGtX/image.png' },
 ]
 
@@ -96,6 +105,49 @@ function normalizeRestaurantCategories(r) {
 
 function resolveRestaurantLogo(r) {
   return r?.logoUrl || r?.logo || r?.imageUrl || r?.photo || r?.photoUrl || r?.image || r?.thumbnailUrl || ''
+}
+
+function resolveOfferRestaurantMeta(offer, restaurants = []) {
+  const restaurantId = String(offer?.restaurantId || offer?.restaurant?.id || '').trim()
+  const offerRestaurantName = String(
+    offer?.restaurantName ||
+    (typeof offer?.restaurant === 'string' ? offer.restaurant : offer?.restaurant?.name) ||
+    offer?.vendorName ||
+    ''
+  ).trim()
+
+  const matchedRestaurant = (restaurants || []).find(r => {
+    const id = String(r?.id || '').trim()
+    const name = String(r?.name || '').trim()
+    return (
+      (restaurantId && id && id === restaurantId) ||
+      (offerRestaurantName && name && name === offerRestaurantName)
+    )
+  })
+
+  const name = matchedRestaurant?.name || offerRestaurantName
+  const logoUrl =
+    resolveRestaurantLogo(matchedRestaurant) ||
+    offer?.restaurantLogo ||
+    offer?.restaurantLogoUrl ||
+    offer?.restaurantImage ||
+    offer?.restaurantImageUrl ||
+    offer?.logoUrl ||
+    offer?.logo ||
+    offer?.vendorLogo ||
+    offer?.brandLogo ||
+    offer?.restaurant?.logoUrl ||
+    offer?.restaurant?.imageUrl ||
+    offer?.restaurant?.logo ||
+    ''
+
+  return {
+    id: matchedRestaurant?.id || restaurantId,
+    name,
+    city: matchedRestaurant?.city || offer?.city || offer?.restaurantCity || '',
+    logoUrl,
+    restaurant: matchedRestaurant,
+  }
 }
 
 function getOfferImage(offer) {
@@ -792,7 +844,7 @@ export default function FeedScreen() {
                 style={{
                   width: '100%',
                   boxSizing: 'border-box',
-                  height: 58,
+                  height: 42,
                   borderRadius: 18,
                   border: '1.5px solid #e5e7eb',
                   outline: 'none',
@@ -863,8 +915,8 @@ export default function FeedScreen() {
                 className="r2c-btn-press"
                 aria-label="الإشعارات"
                 style={{
-                  width: 52,
-                  height: 52,
+                  width: 42,
+                  height: 42,
                   borderRadius: 14,
                   border: 'none',
                   background: '#ff7a00',
@@ -990,15 +1042,17 @@ export default function FeedScreen() {
               ))}
             </div>
 
-            <div style={{ padding: '14px 12px 0' }}>
-              <TopOffersPromo offers={featuredOffers} onOpenOffer={openOffer} banner2ImageUrl={banner.banner2ImageUrl} />
+            <div style={{ padding: '14px 0px 0' }}>
+              <TopOffersPromo offers={featuredOffers} restaurants={restaurants} onOpenOffer={openOffer} onOpenRestaurant={openRestaurant} banner2ImageUrl={banner.banner2ImageUrl} />
             </div>
 
             <div id="top-sellers-section">
             <ProductSection
               title="الأكثر مبيعًا"
               action="عرض الكل"
+              titleImg={CUISINE_FILTERS.find(f => f.label === 'الأكثر مبيعًا')?.customImg}
               offers={topSellerOffers}
+              restaurants={restaurants}
               onOpenOffer={openOffer}
               onOpenRestaurant={openRestaurant}
               onViewAll={() => {
@@ -1026,9 +1080,11 @@ export default function FeedScreen() {
             </div>
 
             <ProductSection
-              title="أفضل الخيارات"
+              title="أفضل العروض"
               action="عرض الكل"
+              titleImg={CUISINE_FILTERS.find(f => f.label === 'أفضل العروض')?.customImg}
               offers={quickPickOffers}
+              restaurants={restaurants}
               onOpenOffer={openOffer}
               onOpenRestaurant={openRestaurant}
               onViewAll={() => {
@@ -1043,7 +1099,9 @@ export default function FeedScreen() {
             <ProductSection
               title="عروض لك"
               action="عرض الكل"
+              titleImg={CUISINE_FILTERS.find(f => f.label === 'عروض لك')?.customImg}
               offers={recommendedOffers}
+              restaurants={restaurants}
               onOpenOffer={openOffer}
               onOpenRestaurant={openRestaurant}
               onViewAll={() => {
@@ -1120,190 +1178,197 @@ function MainHeroBannerSlider({ slides, fallbackBanner, activeSlide, onSlideChan
     : (fallbackBanner?.imageUrl ? [{ ...fallbackBanner, imageUrl: fallbackBanner.imageUrl }] : [])
   const count = displaySlides.length
   const currentSlide = count > 0 ? displaySlides[activeSlide % count] : null
-  const isClickable = currentSlide?.restaurantId || fallbackBanner?.restaurantId
+  const isClickable = !!(currentSlide?.restaurantId || fallbackBanner?.restaurantId)
 
-  const touchStartX = useRef(0)
-  const [dragPct, setDragPct] = useState(0)
-  const [isDragging, setIsDragging] = useState(false)
-  const containerRef = useRef(null)
+  // Extended slides for infinite loop: [clone_of_last, ...real_slides, clone_of_first]
+  // internalIdx: 1..count = real slides, 0 = clone of last, count+1 = clone of first
+  const extSlides = count > 1
+    ? [displaySlides[count - 1], ...displaySlides, displaySlides[0]]
+    : displaySlides
 
-  const getW = () => containerRef.current?.offsetWidth || 1
+  const PEEK = count > 1 ? 18 : 0
+  const GAP  = count > 1 ? 8  : 0
 
-  const normalizeDiff = (idx) => {
-    if (count <= 1) return 0
-    let diff = idx - activeSlide
-    if (diff > count / 2) diff -= count
-    if (diff < -count / 2) diff += count
-    return diff
+  const containerRef    = useRef(null)
+  const touchStartX     = useRef(0)
+  const touchStartY     = useRef(0)
+  const [dragPx,        setDragPx]      = useState(0)
+  const [isDragging,    setIsDragging]  = useState(false)
+  const [containerW,    setContainerW]  = useState(375)
+  const [internalIdx,   setInternalIdx] = useState(count > 1 ? activeSlide + 1 : 0)
+  const [jumping,       setJumping]     = useState(false)
+  const prevActiveProp  = useRef(activeSlide)
+  const loopTimer       = useRef(null)
+
+  // Measure container width
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    const measure = () => setContainerW(el.offsetWidth || 375)
+    measure()
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null
+    ro?.observe(el)
+    return () => ro?.disconnect()
+  }, [])
+
+  // Teleport instantly to idx after the current CSS transition finishes (430ms)
+  const teleportTo = (idx) => {
+    clearTimeout(loopTimer.current)
+    loopTimer.current = setTimeout(() => {
+      setJumping(true)
+      setInternalIdx(idx)
+      requestAnimationFrame(() => requestAnimationFrame(() => setJumping(false)))
+    }, 430)
   }
 
+  useEffect(() => () => clearTimeout(loopTimer.current), [])
+
+  // Sync internalIdx when parent activeSlide changes (auto-timer or dot click)
+  useEffect(() => {
+    if (count <= 1) return
+    const prev = prevActiveProp.current
+    const cur  = activeSlide
+    prevActiveProp.current = cur
+    if (prev === cur) return
+
+    if (prev === count - 1 && cur === 0) {
+      // Forward wrap: animate to clone of first, then teleport to real first
+      setInternalIdx(count + 1)
+      teleportTo(1)
+    } else if (prev === 0 && cur === count - 1) {
+      // Backward wrap: animate to clone of last, then teleport to real last
+      setInternalIdx(0)
+      teleportTo(count)
+    } else {
+      setInternalIdx(cur + 1)
+    }
+  }, [activeSlide, count])
+
+  // Geometry
+  const slideW     = containerW > 0 ? containerW - 2 * PEEK - 2 * GAP : 0
+  const trackBaseX = PEEK + GAP - internalIdx * (slideW + GAP)
+  const trackX     = trackBaseX + dragPx
+
+  // Touch handlers
   const handleTouchStart = (e) => {
     if (count <= 1) return
+    clearTimeout(loopTimer.current)
     touchStartX.current = e.targetTouches[0].clientX
+    touchStartY.current = e.targetTouches[0].clientY
     setIsDragging(true)
-    setDragPct(0)
+    setDragPx(0)
   }
 
   const handleTouchMove = (e) => {
     if (!isDragging || count <= 1) return
-    const delta = e.targetTouches[0].clientX - touchStartX.current
-    const pct = delta / getW()
-    setDragPct(Math.max(-0.45, Math.min(0.45, pct)))
+    const dx = e.targetTouches[0].clientX - touchStartX.current
+    const dy = Math.abs(e.targetTouches[0].clientY - touchStartY.current)
+    if (dy > Math.abs(dx)) return
+    setDragPx(dx)
   }
 
   const handleTouchEnd = () => {
-    if (count <= 1) {
-      setIsDragging(false)
-      setDragPct(0)
-      return
-    }
-
-    if (dragPct < -0.12) onSlideChange((activeSlide + 1) % count)
-    else if (dragPct > 0.12) onSlideChange((activeSlide - 1 + count) % count)
-
     setIsDragging(false)
-    setDragPct(0)
+    if (count <= 1) return
+    const threshold = slideW * 0.15
+
+    if (dragPx < -threshold) {
+      const next = internalIdx + 1
+      setInternalIdx(next)
+      setDragPx(0)
+      if (next >= extSlides.length - 1) {
+        teleportTo(1)
+        onSlideChange(0)
+      } else {
+        onSlideChange(next - 1)
+      }
+    } else if (dragPx > threshold) {
+      const prev = internalIdx - 1
+      setInternalIdx(prev)
+      setDragPx(0)
+      if (prev <= 0) {
+        teleportTo(count)
+        onSlideChange(count - 1)
+      } else {
+        onSlideChange(prev - 1)
+      }
+    } else {
+      setDragPx(0)
+    }
   }
 
-  const handleCardClick = (e, idx) => {
-    if (Math.abs(dragPct) > 0.04 || isDragging) return
-    const diff = normalizeDiff(idx)
-
-    if (diff === 0) {
-      if (isClickable) onClick?.(e)
-      return
-    }
-
-    if (count > 1) onSlideChange(idx)
+  const handleClick = (e) => {
+    if (Math.abs(dragPx) > 8) return
+    if (isClickable) onClick?.(e)
   }
 
   if (!count) {
     return (
-      <div
-        style={{
-          height: 188,
-          borderRadius: 26,
-          background: `linear-gradient(135deg, ${BLUE} 0%, ${BLUE_LIGHT} 50%, ${BLUE_DARK} 100%)`,
-          border: `1px solid ${BORDER}`,
-        }}
-      />
+      <div style={{
+        height: 190, borderRadius: 20,
+        background: `linear-gradient(135deg, ${BLUE} 0%, ${BLUE_LIGHT} 50%, ${BLUE_DARK} 100%)`,
+      }} />
     )
   }
 
   return (
-    <div
-      ref={containerRef}
-      style={{
-        position: 'relative',
-        height: 204,
-        overflow: 'hidden',
-        borderRadius: 28,
-        userSelect: 'none',
-        touchAction: 'pan-y',
-        marginTop: 2,
-      }}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
-    >
-      <div style={{ position: 'absolute', inset: '0 0 18px', overflow: 'hidden', borderRadius: 28 }}>
-        {displaySlides.map((slide, idx) => {
-          const diff = normalizeDiff(idx)
-          const visible = Math.abs(diff) <= 1 || (count === 2 && Math.abs(diff) <= 2)
-          const isActive = diff === 0
-          const x = diff * 76 + dragPct * 92
-          const scale = isActive ? 1 - Math.abs(dragPct) * 0.035 : 0.88 + Math.max(0, 1 - Math.abs(diff)) * 0.04
-          const opacity = visible ? (isActive ? 1 : 0.58) : 0
-          const blur = isActive ? 'none' : 'saturate(0.9) brightness(0.92)'
-
-          return (
-            <div
-              key={idx}
-              onClick={(e) => handleCardClick(e, idx)}
-              className="r2c-card-hover"
-              style={{
-                position: 'absolute',
-                top: 8,
-                left: '7%',
-                width: '86%',
-                height: 174,
-                borderRadius: 26,
-                overflow: 'hidden',
-                cursor: isDragging ? 'grabbing' : (isActive && isClickable ? 'pointer' : 'grab'),
-                transform: `translateX(${x}%) scale(${scale})`,
-                transformOrigin: 'center center',
-                opacity,
-                zIndex: isActive ? 5 : 3 - Math.abs(diff),
-                boxShadow: isActive
-                  ? '0 18px 38px rgba(17,24,39,0.16)'
-                  : '0 10px 22px rgba(17,24,39,0.08)',
-                border: isActive ? '1px solid rgba(255,255,255,0.95)' : '1px solid rgba(229,231,235,0.9)',
+    <div style={{ userSelect: 'none' }}>
+      {/* Clip container */}
+      <div
+        ref={containerRef}
+        style={{
+          position: 'relative', height: 190, overflow: 'hidden',
+          touchAction: 'pan-y',
+          cursor: isDragging ? 'grabbing' : (isClickable ? 'pointer' : 'default'),
+        }}
+        onClick={handleClick}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
+        {/* Sliding track — direction:ltr fixes RTL flex reversal */}
+        <div style={{
+          position: 'absolute', top: 0, left: 0, height: '100%',
+          display: 'flex', direction: 'ltr', gap: GAP,
+          transform: `translateX(${trackX}px)`,
+          transition: jumping || isDragging ? 'none' : 'transform 0.42s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+          willChange: 'transform',
+        }}>
+          {extSlides.map((slide, idx) => {
+            const isActive = idx === internalIdx
+            return (
+              <div key={idx} style={{
+                width: slideW, height: '100%', flexShrink: 0,
+                borderRadius: 18, overflow: 'hidden',
                 background: `linear-gradient(135deg, ${BLUE} 0%, ${BLUE_LIGHT} 50%, ${BLUE_DARK} 100%)`,
-                transition: isDragging
-                  ? 'none'
-                  : 'transform 0.52s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.32s ease, box-shadow 0.32s ease',
-                willChange: 'transform, opacity',
-              }}
-            >
-              <img
-                src={slide.imageUrl}
-                alt={slide.restaurantName || `banner-${idx}`}
-                draggable="false"
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover',
-                  display: 'block',
-                  pointerEvents: 'none',
-                  filter: blur,
-                  transform: isActive ? `scale(${1.025 + Math.abs(dragPct) * 0.025})` : 'scale(1.02)',
-                  transition: isDragging ? 'none' : 'transform 1.8s ease, filter 0.32s ease',
-                }}
-              />
-              <div
-                style={{
-                  position: 'absolute',
-                  inset: 0,
-                  pointerEvents: 'none',
-                  background: isActive
-                    ? 'linear-gradient(180deg, rgba(0,0,0,0.00) 48%, rgba(0,0,0,0.18) 100%)'
-                    : 'rgba(255,255,255,0.24)',
-                }}
-              />
-            </div>
-          )
-        })}
+                boxShadow: isActive ? '0 4px 18px rgba(0,0,0,0.18)' : '0 2px 8px rgba(0,0,0,0.10)',
+                transform: isActive ? 'scale(1)' : 'scale(0.96)',
+                transition: jumping || isDragging ? 'none' : 'transform 0.42s cubic-bezier(0.25, 0.46, 0.45, 0.94), box-shadow 0.42s ease',
+              }}>
+                <img
+                  src={slide.imageUrl}
+                  alt={slide.restaurantName || `banner-${idx}`}
+                  draggable="false"
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', pointerEvents: 'none' }}
+                />
+              </div>
+            )
+          })}
+        </div>
       </div>
 
+      {/* Dots */}
       {count > 1 && (
-        <div
-          style={{
-            position: 'absolute',
-            bottom: 0,
-            left: 0,
-            right: 0,
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            gap: 7,
-            height: 18,
-          }}
-        >
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 5, marginTop: 10 }}>
           {displaySlides.map((_, idx) => (
             <button
               key={idx}
               onClick={e => { e.stopPropagation(); onSlideChange(idx) }}
-              aria-label={`عرض البانر ${idx + 1}`}
               style={{
-                width: idx === activeSlide ? 24 : 7,
-                height: 7,
-                borderRadius: 999,
-                border: 'none',
-                padding: 0,
-                cursor: 'pointer',
-                background: idx === activeSlide ? ORANGE : '#d1d5db',
-                opacity: idx === activeSlide ? 1 : 0.78,
-                transition: 'width 0.36s cubic-bezier(0.22, 1, 0.36, 1), background 0.28s ease, opacity 0.28s ease',
+                width: idx === activeSlide ? 24 : 7, height: 7,
+                borderRadius: 999, border: 'none', padding: 0, cursor: 'pointer',
+                background: idx === activeSlide ? TEXT : '#d1d5db',
+                transition: 'width 0.38s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.25s ease',
               }}
             />
           ))}
@@ -1312,6 +1377,7 @@ function MainHeroBannerSlider({ slides, fallbackBanner, activeSlide, onSlideChan
     </div>
   )
 }
+
 
 function HeroBannerSlider({ slides, fallbackBanner, activeSlide, onSlideChange, onClick }) {
   const hasSlides = slides && slides.length > 0
@@ -1455,7 +1521,7 @@ function ExploreCategoryCard({ item, active }) {
         width: 68, height: 68, borderRadius: '50%',
         overflow: 'hidden',
         background: WHITE,
-        border: active ? `2.5px solid ${ORANGE}` : `2px solid ${BORDER}`,
+        border: active ? `2.5px solid ${ORANGE}` : `0px solid ${BORDER}`,
         boxShadow: active
           ? `0 3px 10px ${ORANGE}33`
           : 'none',
@@ -1486,7 +1552,7 @@ function ExploreCategoryCard({ item, active }) {
   )
 }
 
-function TopOffersPromo({ offers, onOpenOffer, banner2ImageUrl }) {
+function TopOffersPromo({ offers, restaurants = [], onOpenOffer, onOpenRestaurant, banner2ImageUrl }) {
   const topFive = useMemo(() => {
     return [...(offers || [])]
       .filter(o => (o.price ?? o.finalPrice ?? o.discountedPrice) != null)
@@ -1497,6 +1563,48 @@ function TopOffersPromo({ offers, onOpenOffer, banner2ImageUrl }) {
       })
       .slice(0, 5)
   }, [offers])
+
+  const [activeIndex, setActiveIndex] = useState(0)
+  const touchStartX = useRef(null)
+  const touchStartY = useRef(null)
+  const autoPlayRef = useRef(null)
+
+  const goTo = (index) => {
+    const clamped = Math.max(0, Math.min(topFive.length - 1, index))
+    setActiveIndex(clamped)
+  }
+
+  const resetAutoPlay = () => {
+    if (autoPlayRef.current) clearInterval(autoPlayRef.current)
+    if (topFive.length <= 1) return
+    autoPlayRef.current = setInterval(() => {
+      setActiveIndex(prev => (prev + 1) % topFive.length)
+    }, 4000)
+  }
+
+  useEffect(() => {
+    resetAutoPlay()
+    return () => { if (autoPlayRef.current) clearInterval(autoPlayRef.current) }
+  }, [topFive.length])
+
+  const handleTouchStart = (e) => {
+    touchStartX.current = e.touches[0].clientX
+    touchStartY.current = e.touches[0].clientY
+    if (autoPlayRef.current) clearInterval(autoPlayRef.current)
+  }
+
+  const handleTouchEnd = (e) => {
+    if (touchStartX.current === null) return
+    const dx = e.changedTouches[0].clientX - touchStartX.current
+    const dy = Math.abs(e.changedTouches[0].clientY - touchStartY.current)
+    if (Math.abs(dx) > 40 && Math.abs(dx) > dy) {
+      // RTL: swipe left = next, swipe right = prev
+      if (dx < 0) goTo(activeIndex + 1)
+      else goTo(activeIndex - 1)
+    }
+    touchStartX.current = null
+    resetAutoPlay()
+  }
 
   if (!topFive.length) return null
 
@@ -1523,68 +1631,119 @@ function TopOffersPromo({ offers, onOpenOffer, banner2ImageUrl }) {
           <rect width="100%" height="100%" fill="url(#islamicPattern)"/>
         </svg>
 
-        {/* Decorative top-left corner ornament */}
+        {/* Corner ornaments */}
         <svg style={{ position: 'absolute', top: 0, right: 0, width: 90, height: 90, opacity: 0.45, pointerEvents: 'none' }} viewBox="0 0 90 90" xmlns="http://www.w3.org/2000/svg">
           <path d="M90 0 Q60 0 45 45 Q30 0 0 0" fill="none" stroke="#c8a96e" strokeWidth="1.2"/>
           <path d="M90 0 Q70 10 55 40 Q40 10 10 0" fill="none" stroke="#c8a96e" strokeWidth="0.8"/>
           <circle cx="45" cy="12" r="3.5" fill="#c8a96e" opacity="0.7"/>
           <circle cx="30" cy="6" r="2" fill="#c8a96e" opacity="0.5"/>
           <circle cx="60" cy="6" r="2" fill="#c8a96e" opacity="0.5"/>
-          <path d="M45 18 Q38 28 30 32 M45 18 Q52 28 60 32" stroke="#c8a96e" strokeWidth="0.8" fill="none"/>
         </svg>
-
-        {/* Decorative top-right corner ornament */}
         <svg style={{ position: 'absolute', top: 0, left: 0, width: 90, height: 90, opacity: 0.45, pointerEvents: 'none', transform: 'scaleX(-1)' }} viewBox="0 0 90 90" xmlns="http://www.w3.org/2000/svg">
           <path d="M90 0 Q60 0 45 45 Q30 0 0 0" fill="none" stroke="#c8a96e" strokeWidth="1.2"/>
           <path d="M90 0 Q70 10 55 40 Q40 10 10 0" fill="none" stroke="#c8a96e" strokeWidth="0.8"/>
           <circle cx="45" cy="12" r="3.5" fill="#c8a96e" opacity="0.7"/>
           <circle cx="30" cy="6" r="2" fill="#c8a96e" opacity="0.5"/>
           <circle cx="60" cy="6" r="2" fill="#c8a96e" opacity="0.5"/>
-          <path d="M45 18 Q38 28 30 32 M45 18 Q52 28 60 32" stroke="#c8a96e" strokeWidth="0.8" fill="none"/>
         </svg>
 
-        {/* Decorative bottom ornaments */}
-        <svg style={{ position: 'absolute', bottom: 0, right: 0, width: 90, height: 70, opacity: 0.35, pointerEvents: 'none', transform: 'scaleY(-1)' }} viewBox="0 0 90 90" xmlns="http://www.w3.org/2000/svg">
-          <path d="M90 0 Q60 0 45 45 Q30 0 0 0" fill="none" stroke="#c8a96e" strokeWidth="1.2"/>
-          <path d="M90 0 Q70 10 55 40 Q40 10 10 0" fill="none" stroke="#c8a96e" strokeWidth="0.8"/>
-          <circle cx="45" cy="12" r="3.5" fill="#c8a96e" opacity="0.7"/>
-        </svg>
-        <svg style={{ position: 'absolute', bottom: 0, left: 0, width: 90, height: 70, opacity: 0.35, pointerEvents: 'none', transform: 'scaleX(-1) scaleY(-1)' }} viewBox="0 0 90 90" xmlns="http://www.w3.org/2000/svg">
-          <path d="M90 0 Q60 0 45 45 Q30 0 0 0" fill="none" stroke="#c8a96e" strokeWidth="1.2"/>
-          <path d="M90 0 Q70 10 55 40 Q40 10 10 0" fill="none" stroke="#c8a96e" strokeWidth="0.8"/>
-          <circle cx="45" cy="12" r="3.5" fill="#c8a96e" opacity="0.7"/>
-        </svg>
-
-        {/* Side vertical ornament lines */}
+        {/* Side ornament lines */}
         <div style={{ position: 'absolute', top: 10, bottom: 10, right: 10, width: 1, background: 'linear-gradient(to bottom, transparent, rgba(200,169,110,0.35), transparent)', pointerEvents: 'none' }} />
         <div style={{ position: 'absolute', top: 10, bottom: 10, left: 10, width: 1, background: 'linear-gradient(to bottom, transparent, rgba(200,169,110,0.35), transparent)', pointerEvents: 'none' }} />
 
-        {/* Title row with flame icon */}
+        {/* Title row */}
         <div style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          gap: 8, padding: '16px 16px 14px',
+          display: 'flex', flexDirection: 'column', alignItems: 'center',
+          padding: '16px 16px 14px',
           borderBottom: `1px solid rgba(200,169,110,0.25)`,
-          position: 'relative', zIndex: 1,
+          position: 'relative', zIndex: 1, gap: 10,
         }}>
-          <span style={{ fontSize: 26 }}>🔥</span>
-          <span style={{
-            color: '#f0d078',
-            fontSize: 22,
-            fontWeight: 700,
-            letterSpacing: 1,
-            textShadow: '0 0 18px rgba(240,208,120,0.5)',
-            fontFamily: "'Cairo', sans-serif",
-          }}>عروض مميزة</span>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+            <span style={{
+              color: '#f0d078',
+              fontSize: 22,
+              fontWeight: 700,
+              letterSpacing: 1,
+              textShadow: '0 0 18px rgba(240,208,120,0.5)',
+              fontFamily: "'Cairo', sans-serif",
+            }}>عروض مميزة</span>
+            <img
+              src={CUISINE_FILTERS.find(f => f.id === 'featured')?.customImg}
+              alt="عروض مميزة"
+              style={{ width: 30, height: 30, objectFit: 'cover', borderRadius: '50%', flexShrink: 0, border: '0px solid rgba(200,169,110,0.4)' }}
+              onError={e => { e.currentTarget.style.display = 'none' }}
+            />
+          </div>
+          {/* Dot indicators */}
+          <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
+            {topFive.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => { goTo(i); resetAutoPlay() }}
+                style={{
+                  width: i === activeIndex ? 18 : 6,
+                  height: 6,
+                  borderRadius: 999,
+                  background: i === activeIndex ? ORANGE : 'rgba(200,169,110,0.4)',
+                  border: 'none',
+                  padding: 0,
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                }}
+              />
+            ))}
+          </div>
         </div>
 
-        {/* Cards container */}
-        <div style={{ position: 'relative', zIndex: 1, padding: '14px 0 16px' }}>
-          <div
-            className="r2c-scrollbar"
-            style={{ display: 'flex', gap: 8, overflowX: 'auto', padding: '0 10px 4px' }}
-          >
-            {topFive.map((offer) => (
-              <FeaturedOfferCard key={offer.id} offer={offer} onOpenOffer={onOpenOffer} />
+        {/* Slider */}
+        <div
+          style={{ position: 'relative', zIndex: 1, padding: '20px 14px 18px' }}
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+        >
+          {/* Nav arrow right (prev in RTL) */}
+          {activeIndex > 0 && (
+            <button
+              onClick={() => { goTo(activeIndex - 1); resetAutoPlay() }}
+              style={{
+                position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
+                zIndex: 10, width: 30, height: 30, borderRadius: '50%',
+                background: 'rgba(200,169,110,0.2)', border: '1px solid rgba(200,169,110,0.4)',
+                color: '#f0d078', fontSize: 18, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}
+            >›</button>
+          )}
+          {/* Nav arrow left (next in RTL) */}
+          {activeIndex < topFive.length - 1 && (
+            <button
+              onClick={() => { goTo(activeIndex + 1); resetAutoPlay() }}
+              style={{
+                position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)',
+                zIndex: 10, width: 30, height: 30, borderRadius: '50%',
+                background: 'rgba(200,169,110,0.2)', border: '1px solid rgba(200,169,110,0.4)',
+                color: '#f0d078', fontSize: 18, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}
+            >‹</button>
+          )}
+
+          {/* Cards — show only active */}
+          <div style={{ paddingTop: 22 }}>
+            {topFive.map((offer, i) => (
+              <div
+                key={offer.id}
+                className={i === activeIndex ? 'r2c-slide-in' : ''}
+                style={{ display: i === activeIndex ? 'block' : 'none' }}
+              >
+                <FeaturedOfferCard
+                  offer={offer}
+                  restaurants={restaurants}
+                  onOpenOffer={onOpenOffer}
+                  onOpenRestaurant={onOpenRestaurant}
+                  isActive={true}
+                />
+              </div>
             ))}
           </div>
         </div>
@@ -1593,134 +1752,148 @@ function TopOffersPromo({ offers, onOpenOffer, banner2ImageUrl }) {
   )
 }
 
-function FeaturedOfferCard({ offer, onOpenOffer }) {
+function FeaturedOfferCard({ offer, restaurants = [], onOpenOffer, onOpenRestaurant, isActive }) {
   const price = offer.price ?? offer.finalPrice ?? offer.discountedPrice
-  const restName = offer.restaurantName || offer.restaurant || ''
+  const oldPrice = offer.oldPrice ?? offer.originalPrice ?? null
+  const restaurantMeta = resolveOfferRestaurantMeta(offer, restaurants)
+  const restName = restaurantMeta.name
+  const discount = oldPrice && price ? Math.round((1 - price / oldPrice) * 100) : (offer.discountPercent ?? offer.discount ?? null)
 
   return (
     <div
       onClick={() => onOpenOffer(offer)}
       className="r2c-card-hover"
       style={{
-        flexShrink: 0,
-        width: 150,
+        width: '100%',
         cursor: 'pointer',
         borderRadius: 18,
         overflow: 'hidden',
         background: WHITE,
-        boxShadow: '0 1px 2px rgba(17,24,39,0.06)',
-        border: `1.5px solid ${ORANGE_SOFT}`,
-        transition: 'all 0.3s ease',
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.boxShadow = '0 4px 14px rgba(17,24,39,0.10)'
-        e.currentTarget.style.transform = 'translateY(-6px)'
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.boxShadow = '0 1px 2px rgba(17,24,39,0.06)'
-        e.currentTarget.style.transform = 'translateY(0)'
+        boxShadow: '0 4px 20px rgba(0,0,0,0.18)',
+        border: `1.5px solid rgba(200,169,110,0.2)`,
+        transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+        display: 'flex',
+        flexDirection: 'column',
       }}
     >
-      {/* صورة العرض مع تدرج */}
+      {/* صورة العرض */}
       <div style={{
         position: 'relative',
-        height: 140,
+        height: 200,
         background: `linear-gradient(135deg, ${BLUE} 0%, ${BLUE_LIGHT} 100%)`,
         overflow: 'hidden',
+        flexShrink: 0,
       }}>
-        <OfferImage offer={offer} size="medium" style={{
+        <OfferImage offer={offer} size="large" style={{
           width: '100%',
           height: '100%',
           objectFit: 'cover',
+          display: 'block',
         }} />
 
-        {/* شريط التقييم في الأسفل */}
+        {/* gradient overlay */}
         <div style={{
-          position: 'absolute',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          background: 'linear-gradient(to top, rgba(0,0,0,0.6), rgba(0,0,0,0))',
-          padding: '12px 10px 10px',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-end',
+          position: 'absolute', inset: 0,
+          background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.15) 50%, transparent 100%)',
+          pointerEvents: 'none',
+        }} />
+
+        {/* شارة الخصم */}
+        {discount > 0 && (
+          <div style={{
+            position: 'absolute', top: 12, right: 12,
+            background: ORANGE, color: WHITE,
+            fontSize: 12, fontWeight: 700,
+            borderRadius: 999, padding: '4px 10px',
+            boxShadow: '0 2px 8px rgba(238,123,38,0.5)',
+          }}>
+            {discount}% خصم
+          </div>
+        )}
+
+        {/* لوجو المطعم + اسمه */}
+        <div style={{
+          position: 'absolute', bottom: 12, right: 12,
+          display: 'flex', alignItems: 'center', gap: 8,
         }}>
+          <RestaurantLogoBadge
+            logoUrl={restaurantMeta.logoUrl}
+            name={restName}
+            size={36}
+            onClick={(e) => {
+              e.stopPropagation()
+              if (onOpenRestaurant && restaurantMeta.id) {
+                onOpenRestaurant({ id: restaurantMeta.id, name: restName, city: restaurantMeta.city })
+              }
+            }}
+          />
           {restName && (
             <span style={{
-              color: ORANGE,
-              fontSize: 10,
-              fontWeight: 600,
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              maxWidth: '70%',
-            }}>
-              {restName}
-            </span>
+              color: WHITE, fontSize: 12, fontWeight: 600,
+              textShadow: '0 1px 4px rgba(0,0,0,0.6)',
+              maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            }}>{restName}</span>
           )}
-          <span style={{
-            color: WHITE,
-            fontSize: 10,
-            fontWeight: 700,
-          }}>
-            ⭐ 4.8
-          </span>
+        </div>
+
+        {/* تقييم */}
+        <div style={{
+          position: 'absolute', bottom: 12, left: 12,
+          background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(4px)',
+          borderRadius: 999, padding: '3px 8px',
+          display: 'flex', alignItems: 'center', gap: 4,
+        }}>
+          <span style={{ fontSize: 11 }}>⭐</span>
+          <span style={{ color: WHITE, fontSize: 11, fontWeight: 600 }}>4.8</span>
         </div>
       </div>
 
       {/* معلومات العرض */}
-      <div style={{ padding: '12px 10px' }}>
-        <h4 style={{
-          fontSize: 12,
-          fontWeight: 600,
-          color: TEXT,
-          margin: '0 0 8px',
-          lineHeight: 1.3,
-          display: '-webkit-box',
-          WebkitLineClamp: 2,
-          WebkitBoxOrient: 'vertical',
-          overflow: 'hidden',
-        }}>
-          {offer.name}
-        </h4>
+      <div style={{ padding: '14px 16px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <h4 style={{
+            fontSize: 14,
+            fontWeight: 600,
+            color: TEXT,
+            margin: '0 0 4px',
+            lineHeight: 1.4,
+            display: '-webkit-box',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden',
+          }}>
+            {offer.name}
+          </h4>
+          {offer.description ? (
+            <div style={{
+              fontSize: 12, color: MUTED, lineHeight: 1.3,
+              display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden',
+            }}>{offer.description}</div>
+          ) : null}
+        </div>
 
-        {/* السعر والزر */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 6,
-        }}>
-          {price && (
-            <span style={{
-              fontSize: 12,
-              fontWeight: 700,
-              color: ORANGE,
-            }} className="font-num">
-              {price} ر.س
-            </span>
+        {/* السعر وزر الطلب */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6, flexShrink: 0 }}>
+          {price != null && (
+            <div style={{ textAlign: 'left' }}>
+              <span style={{ fontSize: 16, fontWeight: 700, color: ORANGE }} className="font-num">{price} ر.س</span>
+              {oldPrice && (
+                <div style={{ fontSize: 11, color: '#9ca3af', textDecoration: 'line-through', textAlign: 'left' }} className="font-num">{oldPrice} ر.س</div>
+              )}
+            </div>
           )}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: 28,
-            height: 28,
-            borderRadius: '50%',
-            background: ORANGE_SOFT,
-            cursor: 'pointer',
-            transition: 'all 0.2s ease',
-          }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = ORANGE
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = ORANGE_SOFT
+          <button
+            onClick={(e) => { e.stopPropagation(); onOpenOffer(offer) }}
+            style={{
+              background: ORANGE, color: WHITE, border: 'none',
+              borderRadius: 999, padding: '7px 16px',
+              fontSize: 12, fontWeight: 600, cursor: 'pointer',
+              boxShadow: '0 3px 10px rgba(238,123,38,0.35)',
+              whiteSpace: 'nowrap',
             }}
           >
-            <span style={{ fontSize: 20, lineHeight: 1, color: ORANGE, fontWeight: 500 }}>+</span>
-          </div>
+            اطلب الآن
+          </button>
         </div>
       </div>
     </div>
@@ -1756,35 +1929,104 @@ function PromoStripBanner({ title, subtitle, image, align = 'right' }) {
   )
 }
 
-function ProductSection({ title, action, offers, onOpenOffer, onOpenRestaurant, onViewAll }) {
+
+function RestaurantLogoBadge({ logoUrl, name, size = 42, onClick, style }) {
+  const letter = String(name || 'R').trim().charAt(0) || 'R'
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={name ? `فتح مطعم ${name}` : 'لوجو المطعم'}
+      style={{
+        width: size,
+        height: size,
+        borderRadius: '50%',
+        border: `3px solid ${WHITE}`,
+        background: WHITE,
+        overflow: 'hidden',
+        boxShadow: '0 8px 18px rgba(17, 24, 39, 0.18)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: ORANGE_DARK,
+        fontSize: Math.max(14, size * 0.34),
+        fontWeight: 900,
+        cursor: onClick ? 'pointer' : 'default',
+        padding: 0,
+        zIndex: 5,
+        ...style,
+      }}
+    >
+      {logoUrl ? (
+        <img
+          src={logoUrl}
+          alt={name || 'restaurant'}
+          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+          onError={(e) => {
+            e.currentTarget.style.display = 'none'
+            if (e.currentTarget.nextSibling) {
+              e.currentTarget.nextSibling.style.display = 'flex'
+            }
+          }}
+        />
+      ) : null}
+      <span style={{ display: logoUrl ? 'none' : 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        {letter}
+      </span>
+    </button>
+  )
+}
+
+function ProductSection({ title, action, offers, restaurants = [], onOpenOffer, onOpenRestaurant, onViewAll, titleImg }) {
   if (!offers || offers.length === 0) return null
   return (
     <section style={{ paddingTop: 16 }}>
-      <SectionBar title={title} action={action} onAction={onViewAll} />
-      <div className="r2c-scrollbar" style={{ display: 'flex', gap: 12, overflowX: 'auto', padding: '0 12px 4px' }}>
+      <SectionBar title={title} action={action} onAction={onViewAll} titleImg={titleImg} />
+      <div className="r2c-scrollbar" style={{ display: 'flex', gap: 12, overflowX: 'auto', padding: '26px 12px 4px' }}>
         {offers.map(offer => (
-          <ProductCard key={offer.id} offer={offer} onOpenOffer={onOpenOffer} onOpenRestaurant={onOpenRestaurant} />
+          <ProductCard key={offer.id} offer={offer} restaurants={restaurants} onOpenOffer={onOpenOffer} onOpenRestaurant={onOpenRestaurant} />
         ))}
       </div>
     </section>
   )
 }
 
-function ProductCard({ offer, onOpenOffer, onOpenRestaurant }) {
+function ProductCard({ offer, restaurants = [], onOpenOffer, onOpenRestaurant }) {
   const price = offer.price ?? offer.finalPrice ?? offer.discountedPrice ?? null
   const oldPrice = offer.oldPrice ?? offer.originalPrice ?? null
-  const restName = offer.restaurantName || offer.restaurant || ''
+  const restaurantMeta = resolveOfferRestaurantMeta(offer, restaurants)
+  const restName = restaurantMeta.name
   return (
-    <div className="r2c-card-hover" onClick={() => onOpenOffer(offer)} style={{ width: 162, flexShrink: 0, background: WHITE, borderRadius: 18, overflow: 'hidden', boxShadow: SHADOW, border: `1px solid ${BORDER}`, cursor: 'pointer' }}>
-      <div style={{ height: 118, background: '#fafafa', position: 'relative' }}>
-        <OfferImage offer={offer} size="medium" />
+    <div className="r2c-card-hover" onClick={() => onOpenOffer(offer)} style={{ width: 162, flexShrink: 0, background: WHITE, borderRadius: 18, overflow: 'visible', boxShadow: SHADOW, border: `1px solid ${BORDER}`, cursor: 'pointer' }}>
+      <div style={{ height: 118, background: '#fafafa', position: 'relative', overflow: 'visible' }}>
+        <div style={{
+          position: 'absolute',
+          inset: 0,
+          borderRadius: '18px 18px 0 0',
+          overflow: 'hidden',
+        }}>
+          <OfferImage offer={offer} size="medium" />
+        </div>
+        <RestaurantLogoBadge
+          logoUrl={restaurantMeta.logoUrl}
+          name={restName}
+          size={42}
+          onClick={(e) => {
+            e.stopPropagation()
+            if (onOpenRestaurant && restaurantMeta.id) {
+              onOpenRestaurant({ id: restaurantMeta.id, name: restName, city: restaurantMeta.city })
+            }
+          }}
+          style={{ position: 'absolute', top: -18, left: '50%', transform: 'translateX(-50%)', zIndex: 5 }}
+        />
       </div>
       <div style={{ padding: '10px 10px 12px' }}>
         <div style={{ fontSize: 13, fontWeight: 500, color: TEXT, lineHeight: 1.3, minHeight: 36, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
           {offer.name}
         </div>
         {restName ? (
-          <button onClick={e => { e.stopPropagation(); onOpenRestaurant({ id: offer.restaurantId, name: restName, city: offer.city }) }} style={{ border: 'none', background: 'transparent', padding: 0, marginTop: 4, color: MUTED, fontSize: 11, cursor: 'pointer' }}>
+          <button onClick={e => { e.stopPropagation(); onOpenRestaurant({ id: restaurantMeta.id || offer.restaurantId, name: restName, city: restaurantMeta.city || offer.city }) }} style={{ border: 'none', background: 'transparent', padding: 0, marginTop: 4, color: MUTED, fontSize: 11, cursor: 'pointer' }}>
             {restName}
           </button>
         ) : null}
@@ -1958,10 +2200,20 @@ function InfoPill({ children, icon }) {
   )
 }
 
-function SectionBar({ title, action, actionMuted, onAction }) {
+function SectionBar({ title, action, actionMuted, onAction, titleImg }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 12px 10px' }}>
-      <div style={{ fontSize: 13, fontWeight: 500, color: TEXT }}>{title}</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+        {titleImg && (
+          <img
+            src={titleImg}
+            alt=""
+            style={{ width: 28, height: 28, objectFit: 'cover', borderRadius: '50%', flexShrink: 0 }}
+            onError={e => { e.currentTarget.style.display = 'none' }}
+          />
+        )}
+        <div style={{ fontSize: 13, fontWeight: 500, color: TEXT }}>{title}</div>
+      </div>
       {action ? (
         <div
           onClick={onAction}
