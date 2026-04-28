@@ -147,11 +147,9 @@ export default function UserAppHeader() {
         position: 'sticky',
         top: 'var(--r2c-statusbar-space-active, 0px)',
         zIndex: 150,
-        background: 'rgba(255, 255, 255, 0.54)',
-        backdropFilter: 'blur(16px)',
+        background: 'rgba(255, 255, 255, 0.00)',
         WebkitBackdropFilter: 'blur(16px)',
-        borderBottom: `1px solid ${BORDER}`,
-        boxShadow: '0 10px 28px rgba(17, 24, 39, 0.055)',
+        borderBottom: `0px solid ${BORDER}`,
         padding: '12px 12px 10px',
       }}
     >

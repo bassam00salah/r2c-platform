@@ -5,14 +5,18 @@ import OfferImage from '../components/OfferImage'
 import { collection, query, where, limit, getDocs, doc, getDoc } from 'firebase/firestore'
 import { App } from '@capacitor/app'
 
-function BranchMap({ lat, lng, name }) {
-  if (!lat || !lng) return null
+function BranchMap({ lat, lng, name, distanceLabel }) {
+  if (lat == null || lng == null) return null
   const src = `https://www.openstreetmap.org/export/embed.html?bbox=${lng - 0.01},${lat - 0.01},${lng + 0.01},${lat + 0.01}&layer=mapnik&marker=${lat},${lng}`
   return (
     <div className="rounded-2xl overflow-hidden border border-gray-200 shadow-sm">
       <div className="bg-[#15487d] text-white text-sm font-bold px-4 py-2 flex items-center gap-2">
-        <span>📍</span><span>{name}</span>
-        <a href={`https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=16/${lat}/${lng}`} target="_blank" rel="noreferrer" className="mr-auto text-xs bg-white/20 hover:bg-white/30 px-3 py-1 rounded-full transition-colors">فتح الخريطة ↗</a>
+        <span>📍</span>
+        <div className="min-w-0 flex-1">
+          <div className="truncate">أقرب فرع لك — {name}</div>
+          {distanceLabel ? <div className="text-[11px] font-semibold text-white/75 mt-0.5">يبعد عنك {distanceLabel}</div> : null}
+        </div>
+        <a href={`https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=16/${lat}/${lng}`} target="_blank" rel="noreferrer" className="mr-auto flex-shrink-0 text-xs bg-white/20 hover:bg-white/30 px-3 py-1 rounded-full transition-colors">فتح الخريطة ↗</a>
       </div>
       <iframe title={`خريطة ${name}`} src={src} width="100%" height="200" style={{ border: 'none', display: 'block' }} loading="lazy" />
     </div>
@@ -46,11 +50,162 @@ function resolveRestaurantName(offer, restaurantData) {
   return offer?.restaurantName || offer?.restaurant?.name || offer?.vendorName || offer?.branchName || 'مطعم'
 }
 
+
+function toNumber(value) {
+  const n = Number(value)
+  return Number.isFinite(n) ? n : null
+}
+
+function extractCoordinates(value) {
+  if (!value) return null
+
+  if (Array.isArray(value) && value.length >= 2) {
+    const lat = toNumber(value[0])
+    const lng = toNumber(value[1])
+    return lat != null && lng != null ? { lat, lng } : null
+  }
+
+  if (typeof value === 'string') {
+    const parts = value.split(',').map(part => part.trim())
+    if (parts.length >= 2) {
+      const lat = toNumber(parts[0])
+      const lng = toNumber(parts[1])
+      return lat != null && lng != null ? { lat, lng } : null
+    }
+    return null
+  }
+
+  const lat = toNumber(
+    value.latitude ??
+    value.lat ??
+    value.coords?.latitude ??
+    value.position?.lat ??
+    value.geometry?.location?.lat
+  )
+  const lng = toNumber(
+    value.longitude ??
+    value.lng ??
+    value.lon ??
+    value.coords?.longitude ??
+    value.position?.lng ??
+    value.geometry?.location?.lng
+  )
+
+  if (lat != null && lng != null) return { lat, lng }
+
+  return (
+    extractCoordinates(value.location) ||
+    extractCoordinates(value.currentLocation) ||
+    extractCoordinates(value.selectedLocation) ||
+    extractCoordinates(value.address) ||
+    extractCoordinates(value.coordinates) ||
+    extractCoordinates(value.geoPoint) ||
+    extractCoordinates(value.map)
+  )
+}
+
+function readStoredUserCoordinates() {
+  if (typeof localStorage === 'undefined') return null
+
+  const keys = [
+    'r2c_user_location',
+    'r2c_current_location',
+    'r2c_selected_location',
+    'r2c_location',
+    'userLocation',
+    'currentLocation',
+    'selectedLocation',
+    'location',
+  ]
+
+  for (const key of keys) {
+    try {
+      const raw = localStorage.getItem(key)
+      if (!raw) continue
+      const direct = extractCoordinates(raw)
+      if (direct) return direct
+      const parsed = JSON.parse(raw)
+      const coords = extractCoordinates(parsed)
+      if (coords) return coords
+    } catch {
+      // تجاهل أي قيمة مخزنة بصيغة غير متوقعة
+    }
+  }
+
+  return null
+}
+
+function getBranchCoords(branch) {
+  return (
+    extractCoordinates(branch) ||
+    extractCoordinates(branch?.location) ||
+    extractCoordinates(branch?.coordinates) ||
+    extractCoordinates(branch?.geoPoint) ||
+    extractCoordinates(branch?.map)
+  )
+}
+
+function distanceKm(a, b) {
+  if (!a || !b) return Number.POSITIVE_INFINITY
+  const radius = 6371
+  const dLat = ((b.lat - a.lat) * Math.PI) / 180
+  const dLng = ((b.lng - a.lng) * Math.PI) / 180
+  const lat1 = (a.lat * Math.PI) / 180
+  const lat2 = (b.lat * Math.PI) / 180
+
+  const h =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) * Math.sin(dLng / 2)
+
+  return radius * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h))
+}
+
+function pickNearestBranch(branches, userCoords, preferredBranchId) {
+  const branchesWithCoords = (branches || [])
+    .map(branch => ({ branch, coords: getBranchCoords(branch) }))
+    .filter(item => item.coords?.lat != null && item.coords?.lng != null)
+
+  if (branchesWithCoords.length === 0) return null
+
+  if (userCoords) {
+    return branchesWithCoords.reduce((best, current) => {
+      const bestDistance = distanceKm(userCoords, best.coords)
+      const currentDistance = distanceKm(userCoords, current.coords)
+      return currentDistance < bestDistance ? current : best
+    }, branchesWithCoords[0]).branch
+  }
+
+  if (preferredBranchId) {
+    const preferred = branchesWithCoords.find(item => item.branch?.id === preferredBranchId)
+    if (preferred) return preferred.branch
+  }
+
+  return branchesWithCoords[0].branch
+}
+
+function getBranchDistanceLabel(branch, userCoords) {
+  const coords = getBranchCoords(branch)
+  if (!coords || !userCoords) return null
+  const km = distanceKm(userCoords, coords)
+  if (!Number.isFinite(km)) return null
+  return km < 1 ? `${Math.round(km * 1000)} م تقريبًا` : `${km.toFixed(1)} كم تقريبًا`
+}
+
 export default function OfferDetailsScreen() {
-  const { selectedOffer, goBack, setCurrentScreen } = useApp()
+  const {
+    selectedOffer,
+    goBack,
+    setCurrentScreen,
+    user,
+    userLocation,
+    currentLocation,
+    selectedLocation,
+    location: appLocation,
+  } = useApp()
   const [nearestBranch, setNearestBranch] = useState(null)
   const [mapLoading, setMapLoading] = useState(false)
   const [restaurantData, setRestaurantData] = useState(null)
+  const [userCoords, setUserCoords] = useState(null)
 
   // ✅ FIX 1: الصعود لأعلى الشاشة عند الدخول
   useEffect(() => {
@@ -82,53 +237,100 @@ export default function OfferDetailsScreen() {
     return () => { cancelled = true }
   }, [selectedOffer])
 
+  // تحديد موقع المستخدم من context أو localStorage أو navigator.geolocation
   useEffect(() => {
     let cancelled = false
+    const coordsFromState =
+      extractCoordinates(userLocation) ||
+      extractCoordinates(currentLocation) ||
+      extractCoordinates(selectedLocation) ||
+      extractCoordinates(appLocation) ||
+      extractCoordinates(user) ||
+      readStoredUserCoordinates()
+
+    if (coordsFromState) {
+      setUserCoords(coordsFromState)
+      return () => { cancelled = true }
+    }
+
+    if (typeof navigator !== 'undefined' && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        position => {
+          if (cancelled) return
+          setUserCoords({ lat: position.coords.latitude, lng: position.coords.longitude })
+        },
+        () => {
+          if (!cancelled) setUserCoords(null)
+        },
+        { enableHighAccuracy: false, timeout: 6000, maximumAge: 5 * 60 * 1000 }
+      )
+    } else {
+      setUserCoords(null)
+    }
+
+    return () => { cancelled = true }
+  }, [userLocation, currentLocation, selectedLocation, appLocation, user])
+
+  useEffect(() => {
+    let cancelled = false
+
     async function fetchBranch() {
       if (!selectedOffer) {
-        if (!cancelled) { setNearestBranch(null); setMapLoading(false) }
+        if (!cancelled) {
+          setNearestBranch(null)
+          setMapLoading(false)
+        }
         return
       }
+
       setMapLoading(true)
       const branchId = selectedOffer.branchId || selectedOffer.branch_id || null
       const restaurantId = selectedOffer.restaurantId || selectedOffer.restaurant_id || null
+
       try {
-        if (branchId) {
-          const snap = await getDoc(doc(db, 'branches', branchId))
-          if (snap.exists()) {
-            const data = { id: snap.id, ...snap.data() }
-            if (data.latitude && data.longitude) {
-              if (!cancelled) { setNearestBranch(data); setMapLoading(false) }
-              return
-            }
+        const branches = []
+
+        if (restaurantId) {
+          const branchesQuery = query(
+            collection(db, 'branches'),
+            where('restaurantId', '==', restaurantId),
+            where('status', '==', 'active'),
+            limit(50)
+          )
+          const snap = await getDocs(branchesQuery)
+          branches.push(...snap.docs.map((branchDoc) => ({ id: branchDoc.id, ...branchDoc.data() })))
+        }
+
+        // fallback: لو العرض مرتبط بفرع محدد ولم يظهر ضمن الفروع النشطة، نضيفه كخيار احتياطي
+        if (branchId && !branches.some(branch => branch.id === branchId)) {
+          const branchSnap = await getDoc(doc(db, 'branches', branchId))
+          if (branchSnap.exists()) {
+            branches.push({ id: branchSnap.id, ...branchSnap.data() })
           }
         }
-        if (restaurantId) {
-          const branchesQuery = query(collection(db, 'branches'), where('restaurantId', '==', restaurantId), where('status', '==', 'active'), limit(5))
-          const snap = await getDocs(branchesQuery)
-          const docs = snap.docs.map((branchDoc) => ({ id: branchDoc.id, ...branchDoc.data() }))
-          const withCoords = docs.find((branch) => branch.latitude && branch.longitude)
-          if (!cancelled) setNearestBranch(withCoords || null)
-        } else if (!cancelled) {
-          setNearestBranch(null)
-        }
+
+        const selectedBranch = pickNearestBranch(branches, userCoords, branchId)
+        if (!cancelled) setNearestBranch(selectedBranch)
       } catch (err) {
-        console.error('خطأ في جلب إحداثيات الفرع:', err)
+        console.error('خطأ في جلب إحداثيات أقرب فرع:', err)
         if (!cancelled) setNearestBranch(null)
       } finally {
         if (!cancelled) setMapLoading(false)
       }
     }
+
     fetchBranch()
     return () => { cancelled = true }
-  }, [selectedOffer])
+  }, [selectedOffer, userCoords])
 
   if (!selectedOffer) return null
   const offerDuration = selectedOffer.duration || 45
   const price = selectedOffer.price ?? selectedOffer.finalPrice ?? selectedOffer.discountedPrice ?? selectedOffer.newPrice ?? null
   const oldPrice = selectedOffer.oldPrice ?? selectedOffer.originalPrice ?? selectedOffer.beforePrice ?? null
-  const branchName = nearestBranch?.name || nearestBranch?.address || selectedOffer.branch || selectedOffer.branchName || 'الفرع الرئيسي'
+  const branchName = nearestBranch?.name || nearestBranch?.branchName || nearestBranch?.address || selectedOffer.branch || selectedOffer.branchName || 'الفرع الأقرب'
   const branchAddress = nearestBranch?.address || nearestBranch?.city || selectedOffer.branchAddress || selectedOffer.city || null
+  const branchCoords = getBranchCoords(nearestBranch)
+  const branchDistanceLabel = getBranchDistanceLabel(nearestBranch, userCoords)
 
   return (
     <div className="min-h-screen bg-white">
@@ -251,6 +453,7 @@ export default function OfferDetailsScreen() {
             <div>
               <div className="font-bold">{branchName}</div>
               {branchAddress && <div className="text-sm text-gray-500">{branchAddress}</div>}
+              {branchDistanceLabel && <div className="text-xs text-[#ee7b26] font-bold mt-1">يبعد عنك {branchDistanceLabel}</div>}
             </div>
           </div>
           {mapLoading
@@ -258,8 +461,8 @@ export default function OfferDetailsScreen() {
                 <div className="w-5 h-5 border-2 border-[#ee7b26] border-t-transparent rounded-full animate-spin"></div>
                 <span className="text-sm">جاري تحميل الخريطة...</span>
               </div>
-            : nearestBranch
-              ? <BranchMap lat={nearestBranch.latitude} lng={nearestBranch.longitude} name={branchName} />
+            : branchCoords
+              ? <BranchMap lat={branchCoords.lat} lng={branchCoords.lng} name={branchName} distanceLabel={branchDistanceLabel} />
               : <div className="h-32 bg-gray-100 rounded-xl flex flex-col items-center justify-center text-gray-400 gap-2">
                   <span className="text-3xl">🗺️</span>
                   <span className="text-sm">لا تتوفر إحداثيات لهذا الفرع</span>

@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from 'react'
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { useApp } from '../contexts'
 import OfferImage from '../components/OfferImage'
@@ -1920,46 +1920,118 @@ function TopOffersPromo({ offers, restaurants = [], onOpenOffer, onOpenRestauran
   }, [offers])
 
   const [activeIndex, setActiveIndex] = useState(0)
-  const touchStartX = useRef(null)
-  const touchStartY = useRef(null)
   const autoPlayRef = useRef(null)
+  const sliderRef = useRef(null)
+  const trackRef  = useRef(null)
+  const [containerW, setContainerW] = useState(0)
+
+  const PEEK  = 28
+  const GAP   = 10
+  const cardW = containerW > 0 ? containerW - 2 * PEEK - GAP : 260
+
+  const clampIndex = useCallback((index) => {
+    return Math.max(0, Math.min(topFive.length - 1, index))
+  }, [topFive.length])
+
+  useEffect(() => {
+    const measure = () => {
+      if (sliderRef.current) setContainerW(sliderRef.current.offsetWidth)
+    }
+    measure()
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null
+    if (ro && sliderRef.current) ro.observe(sliderRef.current)
+    return () => { if (ro) ro.disconnect() }
+  }, [])
+
+  useEffect(() => {
+    setActiveIndex(prev => clampIndex(prev))
+  }, [clampIndex])
+
+  const scrollTo = useCallback((index) => {
+    const track = trackRef.current
+    if (!track) return
+
+    const card = track.children?.[index]
+    if (card?.scrollIntoView) {
+      card.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' })
+      return
+    }
+
+    if (cardW > 0) {
+      track.scrollTo({ left: index * (cardW + GAP), behavior: 'smooth' })
+    }
+  }, [cardW, GAP])
+
+  const syncActiveIndexFromScroll = useCallback(() => {
+    const track = trackRef.current
+    if (!track || topFive.length <= 0) return
+
+    const trackRect = track.getBoundingClientRect()
+    const trackCenter = trackRect.left + trackRect.width / 2
+    let closestIndex = 0
+    let closestDistance = Number.POSITIVE_INFINITY
+
+    Array.from(track.children).forEach((child, index) => {
+      const rect = child.getBoundingClientRect()
+      const childCenter = rect.left + rect.width / 2
+      const distance = Math.abs(childCenter - trackCenter)
+
+      if (distance < closestDistance) {
+        closestDistance = distance
+        closestIndex = index
+      }
+    })
+
+    setActiveIndex(clampIndex(closestIndex))
+  }, [clampIndex, topFive.length])
 
   const goTo = (index) => {
-    const clamped = Math.max(0, Math.min(topFive.length - 1, index))
+    const clamped = clampIndex(index)
     setActiveIndex(clamped)
+    scrollTo(clamped)
   }
 
-  const resetAutoPlay = () => {
+  const resetAutoPlay = useCallback(() => {
     if (autoPlayRef.current) clearInterval(autoPlayRef.current)
     if (topFive.length <= 1) return
     autoPlayRef.current = setInterval(() => {
-      setActiveIndex(prev => (prev + 1) % topFive.length)
+      setActiveIndex(prev => {
+        const next = (prev + 1) % topFive.length
+        scrollTo(next)
+        return next
+      })
     }, 4000)
-  }
+  }, [scrollTo, topFive.length])
 
   useEffect(() => {
     resetAutoPlay()
     return () => { if (autoPlayRef.current) clearInterval(autoPlayRef.current) }
-  }, [topFive.length])
+  }, [resetAutoPlay])
 
-  const handleTouchStart = (e) => {
-    touchStartX.current = e.touches[0].clientX
-    touchStartY.current = e.touches[0].clientY
-    if (autoPlayRef.current) clearInterval(autoPlayRef.current)
-  }
+  // ── مزامنة activeIndex مع الشريحة الموجودة فعلياً في منتصف السلايدر ───────
+  useEffect(() => {
+    const track = trackRef.current
+    if (!track || topFive.length <= 1) return
 
-  const handleTouchEnd = (e) => {
-    if (touchStartX.current === null) return
-    const dx = e.changedTouches[0].clientX - touchStartX.current
-    const dy = Math.abs(e.changedTouches[0].clientY - touchStartY.current)
-    if (Math.abs(dx) > 40 && Math.abs(dx) > dy) {
-      // RTL: swipe left = next, swipe right = prev
-      if (dx < 0) goTo(activeIndex + 1)
-      else goTo(activeIndex - 1)
+    let debounceTimer
+    const onScroll = () => {
+      clearTimeout(debounceTimer)
+      debounceTimer = setTimeout(syncActiveIndexFromScroll, 80)
     }
-    touchStartX.current = null
-    resetAutoPlay()
-  }
+
+    track.addEventListener('scroll', onScroll, { passive: true })
+    track.addEventListener('scrollend', syncActiveIndexFromScroll)
+    window.addEventListener('resize', syncActiveIndexFromScroll)
+
+    syncActiveIndexFromScroll()
+
+    return () => {
+      track.removeEventListener('scroll', onScroll)
+      track.removeEventListener('scrollend', syncActiveIndexFromScroll)
+      window.removeEventListener('resize', syncActiveIndexFromScroll)
+      clearTimeout(debounceTimer)
+    }
+  }, [syncActiveIndexFromScroll, topFive.length])
 
   if (!topFive.length) return null
 
@@ -2050,56 +2122,58 @@ function TopOffersPromo({ offers, restaurants = [], onOpenOffer, onOpenRestauran
           </div>
         </div>
 
-        {/* Slider */}
+        {/* Peek Slider — native scroll so OfferImage lazy-loads correctly */}
         <div
-          style={{ position: 'relative', zIndex: 1, padding: '20px 14px 18px' }}
-          onTouchStart={handleTouchStart}
-          onTouchEnd={handleTouchEnd}
+          ref={sliderRef}
+          style={{ position: 'relative', zIndex: 1, padding: '16px 0 18px' }}
         >
-          {/* Nav arrow right (prev in RTL) */}
-          {activeIndex > 0 && (
-            <button
-              onClick={() => { goTo(activeIndex - 1); resetAutoPlay() }}
+          <div style={{ paddingTop: 0 }}>
+            {/* hide scrollbar via inline style tag */}
+            <style>{`.r2c-peek-track::-webkit-scrollbar{display:none}`}</style>
+            <div
+              ref={trackRef}
+              className="r2c-peek-track"
+              dir="ltr"
+              onTouchStart={() => { if (autoPlayRef.current) clearInterval(autoPlayRef.current) }}
+              onTouchEnd={() => { resetAutoPlay() }}
               style={{
-                position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
-                zIndex: 10, width: 30, height: 30, borderRadius: '50%',
-                background: 'rgba(200,169,110,0.2)', border: '1px solid rgba(200,169,110,0.4)',
-                color: '#f0d078', fontSize: 18, cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                display: 'flex',
+                gap: GAP,
+                overflowX: 'scroll',
+                scrollSnapType: 'x mandatory',
+                scrollPaddingLeft: PEEK,
+                WebkitOverflowScrolling: 'touch',
+                scrollbarWidth: 'none',
+                msOverflowStyle: 'none',
+                paddingTop: 22,      // مساحة داخل مسار السلايدر حتى لا يتم قص نصف دائرة اللوجو العلوي
+                paddingBottom: 4,
+                paddingLeft: PEEK,
+                paddingRight: PEEK + GAP,  // extra GAP so last card can fully snap
               }}
-            >›</button>
-          )}
-          {/* Nav arrow left (next in RTL) */}
-          {activeIndex < topFive.length - 1 && (
-            <button
-              onClick={() => { goTo(activeIndex + 1); resetAutoPlay() }}
-              style={{
-                position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)',
-                zIndex: 10, width: 30, height: 30, borderRadius: '50%',
-                background: 'rgba(200,169,110,0.2)', border: '1px solid rgba(200,169,110,0.4)',
-                color: '#f0d078', fontSize: 18, cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}
-            >‹</button>
-          )}
-
-          {/* Cards — show only active */}
-          <div style={{ paddingTop: 22 }}>
-            {topFive.map((offer, i) => (
-              <div
-                key={offer.id}
-                className={i === activeIndex ? 'r2c-slide-in' : ''}
-                style={{ display: i === activeIndex ? 'block' : 'none' }}
-              >
-                <FeaturedOfferCard
-                  offer={offer}
-                  restaurants={restaurants}
-                  onOpenOffer={onOpenOffer}
-                  onOpenRestaurant={onOpenRestaurant}
-                  isActive={true}
-                />
-              </div>
-            ))}
+            >
+              {topFive.map((offer, i) => (
+                <div
+                  key={offer.id || `${offer.name || 'featured-offer'}-${i}`}
+                  style={{
+                    minWidth: cardW,
+                    maxWidth: cardW,
+                    flexShrink: 0,
+                    scrollSnapAlign: 'center',
+                    transform: i === activeIndex ? 'scale(1)' : 'scale(0.95)',
+                    transformOrigin: 'center top',
+                    transition: 'transform 0.3s ease',
+                  }}
+                >
+                  <FeaturedOfferCard
+                    offer={offer}
+                    restaurants={restaurants}
+                    onOpenOffer={onOpenOffer}
+                    onOpenRestaurant={onOpenRestaurant}
+                    isActive={i === activeIndex}
+                  />
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -2122,10 +2196,10 @@ function FeaturedOfferCard({ offer, restaurants = [], onOpenOffer, onOpenRestaur
         width: '100%',
         cursor: 'pointer',
         borderRadius: 18,
-        overflow: 'hidden',
+        overflow: 'visible',
         background: WHITE,
-        boxShadow: '0 4px 20px rgba(0,0,0,0.18)',
-        border: `1.5px solid rgba(200,169,110,0.2)`,
+        boxShadow: isActive ? '0 10px 30px rgba(238,123,38,0.28)' : '0 4px 20px rgba(0,0,0,0.18)',
+        border: isActive ? `1.5px solid ${ORANGE}` : `1.5px solid rgba(200,169,110,0.2)`,
         transition: 'transform 0.2s ease, box-shadow 0.2s ease',
         display: 'flex',
         flexDirection: 'column',
@@ -2136,7 +2210,8 @@ function FeaturedOfferCard({ offer, restaurants = [], onOpenOffer, onOpenRestaur
         position: 'relative',
         height: 200,
         background: `linear-gradient(135deg, ${BLUE} 0%, ${BLUE_LIGHT} 100%)`,
-        overflow: 'hidden',
+        overflow: 'visible',
+        borderRadius: '18px 18px 0 0',
         flexShrink: 0,
       }}>
         <OfferImage offer={offer} size="large" style={{
@@ -2144,19 +2219,21 @@ function FeaturedOfferCard({ offer, restaurants = [], onOpenOffer, onOpenRestaur
           height: '100%',
           objectFit: 'cover',
           display: 'block',
+          borderRadius: '18px 18px 0 0',
         }} />
 
         {/* gradient overlay */}
         <div style={{
           position: 'absolute', inset: 0,
           background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.15) 50%, transparent 100%)',
+          borderRadius: '18px 18px 0 0',
           pointerEvents: 'none',
         }} />
 
-        {/* شارة الخصم */}
+        {/* شارة الخصم — أعلى يسار */}
         {discount > 0 && (
           <div style={{
-            position: 'absolute', top: 12, right: 12,
+            position: 'absolute', top: 12, left: 12,
             background: ORANGE, color: WHITE,
             fontSize: 12, fontWeight: 700,
             borderRadius: 999, padding: '4px 10px',
@@ -2166,30 +2243,43 @@ function FeaturedOfferCard({ offer, restaurants = [], onOpenOffer, onOpenRestaur
           </div>
         )}
 
-        {/* لوجو المطعم + اسمه */}
-        <div style={{
-          position: 'absolute', bottom: 12, right: 12,
-          display: 'flex', alignItems: 'center', gap: 8,
-        }}>
-          <RestaurantLogoBadge
-            logoUrl={restaurantMeta.logoUrl}
-            name={restName}
-            size={36}
-            onClick={(e) => {
-              e.stopPropagation()
-              if (onOpenRestaurant && restaurantMeta.id) {
-                onOpenRestaurant({ id: restaurantMeta.id, name: restName, city: restaurantMeta.city })
-              }
-            }}
-          />
-          {restName && (
-            <span style={{
-              color: WHITE, fontSize: 12, fontWeight: 600,
-              textShadow: '0 1px 4px rgba(0,0,0,0.6)',
-              maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-            }}>{restName}</span>
-          )}
-        </div>
+        {/* لوجو المطعم — أعلى الصورة مثل باقي كروت العروض */}
+        <RestaurantLogoBadge
+          logoUrl={restaurantMeta.logoUrl}
+          name={restName}
+          size={42}
+          onClick={(e) => {
+            e.stopPropagation()
+            if (onOpenRestaurant && restaurantMeta.id) {
+              onOpenRestaurant({ id: restaurantMeta.id, name: restName, city: restaurantMeta.city })
+            }
+          }}
+          style={{
+            position: 'absolute',
+            top: -18,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 6,
+          }}
+        />
+
+        {restName && (
+          <span style={{
+            position: 'absolute',
+            top: 28,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            color: WHITE,
+            fontSize: 12,
+            fontWeight: 600,
+            textShadow: '0 1px 4px rgba(0,0,0,0.6)',
+            maxWidth: 150,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            zIndex: 5,
+          }}>{restName}</span>
+        )}
 
         {/* تقييم */}
         <div style={{
