@@ -3,7 +3,6 @@ import { useApp } from '../contexts'
 import { db } from '@r2c/shared'
 import OfferImage from '../components/OfferImage'
 import { collection, query, where, limit, getDocs, doc, getDoc } from 'firebase/firestore'
-import { App } from '@capacitor/app'
 
 function BranchMap({ lat, lng, name, distanceLabel }) {
   if (lat == null || lng == null) return null
@@ -194,7 +193,6 @@ function getBranchDistanceLabel(branch, userCoords) {
 export default function OfferDetailsScreen() {
   const {
     selectedOffer,
-    goBack,
     setCurrentScreen,
     user,
     userLocation,
@@ -211,20 +209,6 @@ export default function OfferDetailsScreen() {
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' })
   }, [])
-
-  // ✅ FIX 2: زر العودة في الهاتف (Capacitor)
-  useEffect(() => {
-    let listener = null
-    const register = async () => {
-      listener = await App.addListener('backButton', () => {
-        goBack()
-      })
-    }
-    register()
-    return () => {
-      if (listener) listener.remove()
-    }
-  }, [goBack])
 
   // جلب بيانات المطعم (اللوجو والاسم)
   useEffect(() => {
@@ -354,9 +338,10 @@ export default function OfferDetailsScreen() {
       <div
         className="relative overflow-visible"
         style={{
-          // ارفع الصورة خلف الهيدر العام + مساحة شريط الحالة في الهاتف
-          marginTop: 'calc(-1 * (var(--app-header-height, 76px) + env(safe-area-inset-top, 0px)))',
-          height: 'calc(340px + var(--app-header-height, 76px) + env(safe-area-inset-top, 0px))',
+          // ارفع الصورة خلف الهيدر العام + مساحة شريط الحالة في الهاتف.
+          // نستخدم متغيرات التطبيق لأن env(safe-area-inset-top) قد يساوي 0 داخل Android WebView.
+          marginTop: 'calc(-1 * (var(--r2c-header-height, 64px) + var(--r2c-statusbar-space-active, 0px)))',
+          height: 'calc(340px + var(--r2c-header-height, 64px) + var(--r2c-statusbar-space-active, 0px))',
         }}
       >
         <div className="offer-details-hero-media absolute inset-0 overflow-hidden" style={{ height: '100%' }}>
@@ -367,7 +352,7 @@ export default function OfferDetailsScreen() {
         <div
           className="pointer-events-none absolute inset-x-0 top-0"
           style={{
-            height: 'calc(var(--app-header-height, 76px) + env(safe-area-inset-top, 0px) + 96px)',
+            height: 'calc(var(--r2c-header-height, 64px) + var(--r2c-statusbar-space-active, 0px) + 96px)',
             background: 'linear-gradient(180deg, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.15) 55%, rgba(0,0,0,0) 100%)',
             zIndex: 2,
           }}
@@ -376,7 +361,7 @@ export default function OfferDetailsScreen() {
         <div
           className="absolute right-4"
           style={{
-            top: 'calc(var(--app-header-height, 76px) + env(safe-area-inset-top, 0px) + 12px)',
+            top: 'calc(var(--r2c-header-height, 64px) + var(--r2c-statusbar-space-active, 0px) + 12px)',
             zIndex: 3,
           }}
         >

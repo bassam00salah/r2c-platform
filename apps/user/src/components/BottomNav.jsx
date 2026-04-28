@@ -3,6 +3,7 @@ import { useApp } from '../contexts'
 const ORANGE = '#ee7b26'
 const WHITE = '#ffffff'
 const MUTED = '#94a3b8'
+const SAFE_BOTTOM = 'var(--r2c-safe-area-bottom, env(safe-area-inset-bottom, 0px))'
 
 const Icon = {
   orders: (
@@ -69,14 +70,32 @@ export default function BottomNav() {
 
   return (
     <>
+      {/* امتداد أبيض أسفل شريط التطبيق حتى لا يختلط مع Navigation Bar الخاص بأندرويد */}
       <div
+        aria-hidden="true"
         style={{
           position: 'fixed',
           bottom: 0,
           left: 0,
           right: 0,
+          height: SAFE_BOTTOM,
+          background: WHITE,
+          zIndex: 9998,
+          pointerEvents: 'none',
+        }}
+      />
+
+      <div
+        style={{
+          position: 'fixed',
+          bottom: SAFE_BOTTOM,
+          left: 0,
+          right: 0,
           zIndex: 9999,
           pointerEvents: 'none',
+          transform: 'translateZ(0)',
+          WebkitTransform: 'translateZ(0)',
+          backfaceVisibility: 'hidden',
         }}
       >
         {/* SVG الشكل المنحني — الجناحان يرتفعان للأعلى والفتحة في المنتصف */}
@@ -145,7 +164,7 @@ export default function BottomNav() {
             height: 84,
             display: 'flex',
             alignItems: 'flex-end',
-            paddingBottom: 'env(safe-area-inset-bottom)',
+            paddingBottom: 0,
             pointerEvents: 'none',
           }}
         >
@@ -188,7 +207,7 @@ export default function BottomNav() {
         }}
         style={{
           position: 'fixed',
-          bottom: 26,
+          bottom: `calc(26px + ${SAFE_BOTTOM})`,
           left: '50%',
           transform: 'translateX(-50%)',
           zIndex: 10000,

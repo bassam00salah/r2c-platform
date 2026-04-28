@@ -126,8 +126,8 @@ export default function ConfirmOrderScreen() {
       <div
         className="relative overflow-visible"
         style={{
-          height: 'calc(300px + 88px + env(safe-area-inset-top, 0px))',
-          marginTop: 'calc(-88px - env(safe-area-inset-top, 0px))',
+          height: 'calc(300px + var(--r2c-header-height, 64px) + var(--r2c-statusbar-space-active, 0px))',
+          marginTop: 'calc(-1 * (var(--r2c-header-height, 64px) + var(--r2c-statusbar-space-active, 0px)))',
         }}
       >
         <div className="absolute inset-0 overflow-hidden bg-gray-100">

@@ -12,6 +12,7 @@
     --r2c-statusbar-space: max(env(safe-area-inset-top, 0px), 26px);
     --r2c-statusbar-layer-height: 0px;
     --r2c-statusbar-space-active: 0px;
+    --r2c-safe-area-bottom: env(safe-area-inset-bottom, 0px);
     color-scheme: light;
 }
 

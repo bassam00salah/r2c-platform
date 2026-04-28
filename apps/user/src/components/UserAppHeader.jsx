@@ -57,9 +57,7 @@ export default function UserAppHeader() {
     selectedRestaurant,
     setCurrentScreen,
     goBack,
-    setBottomNav,
     setActiveOrdersTab,
-    viewMode,
     globalHeaderSearchQuery,
     setGlobalHeaderSearchQuery,
   } = useApp()
@@ -116,32 +114,12 @@ export default function UserAppHeader() {
     try { localStorage.setItem('r2c_seen', JSON.stringify([...next])) } catch {}
   }
 
-  const goHome = () => {
-    setBottomNav?.('home')
-    setCurrentScreen('feed')
-  }
-
   const handleBack = () => {
     if (currentScreen === 'feed') {
       window.dispatchEvent(new CustomEvent('r2c-feed-menu-open'))
       return
     }
-    if (['explore', 'grid', 'search', 'orders', 'profile', 'empty'].includes(currentScreen)) {
-      goHome()
-      return
-    }
-    if (currentScreen === 'restaurantProfile') {
-      setCurrentScreen(viewMode || 'feed')
-      return
-    }
-    if (currentScreen === 'confirmOrder') {
-      setCurrentScreen('offerDetails')
-      return
-    }
-    if (['waiting', 'success'].includes(currentScreen)) {
-      goHome()
-      return
-    }
+
     goBack?.()
   }
 

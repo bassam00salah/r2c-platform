@@ -42,20 +42,21 @@ export const STATUS_BAR_THEMES = {
     overlay: true,
   },
   restaurantProfile: {
-    color: '#FFFFFF',
-    style: 'dark',
+    // شاشات الـ Hero تحتاج الشريط شفافًا حتى تمتد الصورة تحت شريط الهاتف.
+    color: '#00000000',
+    style: 'light',
     padTop: true,
     overlay: true,
   },
   offerDetails: {
-    color: '#FFFFFF',
-    style: 'dark',
+    color: '#00000000',
+    style: 'light',
     padTop: true,
     overlay: true,
   },
   confirmOrder: {
-    color: '#FFFFFF',
-    style: 'dark',
+    color: '#00000000',
+    style: 'light',
     padTop: true,
     overlay: true,
   },

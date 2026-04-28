@@ -14,9 +14,10 @@ const MUTED = '#6b7280'
 const BORDER = '#e5e7eb'
 const BG = '#ffffff'
 const SHADOW = '0 8px 24px rgba(17, 24, 39, 0.04)'
-const HEADER_OVERLAP = 88
+const HERO_HEADER_OVERLAP = 'var(--r2c-header-height, 64px)'
+const HERO_SAFE_TOP = 'var(--r2c-statusbar-space-active, 0px)'
 const COVER_BASE_HEIGHT = 220
-const COVER_HEIGHT = `calc(${COVER_BASE_HEIGHT}px + ${HEADER_OVERLAP}px + env(safe-area-inset-top, 0px))`
+const COVER_HEIGHT = `calc(${COVER_BASE_HEIGHT}px + ${HERO_HEADER_OVERLAP} + ${HERO_SAFE_TOP})`
 
 const FONT_STYLE = `
   @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&family=Poppins:wght@300;400;500;600;700;800&display=swap');
@@ -540,7 +541,7 @@ export default function RestaurantProfileScreen() {
         {/* معلومات المطعم - صورة الغلاف ممتدة خلف الهيدر الشفاف */}
         <div style={{
           margin: 0,
-          marginTop: `calc(-${HEADER_OVERLAP}px - env(safe-area-inset-top, 0px))`,
+          marginTop: `calc(-1 * (${HERO_HEADER_OVERLAP} + ${HERO_SAFE_TOP}))`,
           marginBottom: 20,
         }}>
           <div style={{

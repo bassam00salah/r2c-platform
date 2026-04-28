@@ -115,14 +115,45 @@ const LOGO_PULSE_STYLE = {
 }
 
 export default function App() {
-  const { currentScreen, authLoading } = useApp()
+  const { currentScreen, authLoading, restoreScrollRequest } = useApp()
   const activeScreen = authLoading ? 'auth' : (currentScreen ?? 'feed')
 
   const prevScreenRef = useRef(activeScreen)
   const isBackRef = useRef(false)
   const screenHistoryRef = useRef([activeScreen])
+  const screenScrollRef = useRef(null)
   const [animClass, setAnimClass] = useState('')
   const [displayScreen, setDisplayScreen] = useState(activeScreen)
+
+  useEffect(() => {
+    const el = screenScrollRef.current
+    if (!el) return undefined
+
+    const shouldRestore = restoreScrollRequest?.screen === displayScreen
+    const targetScrollTop = shouldRestore
+      ? Math.max(0, Number(restoreScrollRequest?.scrollTop) || 0)
+      : 0
+
+    const applyScroll = () => {
+      const node = screenScrollRef.current
+      if (!node) return
+      node.scrollTop = targetScrollTop
+    }
+
+    applyScroll()
+    const raf1 = window.requestAnimationFrame(() => {
+      applyScroll()
+      window.requestAnimationFrame(applyScroll)
+    })
+    const t1 = window.setTimeout(applyScroll, 120)
+    const t2 = window.setTimeout(applyScroll, 360)
+
+    return () => {
+      window.cancelAnimationFrame(raf1)
+      window.clearTimeout(t1)
+      window.clearTimeout(t2)
+    }
+  }, [displayScreen, restoreScrollRequest])
 
   useEffect(() => {
     if (activeScreen === displayScreen) return
@@ -192,6 +223,9 @@ export default function App() {
       >
         <div
           key={displayScreen}
+          ref={screenScrollRef}
+          data-r2c-screen-wrapper="active"
+          data-r2c-screen={displayScreen}
           className={`r2c-screen-wrapper ${animClass}`}
           style={{ paddingTop: showHeader ? 'var(--r2c-header-height, 56px)' : 0 }}
         >
