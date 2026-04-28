@@ -572,11 +572,14 @@ export default function FeedScreen() {
   const [showNotifs, setShowNotifs] = useState(false)
   const [showLocationSheet, setShowLocationSheet] = useState(false)
   const [showMapPicker, setShowMapPicker] = useState(false)
+  const [sheetClosing, setSheetClosing] = useState(false)
+  const [pendingCountryCode, setPendingCountryCode] = useState('')
 
   // أغلق الـ sheet تلقائياً عند تغيير الشاشة
   useEffect(() => {
     setShowLocationSheet(false)
     setShowMapPicker(false)
+    setSheetClosing(false)
   }, [setCurrentScreen])
   const [seenKeys, setSeenKeys] = useState(() => {
     try { return new Set(JSON.parse(localStorage.getItem('r2c_seen') || '[]')) } catch { return new Set() }
@@ -980,6 +983,44 @@ export default function FeedScreen() {
     saveLocation(p.city, countryObj, coords)
   }
 
+  // فتح/إغلاق قائمة اختيار الدولة بحركة انزلاق
+  const openLocationSheet = () => {
+    setPendingCountryCode(locationCountry?.code || '')
+    setSheetClosing(false)
+    setShowLocationSheet(true)
+  }
+
+  const closeLocationSheet = (after) => {
+    setSheetClosing(true)
+    setTimeout(() => {
+      setShowLocationSheet(false)
+      setSheetClosing(false)
+      if (typeof after === 'function') after()
+    }, 280)
+  }
+
+  const confirmLocationSheet = () => {
+    const code = pendingCountryCode
+    if (code === 'map') {
+      closeLocationSheet(() => setShowMapPicker(true))
+      return
+    }
+    const presets = {
+      eg: { lat: 30.0444, lng: 31.2357, city: 'القاهرة', code: 'eg', name: 'مصر', flag: countryCodeToFlagEmoji('eg') },
+      sa: { lat: 24.7136, lng: 46.6753, city: 'الرياض', code: 'sa', name: 'السعودية', flag: countryCodeToFlagEmoji('sa') },
+    }
+    const p = presets[code]
+    if (!p) { closeLocationSheet(); return }
+    closeLocationSheet(() => {
+      const coords = { lat: p.lat, lng: p.lng }
+      const countryObj = { code: p.code, name: p.name, flag: p.flag }
+      setUserCoords(coords)
+      setCityName(p.city)
+      setLocationCountry(countryObj)
+      saveLocation(p.city, countryObj, coords)
+    })
+  }
+
   const selectGPSLocation = () => {
     setShowLocationSheet(false)
     navigator.geolocation?.getCurrentPosition(
@@ -1042,63 +1083,118 @@ export default function FeedScreen() {
         position: 'relative',
       }}>
 
-      {/* Bottom Sheet - اختيار الموقع — عبر Portal خارج أي transform context */}
+      {/* Bottom Sheet - اختيار الدولة — يغطي اللوجو وشريط التنقل، يدخل من أسفل ويخرج لأسفل */}
       {showLocationSheet && createPortal(
         <>
           <div
-            onClick={() => setShowLocationSheet(false)}
-            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 9998 }}
+            onClick={() => closeLocationSheet()}
+            style={{
+              position: 'fixed', inset: 0,
+              background: 'rgba(0,0,0,0.45)',
+              zIndex: 2147483646,
+              animation: sheetClosing
+                ? 'r2c-overlay-out 0.28s ease forwards'
+                : 'r2c-overlay-in 0.3s ease forwards',
+            }}
           />
           <div
             dir="rtl"
             style={{
               position: 'fixed',
               bottom: 0, left: 0, right: 0,
-              zIndex: 9999,
+              zIndex: 2147483647,
               background: WHITE,
               borderRadius: '24px 24px 0 0',
-              padding: '0 0 calc(env(safe-area-inset-bottom, 0px) + 80px)',
+              padding: '12px 18px calc(env(safe-area-inset-bottom, 0px) + 22px)',
               boxShadow: '0 -8px 40px rgba(0,0,0,0.14)',
+              animation: sheetClosing
+                ? 'r2c-sheet-down 0.28s cubic-bezier(0.4,0,0.2,1) forwards'
+                : 'r2c-sheet-up 0.32s cubic-bezier(0.16,1,0.3,1) forwards',
+              willChange: 'transform',
             }}
           >
-            <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0 4px' }}>
-              <div style={{ width: 40, height: 4, borderRadius: 999, background: '#e5e7eb' }} />
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '4px 0 14px' }}>
+              <div style={{ width: 44, height: 4, borderRadius: 999, background: '#e5e7eb' }} />
             </div>
-            <div style={{ padding: '8px 20px 16px', borderBottom: `1px solid ${BORDER}` }}>
-              <div style={{ fontSize: 15, fontWeight: 600, color: TEXT }}>اختر موقعك</div>
-              <div style={{ fontSize: 13, color: MUTED, marginTop: 3 }}>
-                {cityName !== '...' ? `موقعك الحالي: ${cityName}` : 'حدد بلدك أو موقعك'}
-              </div>
-            </div>
-            <div style={{ padding: '8px 12px 0' }}>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {[
-                { flag: '🇪🇬', label: 'مصر', sub: 'القاهرة', action: () => selectManualLocation('eg') },
-                { flag: '🇸🇦', label: 'السعودية', sub: 'الرياض', action: () => selectManualLocation('sa') },
-                { flag: '📍', label: 'تحديد موقعي على الخريطة', sub: 'اختر موقعك بدقة', action: () => { setShowLocationSheet(false); setShowMapPicker(true) } },
-              ].map((item, i) => (
-                <button
-                  key={i}
-                  onClick={item.action}
-                  style={{
-                    width: '100%', display: 'flex', alignItems: 'center', gap: 14,
-                    padding: '14px 12px', border: 'none', background: 'transparent',
-                    cursor: 'pointer', borderRadius: 16, textAlign: 'right',
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.background = '#fafafa'}
-                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                >
-                  <span style={{ fontSize: 28, lineHeight: 1, flexShrink: 0 }}>{item.flag}</span>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: TEXT }}>{item.label}</div>
-                    <div style={{ fontSize: 12, color: MUTED, marginTop: 2 }}>{item.sub}</div>
-                  </div>
-                  {((item.label === 'مصر' && locationCountry.code === 'eg') ||
-                    (item.label === 'السعودية' && locationCountry.code === 'sa')) && (
-                    <span style={{ color: ORANGE, fontSize: 18 }}>✓</span>
-                  )}
-                </button>
-              ))}
+                { code: 'eg',  label: 'مصر', flag: '🇪🇬' },
+                { code: 'sa',  label: 'المملكة العربية السعودية', flag: '🇸🇦' },
+                { code: 'map', label: 'تحديد موقعي على الخريطة', flag: '📍' },
+              ].map(item => {
+                const selected = pendingCountryCode === item.code
+                return (
+                  <button
+                    key={item.code}
+                    type="button"
+                    onClick={() => setPendingCountryCode(item.code)}
+                    style={{
+                      width: '100%',
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      gap: 12,
+                      padding: '16px 18px',
+                      borderRadius: 14,
+                      border: selected ? `2px solid ${ORANGE}` : '1.5px solid #e5e7eb',
+                      background: selected ? ORANGE_SOFT : WHITE,
+                      cursor: 'pointer',
+                      textAlign: 'right',
+                      transition: 'background 0.18s ease, border-color 0.18s ease',
+                    }}
+                  >
+                    {/* Radio - يسار */}
+                    <span
+                      style={{
+                        width: 22, height: 22, borderRadius: '50%',
+                        border: `2px solid ${selected ? ORANGE : '#cbd5e1'}`,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        flexShrink: 0,
+                        background: WHITE,
+                        transition: 'border-color 0.18s ease',
+                      }}
+                    >
+                      {selected && (
+                        <span style={{
+                          width: 11, height: 11, borderRadius: '50%', background: ORANGE,
+                        }} />
+                      )}
+                    </span>
+
+                    {/* النص + العلم - يمين */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, justifyContent: 'flex-end' }}>
+                      <span style={{
+                        fontSize: 16, fontWeight: 600, color: TEXT,
+                        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                      }}>
+                        {item.label}
+                      </span>
+                      <span style={{ fontSize: 22, lineHeight: 1, flexShrink: 0 }}>{item.flag}</span>
+                    </div>
+                  </button>
+                )
+              })}
             </div>
+
+            {/* زر التأكيد */}
+            <button
+              type="button"
+              onClick={confirmLocationSheet}
+              disabled={!pendingCountryCode}
+              style={{
+                width: '100%', height: 54,
+                marginTop: 18,
+                borderRadius: 12,
+                border: 'none',
+                background: pendingCountryCode ? ORANGE : '#f3a978',
+                color: WHITE,
+                fontSize: 17, fontWeight: 700,
+                cursor: pendingCountryCode ? 'pointer' : 'not-allowed',
+                boxShadow: pendingCountryCode ? '0 8px 22px rgba(238,123,38,0.28)' : 'none',
+                transition: 'background 0.18s ease, box-shadow 0.18s ease',
+              }}
+            >
+              تأكيد
+            </button>
           </div>
         </>,
         document.body
@@ -1115,6 +1211,22 @@ export default function FeedScreen() {
         @keyframes fadeSlideIn {
           from { opacity: 0; transform: translateY(8px); }
           to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes r2c-sheet-up {
+          from { transform: translateY(100%); }
+          to   { transform: translateY(0); }
+        }
+        @keyframes r2c-sheet-down {
+          from { transform: translateY(0); }
+          to   { transform: translateY(100%); }
+        }
+        @keyframes r2c-overlay-in {
+          from { opacity: 0; }
+          to   { opacity: 1; }
+        }
+        @keyframes r2c-overlay-out {
+          from { opacity: 1; }
+          to   { opacity: 0; }
         }
       `}</style>
 
@@ -1206,7 +1318,7 @@ export default function FeedScreen() {
 
             {/* زر الموقع/الدولة */}
             <button
-              onClick={() => setShowLocationSheet(true)}
+              onClick={openLocationSheet}
               title={locationCountry.name ? `${cityName} - ${locationCountry.name}` : cityName}
               type="button"
               className="r2c-btn-press"
