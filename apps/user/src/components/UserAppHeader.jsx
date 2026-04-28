@@ -32,6 +32,13 @@ const SCREEN_TITLES = {
   empty: 'R2C',
 }
 
+const HIDE_HEADER_TITLE_SCREENS = new Set([
+  'offerDetails',
+  'restaurantProfile',
+  'feed',
+  'confirmOrder',
+])
+
 function timeAgo(order) {
   const ms = order.updatedAt?.toMillis?.() ?? order.createdAt?.toMillis?.() ?? 0
   if (!ms) return ''
@@ -68,6 +75,8 @@ export default function UserAppHeader() {
   const title = currentScreen === 'restaurantProfile' && selectedRestaurant?.name
     ? selectedRestaurant.name
     : SCREEN_TITLES[currentScreen] || 'R2C'
+
+  const hideTitle = HIDE_HEADER_TITLE_SCREENS.has(currentScreen)
 
   const notifOrders = useMemo(() => {
     if (!orders) return []
@@ -188,19 +197,22 @@ export default function UserAppHeader() {
           {currentScreen === 'feed' ? <MenuIcon /> : <BackIcon />}
         </button>
 
-        <h1 style={{
-          fontSize: 18,
-          fontWeight: 800,
-          margin: 0,
-          flex: 1,
-          textAlign: 'center',
-          whiteSpace: 'nowrap',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          color: TEXT,
-        }}>
-          {title}
-        </h1>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {!hideTitle && (
+            <h1 style={{
+              fontSize: 18,
+              fontWeight: 800,
+              margin: 0,
+              textAlign: 'center',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              color: TEXT,
+            }}>
+              {title}
+            </h1>
+          )}
+        </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
           <button

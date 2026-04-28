@@ -483,10 +483,37 @@ function SideMenu({ isOpen, onClose, setCurrentScreen, profileData, onScrollToTo
 
   const DRAWER_W = 295
 
-  return (
+  useEffect(() => {
+    if (!isOpen || typeof document === 'undefined') return undefined
+
+    const previousBodyOverflow = document.body.style.overflow
+    const previousHtmlOverflow = document.documentElement.style.overflow
+    const previousBodyOverscroll = document.body.style.overscrollBehavior
+
+    document.body.style.overflow = 'hidden'
+    document.documentElement.style.overflow = 'hidden'
+    document.body.style.overscrollBehavior = 'none'
+
+    return () => {
+      document.body.style.overflow = previousBodyOverflow
+      document.documentElement.style.overflow = previousHtmlOverflow
+      document.body.style.overscrollBehavior = previousBodyOverscroll
+    }
+  }, [isOpen])
+
+  const menu = (
     <div style={{
-      position: 'fixed', inset: 0, zIndex: 40,
+      position: 'fixed',
+      top: 0,
+      right: 0,
+      bottom: 0,
+      left: 0,
+      width: '100vw',
+      height: '100dvh',
+      zIndex: 2147483000,
       pointerEvents: isOpen ? 'auto' : 'none',
+      overflow: 'hidden',
+      overscrollBehavior: 'contain',
     }}>
       {/* backdrop */}
       <div
@@ -555,6 +582,8 @@ function SideMenu({ isOpen, onClose, setCurrentScreen, profileData, onScrollToTo
       </div>
     </div>
   )
+
+  return typeof document !== 'undefined' ? createPortal(menu, document.body) : menu
 }
 
 
@@ -797,36 +826,6 @@ export default function FeedScreen() {
       }))
   }, [offers, allRestaurants])
 
-  const restaurantsInCustomCat = useMemo(() => {
-    if (!activeCustomCat) return null
-    const cat = CUSTOM_CATEGORIES.find(c => c.id === activeCustomCat)
-    if (!cat) return null
-    const ids = new Set()
-    ;(offers || []).forEach(o => {
-      const text = `${o.name || ''} ${o.description || ''} ${o.category || ''}`.toLowerCase()
-      if (cat.keywords.some(k => text.includes(k))) {
-        const id = o.restaurantId || o.restaurant || o.restaurantName
-        if (id) ids.add(id)
-      }
-    })
-    return ids
-  }, [activeCustomCat, offers])
-
-  const filteredRestaurants = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase()
-    let list = restaurants.filter(r => {
-      const hay = `${r.name || ''} ${r.city || ''} ${r.category || ''} ${r.cuisine || ''}`.toLowerCase()
-      const matchSearch = !q || hay.includes(q)
-      const matchCuisine = activeCuisine === 'all' || hay.includes(activeCuisine.toLowerCase())
-      const matchCustom = !restaurantsInCustomCat || restaurantsInCustomCat.has(r.id)
-      return matchSearch && matchCuisine && matchCustom
-    })
-    if (sortBy === 'discount') list = [...list].sort((a, b) => b.maxDiscount - a.maxDiscount)
-    else if (sortBy === 'popular') list = [...list].sort((a, b) => b.offerCount - a.offerCount)
-    else list = [...list].sort((a, b) => b.offerCount - a.offerCount)
-    return list
-  }, [restaurants, searchQuery, activeCuisine, restaurantsInCustomCat, sortBy])
-
   const notifOrders = useMemo(() => {
     if (!orders) return []
     return [...orders]
@@ -896,6 +895,23 @@ export default function FeedScreen() {
     }
   }
 
+
+  const openExploreCategory = useCallback((categoryId, snapshotOffers = null) => {
+    try {
+      localStorage.setItem('r2c_explore_category', categoryId)
+      if (categoryId === 'featured' && Array.isArray(snapshotOffers)) {
+        localStorage.setItem('r2c_explore_featured_offers', JSON.stringify(snapshotOffers))
+      } else {
+        localStorage.removeItem('r2c_explore_featured_offers')
+      }
+    } catch {}
+
+    setCurrentScreen('explore')
+    setTimeout(() => {
+      window.scrollTo(0, 0)
+    }, 50)
+  }, [setCurrentScreen])
+
   const quickExploreItems = useMemo(() => {
     const base = [CUISINE_FILTERS[1],  CUISINE_FILTERS[2], CUISINE_FILTERS[3], CUISINE_FILTERS[4], CUISINE_FILTERS[5], CUISINE_FILTERS[6], CUISINE_FILTERS[7], CUISINE_FILTERS[8], CUISINE_FILTERS[9],CUISINE_FILTERS[10] ]
     return base.map((filter, idx) => ({
@@ -905,22 +921,11 @@ export default function FeedScreen() {
       emojiImg: filter.img,
       accent: idx % 2 === 0 ? ORANGE : ORANGE_DARK,
       onClick: () => {
-        const isFeaturedShortcut = filter.id === 'بحب' || filter.label === 'عروض مميزة'
-
-        if (isFeaturedShortcut) {
-          try {
-            localStorage.setItem('r2c_explore_category', 'featured')
-            localStorage.setItem('r2c_explore_featured_offers', JSON.stringify(featuredOffers))
-          } catch {}
-        } else {
-          localStorage.setItem('r2c_explore_category', filter.id)
-          try { localStorage.removeItem('r2c_explore_featured_offers') } catch {}
-        }
-
-        setCurrentScreen('explore')
+        const isFeaturedShortcut = filter.id === 'featured' || filter.label === 'عروض مميزة'
+        openExploreCategory(isFeaturedShortcut ? 'featured' : filter.id, isFeaturedShortcut ? featuredOffers : null)
       },
     }))
-  }, [featuredOffers, restaurants, setCurrentScreen])
+  }, [featuredOffers, restaurants, openExploreCategory])
 
   const topSellerOffers = useMemo(() => featuredOffers.slice(0, 6), [featuredOffers])
   const quickPickOffers = useMemo(() => featuredOffers.slice(2, 8), [featuredOffers])
@@ -966,6 +971,79 @@ export default function FeedScreen() {
 
     return (personalized.length ? personalized : featuredOffers).slice(0, 6)
   }, [featuredOffers, orders, restaurants, cityName, userCoords])
+
+  const sectionRestaurantKeysByCuisine = useMemo(() => {
+    const buildKeys = (list) => {
+      const keys = new Set()
+      ;(list || []).forEach(offer => {
+        const meta = resolveOfferRestaurantMeta(offer, restaurants)
+        ;[
+          meta?.id,
+          meta?.name,
+          offer?.restaurantId,
+          offer?.restaurant_id,
+          offer?.restaurantName,
+          typeof offer?.restaurant === 'string' ? offer.restaurant : offer?.restaurant?.name,
+          offer?.restaurant?.id,
+          offer?.vendorName,
+        ]
+          .filter(Boolean)
+          .map(value => String(value).trim().toLowerCase())
+          .filter(Boolean)
+          .forEach(value => keys.add(value))
+      })
+      return keys
+    }
+
+    return {
+      featured: buildKeys(featuredOffers),
+      'بطاطس': buildKeys(quickPickOffers),
+      'مكس': buildKeys(topSellerOffers),
+      'بوكس': buildKeys(recommendedOffers),
+    }
+  }, [featuredOffers, quickPickOffers, topSellerOffers, recommendedOffers, restaurants])
+
+  const restaurantsInCustomCat = useMemo(() => {
+    if (!activeCustomCat) return null
+    const cat = CUSTOM_CATEGORIES.find(c => c.id === activeCustomCat)
+    if (!cat) return null
+    const ids = new Set()
+    ;(offers || []).forEach(o => {
+      const text = `${o.name || ''} ${o.description || ''} ${o.category || ''}`.toLowerCase()
+      if (cat.keywords.some(k => text.includes(k))) {
+        const id = o.restaurantId || o.restaurant || o.restaurantName
+        if (id) ids.add(String(id).trim().toLowerCase())
+      }
+    })
+    return ids
+  }, [activeCustomCat, offers])
+
+  const filteredRestaurants = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase()
+    const hasSectionFilter = Object.prototype.hasOwnProperty.call(sectionRestaurantKeysByCuisine, activeCuisine)
+    const sectionKeys = hasSectionFilter ? sectionRestaurantKeysByCuisine[activeCuisine] : null
+
+    let list = restaurants.filter(r => {
+      const restaurantKeys = [r.id, r.name, r.restaurantName, r.slug]
+        .filter(Boolean)
+        .map(value => String(value).trim().toLowerCase())
+        .filter(Boolean)
+
+      const hay = [r.name || '', r.city || '', r.category || '', r.cuisine || ''].join(' ').toLowerCase()
+      const matchSearch = !q || hay.includes(q)
+      const matchCuisine = activeCuisine === 'all'
+        ? true
+        : sectionKeys
+          ? restaurantKeys.some(key => sectionKeys.has(key))
+          : hay.includes(activeCuisine.toLowerCase())
+      const matchCustom = !restaurantsInCustomCat || restaurantKeys.some(key => restaurantsInCustomCat.has(key))
+      return matchSearch && matchCuisine && matchCustom
+    })
+    if (sortBy === 'discount') list = [...list].sort((a, b) => b.maxDiscount - a.maxDiscount)
+    else if (sortBy === 'popular') list = [...list].sort((a, b) => b.offerCount - a.offerCount)
+    else list = [...list].sort((a, b) => b.offerCount - a.offerCount)
+    return list
+  }, [restaurants, searchQuery, activeCuisine, restaurantsInCustomCat, sectionRestaurantKeysByCuisine, sortBy])
 
   const selectManualLocation = (country) => {
     const presets = {
@@ -1468,10 +1546,7 @@ export default function FeedScreen() {
               />
             </div>
 
-            <SectionBar title="استكشف القائمة" action="عرض الكل" onAction={() => {
-              localStorage.setItem('r2c_explore_category', 'all')
-              setCurrentScreen('explore')
-            }} />
+            <SectionBar title="استكشف القائمة" action="عرض الكل" onAction={() => openExploreCategory('all')} />
             <div
               className="r2c-scrollbar"
               style={{ display: 'flex', gap: 10, overflowX: 'auto', padding: '0 12px 4px', scrollSnapType: 'x mandatory' }}
@@ -1496,29 +1571,25 @@ export default function FeedScreen() {
               restaurants={restaurants}
               onOpenOffer={openOffer}
               onOpenRestaurant={openRestaurant}
-              onViewAll={() => {
-                localStorage.setItem('r2c_explore_category', 'all')
-  setTimeout(() => {
-    window.scrollTo(0, 0)
-  }, 50)
-                setCurrentScreen('explore')
-              }}
+              onViewAll={() => openExploreCategory('مكس')}
             />
             </div>
 
-            <div style={{ padding: '10px 12px 0' }}>
-              {banner3Slides.length > 0 ? (
-                <HeroBannerSlider
-                  slides={banner3Slides}
-                  fallbackBanner={null}
-                  activeSlide={activeSlide3}
-                  onSlideChange={handleSlideChange3}
-                  onClick={() => {}}
-                />
-              ) : (
-                <InfoTimelineCard imageUrl={banner.banner3ImageUrl} />
-              )}
-            </div>
+            {(banner3Slides.length > 0 || banner.banner3ImageUrl) && (
+              <div style={{ padding: '10px 12px 0' }}>
+                {banner3Slides.length > 0 ? (
+                  <HeroBannerSlider
+                    slides={banner3Slides}
+                    fallbackBanner={null}
+                    activeSlide={activeSlide3}
+                    onSlideChange={handleSlideChange3}
+                    onClick={() => {}}
+                  />
+                ) : (
+                  <InfoTimelineCard imageUrl={banner.banner3ImageUrl} />
+                )}
+              </div>
+            )}
 
             <ProductSection
               title="أفضل العروض"
@@ -1528,13 +1599,7 @@ export default function FeedScreen() {
               restaurants={restaurants}
               onOpenOffer={openOffer}
               onOpenRestaurant={openRestaurant}
-              onViewAll={() => {
-                localStorage.setItem('r2c_explore_category', 'all')
-  setTimeout(() => {
-    window.scrollTo(0, 0)
-  }, 50)
-                setCurrentScreen('explore')
-              }}
+              onViewAll={() => openExploreCategory('بطاطس')}
             />
 
             <ProductSection
@@ -1545,13 +1610,7 @@ export default function FeedScreen() {
               restaurants={restaurants}
               onOpenOffer={openOffer}
               onOpenRestaurant={openRestaurant}
-              onViewAll={() => {
-                localStorage.setItem('r2c_explore_category', 'all')
-  setTimeout(() => {
-    window.scrollTo(0, 0)
-  }, 50)
-                setCurrentScreen('explore')
-              }}
+              onViewAll={() => openExploreCategory('بوكس')}
             />
           </>
         )}
@@ -1570,11 +1629,11 @@ export default function FeedScreen() {
           )}
 
           <div className="r2c-scrollbar" style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 12 }}>
-            <FilterChip active={sortBy === 'default' && activeCuisine === 'all'} onClick={() => { setSortBy('default'); setActiveCuisine('all'); setActiveCustomCat(null) }} icon="☰">الكل</FilterChip>
-            <FilterChip active={sortBy === 'discount'} onClick={() => setSortBy('discount')} icon="٪">الأكثر خصماً</FilterChip>
-            <FilterChip active={sortBy === 'popular'} onClick={() => setSortBy('popular')} icon="🏆">الأكثر عروضاً</FilterChip>
+            <FilterChip active={sortBy === 'default' && activeCuisine === 'all' && !activeCustomCat} onClick={() => { setSortBy('default'); setActiveCuisine('all'); setActiveCustomCat(null) }} icon="☰">الكل</FilterChip>
+            <FilterChip active={sortBy === 'discount' && activeCuisine === 'all' && !activeCustomCat} onClick={() => { setSortBy('discount'); setActiveCuisine('all'); setActiveCustomCat(null) }} icon="٪">الأكثر خصماً</FilterChip>
+            <FilterChip active={sortBy === 'popular' && activeCuisine === 'all' && !activeCustomCat} onClick={() => { setSortBy('popular'); setActiveCuisine('all'); setActiveCustomCat(null) }} icon="🏆">الأكثر عروضاً</FilterChip>
             {CUISINE_FILTERS.slice(1, 5).map(cat => (
-              <FilterChip key={cat.id} active={activeCuisine === cat.id} onClick={() => { setActiveCuisine(cat.id); setActiveCustomCat(null) }}>
+              <FilterChip key={cat.id} active={sortBy === 'default' && activeCuisine === cat.id && !activeCustomCat} onClick={() => { setSortBy('default'); setActiveCuisine(cat.id); setActiveCustomCat(null) }}>
                 {cat.label}
               </FilterChip>
             ))}
@@ -1583,7 +1642,16 @@ export default function FeedScreen() {
           {!isSearching && (
             <div className="r2c-scrollbar" style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 12 }}>
               {CUSTOM_CATEGORIES.map(cat => (
-                <FilterChip key={cat.id} active={activeCustomCat === cat.id} onClick={() => setActiveCustomCat(prev => prev === cat.id ? null : cat.id)} icon={cat.emoji}>
+                <FilterChip
+                  key={cat.id}
+                  active={sortBy === 'default' && activeCuisine === 'all' && activeCustomCat === cat.id}
+                  onClick={() => {
+                    setSortBy('default')
+                    setActiveCuisine('all')
+                    setActiveCustomCat(prev => prev === cat.id ? null : cat.id)
+                  }}
+                  icon={cat.emoji}
+                >
                   {cat.label}
                 </FilterChip>
               ))}
@@ -2032,7 +2100,6 @@ function TopOffersPromo({ offers, restaurants = [], onOpenOffer, onOpenRestauran
   }, [offers])
 
   const [activeIndex, setActiveIndex] = useState(0)
-  const autoPlayRef = useRef(null)
   const sliderRef = useRef(null)
   const trackRef  = useRef(null)
   const [containerW, setContainerW] = useState(0)
@@ -2102,23 +2169,6 @@ function TopOffersPromo({ offers, restaurants = [], onOpenOffer, onOpenRestauran
     setActiveIndex(clamped)
     scrollTo(clamped)
   }
-
-  const resetAutoPlay = useCallback(() => {
-    if (autoPlayRef.current) clearInterval(autoPlayRef.current)
-    if (topFive.length <= 1) return
-    autoPlayRef.current = setInterval(() => {
-      setActiveIndex(prev => {
-        const next = (prev + 1) % topFive.length
-        scrollTo(next)
-        return next
-      })
-    }, 4000)
-  }, [scrollTo, topFive.length])
-
-  useEffect(() => {
-    resetAutoPlay()
-    return () => { if (autoPlayRef.current) clearInterval(autoPlayRef.current) }
-  }, [resetAutoPlay])
 
   // ── مزامنة activeIndex مع الشريحة الموجودة فعلياً في منتصف السلايدر ───────
   useEffect(() => {
@@ -2218,7 +2268,7 @@ function TopOffersPromo({ offers, restaurants = [], onOpenOffer, onOpenRestauran
             {topFive.map((_, i) => (
               <button
                 key={i}
-                onClick={() => { goTo(i); resetAutoPlay() }}
+                onClick={() => goTo(i)}
                 style={{
                   width: i === activeIndex ? 18 : 6,
                   height: 6,
@@ -2246,8 +2296,6 @@ function TopOffersPromo({ offers, restaurants = [], onOpenOffer, onOpenRestauran
               ref={trackRef}
               className="r2c-peek-track"
               dir="ltr"
-              onTouchStart={() => { if (autoPlayRef.current) clearInterval(autoPlayRef.current) }}
-              onTouchEnd={() => { resetAutoPlay() }}
               style={{
                 display: 'flex',
                 gap: GAP,
@@ -2326,21 +2374,27 @@ function FeaturedOfferCard({ offer, restaurants = [], onOpenOffer, onOpenRestaur
         borderRadius: '18px 18px 0 0',
         flexShrink: 0,
       }}>
-        <OfferImage offer={offer} size="large" style={{
-          width: '100%',
-          height: '100%',
-          objectFit: 'cover',
-          display: 'block',
-          borderRadius: '18px 18px 0 0',
-        }} />
-
-        {/* gradient overlay */}
         <div style={{
-          position: 'absolute', inset: 0,
-          background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.15) 50%, transparent 100%)',
+          position: 'absolute',
+          inset: 0,
           borderRadius: '18px 18px 0 0',
-          pointerEvents: 'none',
-        }} />
+          overflow: 'hidden',
+          background: `linear-gradient(135deg, ${BLUE} 0%, ${BLUE_LIGHT} 100%)`,
+        }}>
+          <OfferImage offer={offer} size="large" style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            display: 'block',
+          }} />
+
+          {/* gradient overlay */}
+          <div style={{
+            position: 'absolute', inset: 0,
+            background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.15) 50%, transparent 100%)',
+            pointerEvents: 'none',
+          }} />
+        </div>
 
         {/* شارة الخصم — أعلى يسار */}
         {discount > 0 && (
@@ -2375,23 +2429,6 @@ function FeaturedOfferCard({ offer, restaurants = [], onOpenOffer, onOpenRestaur
           }}
         />
 
-        {restName && (
-          <span style={{
-            position: 'absolute',
-            top: 28,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            color: WHITE,
-            fontSize: 12,
-            fontWeight: 600,
-            textShadow: '0 1px 4px rgba(0,0,0,0.6)',
-            maxWidth: 150,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-            zIndex: 5,
-          }}>{restName}</span>
-        )}
 
         {/* تقييم */}
         <div style={{
@@ -2600,112 +2637,22 @@ function ProductCard({ offer, restaurants = [], onOpenOffer, onOpenRestaurant })
 }
 
 function InfoTimelineCard({ imageUrl }) {
-  if (imageUrl) {
-    return (
-      <div style={{
-        borderRadius: 24,
-        overflow: 'hidden',
-        height: 178,
-        boxShadow: '0 12px 36px rgba(15,23,42,0.22)',
-        background: `linear-gradient(135deg, ${BLUE} 0%, ${BLUE_LIGHT} 50%, ${BLUE_DARK} 100%)`,
-      }}>
-        <img
-          src={imageUrl}
-          alt="banner3"
-          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-          onError={e => { e.currentTarget.style.display = 'none' }}
-        />
-      </div>
-    )
-  }
-
-  const steps = [
-    {
-      num: '01',
-      label: 'اطلب\nمن التطبيق',
-      iconColor: '#f4a844',
-      iconBg: 'rgba(244,168,68,0.18)',
-      icon: (
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f4a844" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <rect x="5" y="2" width="14" height="20" rx="2"/>
-          <line x1="12" y1="18" x2="12.01" y2="18"/>
-        </svg>
-      ),
-    },
-    {
-      num: '02',
-      label: 'حدد\nوقت الاستلام',
-      iconColor: '#9acd32',
-      iconBg: 'rgba(154,205,50,0.18)',
-      icon: (
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#9acd32" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="12" r="9"/>
-          <polyline points="12 7 12 12 15 15"/>
-        </svg>
-      ),
-    },
-    {
-      num: '03',
-      label: 'نُخطرك\nحين يجهز',
-      iconColor: '#f8ad14',
-      iconBg: 'rgba(248,173,20,0.18)',
-      icon: (
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f8ad14" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/>
-          <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-        </svg>
-      ),
-    },
-  ]
+  if (!imageUrl) return null
 
   return (
     <div style={{
-      background: `linear-gradient(135deg, ${BLUE} 0%, ${BLUE_LIGHT} 50%, ${BLUE_DARK} 100%)`,
       borderRadius: 24,
-      padding: '20px 18px 22px',
-      position: 'relative',
       overflow: 'hidden',
+      height: 178,
       boxShadow: '0 12px 36px rgba(15,23,42,0.22)',
+      background: `linear-gradient(135deg, ${BLUE} 0%, ${BLUE_LIGHT} 50%, ${BLUE_DARK} 100%)`,
     }}>
-      {/* decorative circles */}
-      <div style={{ position: 'absolute', width: 220, height: 220, borderRadius: '50%', background: 'rgba(238,123,38,0.10)', top: -60, left: -60, pointerEvents: 'none' }} />
-      <div style={{ position: 'absolute', width: 160, height: 160, borderRadius: '50%', background: 'rgba(244,197,66,0.07)', bottom: -50, right: -30, pointerEvents: 'none' }} />
-
-      {/* badge */}
-      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(238,123,38,0.20)', border: '1px solid rgba(238,123,38,0.38)', color: '#f4a844', borderRadius: 999, padding: '4px 12px', fontSize: 11, fontWeight: 500, marginBottom: 10 }}>
-        <span style={{ width: 7, height: 7, borderRadius: '50%', background: ORANGE, display: 'inline-block' }} />
-        بدون انتظار
-      </div>
-
-      <div style={{ color: '#fff', fontSize: 13, fontWeight: 500, lineHeight: 1.25, marginBottom: 4 }}>
-        استلم طلبك من المطعم مباشرةً
-      </div>
-      <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: 12, fontWeight: 500, marginBottom: 18 }}>
-        اطلب مسبقًا، ووصل وقت الاستلام جاهزًا
-      </div>
-
-      {/* steps */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 10, position: 'relative' }}>
-        {/* connectors */}
-        <div style={{ position: 'absolute', top: 24, left: 'calc(33.33% - 4px)', width: 'calc(33.33% + 8px)', height: 1, background: 'linear-gradient(90deg, rgba(238,123,38,0.5), rgba(238,123,38,0.2))', zIndex: 0 }} />
-        <div style={{ position: 'absolute', top: 24, left: 'calc(66.66% - 4px)', width: 'calc(33.33% + 4px)', height: 1, background: 'linear-gradient(90deg, rgba(238,123,38,0.2), rgba(238,123,38,0.5))', zIndex: 0 }} />
-
-        {steps.map((step) => (
-          <div key={step.num} style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.10)', borderRadius: 16, padding: '12px 8px 10px', textAlign: 'center', position: 'relative', zIndex: 1 }}>
-            {/* step number badge */}
-            <div style={{ position: 'absolute', top: -9, left: '50%', transform: 'translateX(-50%)', background: ORANGE, color: '#fff', fontSize: 9, fontWeight: 500, borderRadius: 999, padding: '2px 8px', whiteSpace: 'nowrap' }}>
-              {step.num}
-            </div>
-            {/* icon circle */}
-            <div style={{ width: 38, height: 38, borderRadius: '50%', background: step.iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 8px' }}>
-              {step.icon}
-            </div>
-            <div style={{ color: 'rgba(255,255,255,0.88)', fontSize: 11, fontWeight: 500, lineHeight: 1.35, whiteSpace: 'pre-line' }}>
-              {step.label}
-            </div>
-          </div>
-        ))}
-      </div>
+      <img
+        src={imageUrl}
+        alt="banner3"
+        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+        onError={e => { e.currentTarget.style.display = 'none' }}
+      />
     </div>
   )
 }
