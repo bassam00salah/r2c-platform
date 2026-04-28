@@ -323,9 +323,15 @@ function MapPickerModal({ initialCoords, onConfirm, onClose }) {
     <div
       dir="rtl"
       style={{
-        position: 'fixed', inset: 0, zIndex: 100,
-        display: 'flex', flexDirection: 'column',
+        position: 'fixed',
+        inset: 0,
+        zIndex: 2147483646,
+        display: 'flex',
+        flexDirection: 'column',
         background: '#fff',
+        height: '100dvh',
+        boxSizing: 'border-box',
+        paddingTop: 'var(--r2c-statusbar-space-active, 0px)',
       }}
     >
       {/* Header */}
@@ -362,7 +368,7 @@ function MapPickerModal({ initialCoords, onConfirm, onClose }) {
 
       {/* Confirm button */}
       <div style={{
-        padding: '16px 16px calc(env(safe-area-inset-bottom, 0px) + 80px)',
+        padding: '16px 16px calc(var(--r2c-safe-area-bottom, 0px) + 16px)',
         background: '#fff',
         borderTop: '1px solid #e5e7eb',
         flexShrink: 0,
@@ -1308,10 +1314,12 @@ export default function FeedScreen() {
         }
       `}</style>
 
-      <div dir="rtl" style={{ background: BG, minHeight: '100vh', paddingBottom: 96, color: TEXT }}>
+      <div dir="rtl" style={{ background: BG, minHeight: '100dvh', paddingBottom: 96, color: TEXT }}>
         <div style={{
-          position: 'sticky', top: 0, zIndex: 20,
-          padding: '14px 12px 10px',
+          position: 'sticky',
+          top: 0,
+          zIndex: 20,
+          padding: 'calc(var(--r2c-statusbar-space-active, 0px) + 14px) 12px 10px',
           background: WHITE,
           boxShadow: 'none',
         }}>

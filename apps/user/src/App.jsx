@@ -214,11 +214,12 @@ export default function App() {
       <StatusBarSync screen={activeScreen} />
       <div
         style={{
-          minHeight: '100vh',
+          height: '100dvh',
+          minHeight: '100dvh',
           position: 'relative',
           overflow: 'hidden',
           background: 'var(--r2c-screen-background, #ffffff)',
-          paddingTop: 'var(--r2c-statusbar-space-active)',
+          paddingTop: 0,
         }}
       >
         <div
@@ -227,12 +228,24 @@ export default function App() {
           data-r2c-screen-wrapper="active"
           data-r2c-screen={displayScreen}
           className={`r2c-screen-wrapper ${animClass}`}
-          style={{ paddingTop: showHeader ? 'var(--r2c-header-height, 56px)' : 0 }}
+          style={{
+            paddingTop: showHeader
+              ? 'calc(var(--r2c-statusbar-space-active, 0px) + var(--r2c-header-height, 64px))'
+              : 0,
+          }}
         >
           <Screen />
         </div>
         {showHeader && (
-          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 100 }}>
+          <div
+            style={{
+              position: 'absolute',
+              top: 'var(--r2c-statusbar-space-active, 0px)',
+              left: 0,
+              right: 0,
+              zIndex: 100,
+            }}
+          >
             <UserAppHeader />
           </div>
         )}

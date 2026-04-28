@@ -12,17 +12,28 @@
     --r2c-statusbar-space: max(env(safe-area-inset-top, 0px), 26px);
     --r2c-statusbar-layer-height: 0px;
     --r2c-statusbar-space-active: 0px;
-    --r2c-safe-area-bottom: env(safe-area-inset-bottom, 0px);
+    --r2c-header-height: 64px;
+    --r2c-safe-area-bottom: 0px;
+    --r2c-bottom-nav-lift: min(var(--r2c-safe-area-bottom, 0px), 34px);
     color-scheme: light;
 }
 
 html, body, #root {
     min-height: 100%;
+    height: 100%;
     background: var(--r2c-screen-background);
+}
+
+@supports (height: 100dvh) {
+    html, body, #root {
+        min-height: 100dvh;
+        height: 100dvh;
+    }
 }
 
 body {
     margin: 0;
+    overflow: hidden;
 }
 
 body::before {

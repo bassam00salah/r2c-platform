@@ -29,6 +29,20 @@ function getCapacitorBackgroundColor(color) {
   return isTransparentStatusBarColor(color) ? '#000000' : color
 }
 
+function updateCssSystemInsets(result) {
+  if (typeof document === 'undefined') return
+
+  const root = document.documentElement
+  const bottomInset = Number(result?.bottomInsetPx)
+
+  if (Number.isFinite(bottomInset) && bottomInset > 0) {
+    // القيمة القادمة من Native محوّلة إلى CSS px، ونحصرها حتى لا تتحول إلى مساحة بيضاء كبيرة.
+    root.style.setProperty('--r2c-safe-area-bottom', `${Math.min(bottomInset, 34)}px`)
+  } else {
+    root.style.setProperty('--r2c-safe-area-bottom', '0px')
+  }
+}
+
 function updateCssStatusBar(theme, android) {
   if (typeof document === 'undefined') return
 
@@ -46,19 +60,6 @@ function updateCssStatusBar(theme, android) {
   const themeColor = document.querySelector('meta[name="theme-color"]')
   if (themeColor) {
     themeColor.setAttribute('content', theme.color)
-  }
-}
-
-function updateCssSystemInsets(result) {
-  if (typeof document === 'undefined' || !result) return
-
-  const root = document.documentElement
-  const bottomInset = Number(result.bottomInsetPx)
-
-  if (Number.isFinite(bottomInset) && bottomInset > 0) {
-    root.style.setProperty('--r2c-safe-area-bottom', `${bottomInset}px`)
-  } else {
-    root.style.setProperty('--r2c-safe-area-bottom', 'env(safe-area-inset-bottom, 0px)')
   }
 }
 

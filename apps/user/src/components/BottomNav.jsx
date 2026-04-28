@@ -3,7 +3,7 @@ import { useApp } from '../contexts'
 const ORANGE = '#ee7b26'
 const WHITE = '#ffffff'
 const MUTED = '#94a3b8'
-const SAFE_BOTTOM = 'var(--r2c-safe-area-bottom, env(safe-area-inset-bottom, 0px))'
+const NAV_LIFT = 'var(--r2c-bottom-nav-lift, 0px)'
 
 const Icon = {
   orders: (
@@ -70,27 +70,14 @@ export default function BottomNav() {
 
   return (
     <>
-      {/* امتداد أبيض أسفل شريط التطبيق حتى لا يختلط مع Navigation Bar الخاص بأندرويد */}
       <div
-        aria-hidden="true"
         style={{
           position: 'fixed',
           bottom: 0,
           left: 0,
           right: 0,
-          height: SAFE_BOTTOM,
-          background: WHITE,
-          zIndex: 9998,
-          pointerEvents: 'none',
-        }}
-      />
-
-      <div
-        style={{
-          position: 'fixed',
-          bottom: SAFE_BOTTOM,
-          left: 0,
-          right: 0,
+          height: `calc(96px + ${NAV_LIFT})`,
+          background: `linear-gradient(to bottom, transparent 0, transparent 96px, ${WHITE} 96px, ${WHITE} 100%)`,
           zIndex: 9999,
           pointerEvents: 'none',
           transform: 'translateZ(0)',
@@ -104,7 +91,13 @@ export default function BottomNav() {
           preserveAspectRatio="none"
           width="100%"
           height="96"
-          style={{ display: 'block' }}
+          style={{
+            display: 'block',
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            bottom: NAV_LIFT,
+          }}
         >
           <defs>
             <filter id="bnav-shadow" x="-5%" y="-60%" width="110%" height="230%">
@@ -158,7 +151,7 @@ export default function BottomNav() {
         <div
           style={{
             position: 'absolute',
-            bottom: 0,
+            bottom: NAV_LIFT,
             left: 0,
             right: 0,
             height: 84,
@@ -207,7 +200,7 @@ export default function BottomNav() {
         }}
         style={{
           position: 'fixed',
-          bottom: `calc(26px + ${SAFE_BOTTOM})`,
+          bottom: `calc(26px + ${NAV_LIFT})`,
           left: '50%',
           transform: 'translateX(-50%)',
           zIndex: 10000,

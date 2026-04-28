@@ -5,6 +5,14 @@ import OfferImage from '../components/OfferImage'
 import { httpsCallable } from 'firebase/functions'
 import { collection, query, where, getDocs } from 'firebase/firestore'
 
+const HERO_HEADER_OVERLAP = 'var(--r2c-header-height, 64px)'
+const HERO_SAFE_TOP = 'var(--r2c-statusbar-space-active, 0px)'
+const CONFIRM_HERO_BASE_HEIGHT = 340
+// زيادة بسيطة تمنع ظهور أي شريط أبيض فوق الصورة داخل localhost/Android،
+// وتضمن أن الصورة تبدأ من خلف الهيدر مباشرة مثل OfferDetailsScreen.
+const CONFIRM_HERO_TOP_PULL = 36
+const CONFIRM_HERO_HEIGHT = `calc(${CONFIRM_HERO_BASE_HEIGHT}px + ${HERO_HEADER_OVERLAP} + ${HERO_SAFE_TOP} + ${CONFIRM_HERO_TOP_PULL}px)`
+
 export default function ConfirmOrderScreen() {
   const { selectedOffer, setCurrentScreen, userLocation, setUserLocation, setCurrentOrderId } = useApp()
   const [needsLocation, setNeedsLocation] = useState(false)
@@ -14,6 +22,12 @@ export default function ConfirmOrderScreen() {
   const [submitting, setSubmitting] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
   const MAX_BRANCH_DISTANCE_KM = 100
+
+
+  // نفس سلوك OfferDetailsScreen: ابدأ من أعلى الشاشة حتى لا يظهر جزء أبيض قبل صورة الـ Hero.
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' })
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -108,7 +122,9 @@ export default function ConfirmOrderScreen() {
     <div className="min-h-screen bg-white pb-24 overflow-x-hidden">
       <style>{`
         .confirm-order-hero-media,
-        .confirm-order-hero-media > * {
+        .confirm-order-hero-media > *,
+        .confirm-order-hero-media img,
+        .confirm-order-hero-media video {
           width: 100%;
           height: 100%;
         }
@@ -118,24 +134,36 @@ export default function ConfirmOrderScreen() {
           width: 100%;
           height: 100%;
           object-fit: cover;
+          object-position: center center;
           display: block;
+          transform: scale(1.08);
+          transform-origin: center center;
         }
       `}</style>
 
-      {/* صورة العرض ممتدة لأعلى الشاشة وخلف الهيدر الشفاف */}
+      {/* صورة العرض بنفس منطق الـ Hero في OfferDetailsScreen و RestaurantProfileScreen */}
       <div
         className="relative overflow-visible"
         style={{
-          height: 'calc(300px + var(--r2c-header-height, 64px) + var(--r2c-statusbar-space-active, 0px))',
-          marginTop: 'calc(-1 * (var(--r2c-header-height, 64px) + var(--r2c-statusbar-space-active, 0px)))',
+          // ارفع الصورة خلف الهيدر العام + مساحة شريط الحالة في الهاتف.
+          // أضفنا CONFIRM_HERO_TOP_PULL حتى لا تظهر أي مساحة بيضاء فوق الصورة في localhost أو Android.
+          marginTop: `calc(-1 * (${HERO_HEADER_OVERLAP} + ${HERO_SAFE_TOP} + ${CONFIRM_HERO_TOP_PULL}px))`,
+          height: CONFIRM_HERO_HEIGHT,
         }}
       >
-        <div className="absolute inset-0 overflow-hidden bg-gray-100">
-          <div className="confirm-order-hero-media absolute inset-0">
-            <OfferImage offer={selectedOffer} size="large" />
-          </div>
-          <div className="absolute inset-0 bg-gradient-to-b from-black/35 via-black/8 to-transparent pointer-events-none" />
+        <div className="confirm-order-hero-media absolute inset-0 overflow-hidden bg-gray-100" style={{ height: '100%' }}>
+          <OfferImage offer={selectedOffer} size="large" />
         </div>
+
+        {/* تدرج خفيف خلف الهيدر حتى تظهر أيقونات الهيدر وأيقونات الهاتف فوق الصورة بوضوح */}
+        <div
+          className="pointer-events-none absolute inset-x-0 top-0"
+          style={{
+            height: `calc(${HERO_HEADER_OVERLAP} + ${HERO_SAFE_TOP} + ${CONFIRM_HERO_TOP_PULL}px + 96px)`,
+            background: 'linear-gradient(180deg, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.15) 55%, rgba(0,0,0,0) 100%)',
+            zIndex: 2,
+          }}
+        />
       </div>
 
       <div className="relative z-10 px-6 -mt-12">
