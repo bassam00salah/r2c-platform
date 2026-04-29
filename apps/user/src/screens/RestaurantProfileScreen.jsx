@@ -709,7 +709,7 @@ export default function RestaurantProfileScreen() {
                 }}>
                   {isFavorite ? '❤️' : '🤍'}
                 </span>
-                {favLoading ? '...' : isFavorite ? 'محفوظ' : 'حفظ'}
+                {favLoading ? '...' : isFavorite ? ' ' : ' '}
               </button>
             </div>
           </div>

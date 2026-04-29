@@ -1,5 +1,5 @@
 import { useApp } from './contexts'
-import { useRef, useState, useEffect } from 'react'
+import { useRef, useState, useEffect, useLayoutEffect } from 'react'
 
 // Screens
 import AuthScreen from './screens/AuthScreen'
@@ -42,6 +42,23 @@ const SCREENS = {
 const WITH_NAV = ['feed', 'grid', 'search', 'restaurantProfile', 'offerDetails', 'orders', 'profile', 'explore']
 const WITH_HEADER = ['grid', 'search', 'restaurantProfile', 'offerDetails', 'confirmOrder', 'waiting', 'success', 'orders', 'profile', 'empty', 'explore']
 
+// شاشات يتم الاحتفاظ بها محملة في الخلفية عند التنقل بينها.
+// تم استبعاد auth/location لأنهما جزء من بداية التطبيق، واستبعاد waiting/success لأنها شاشات انتقالية.
+const KEEP_ALIVE_SCREENS = [
+  'feed',
+  'grid',
+  'search',
+  'restaurantProfile',
+  'offerDetails',
+  'confirmOrder',
+  'orders',
+  'profile',
+  'explore',
+]
+
+// لا نغلق الكاش عند waiting/success حتى يظل المستخدم قادرًا على الرجوع لشاشاته السابقة بدون إعادة تحميل.
+const RESET_CACHE_SCREENS = ['auth', 'location']
+
 // الشاشات التي تدخل من الأسفل
 const SLIDE_UP_SCREENS = ['profile', 'orders']
 
@@ -52,6 +69,14 @@ function getTransitionType(from, to, isBack) {
 
   if (toIsUp || fromIsUp) return 'vertical'
   return 'horizontal'
+}
+
+function shouldKeepAlive(screen) {
+  return KEEP_ALIVE_SCREENS.includes(screen)
+}
+
+function shouldResetCache(screen) {
+  return RESET_CACHE_SCREENS.includes(screen)
 }
 
 const ANIMATION_STYLES = `
@@ -92,6 +117,25 @@ const ANIMATION_STYLES = `
     top: 0; left: 0; right: 0; bottom: 0;
     overflow-y: auto;
     overflow-x: hidden;
+    background: var(--r2c-screen-background, #ffffff);
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    will-change: transform;
+  }
+  .r2c-screen-hidden {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+  .r2c-screen-backdrop {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: none;
+  }
+  .r2c-screen-active {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
   }
   .r2c-screen-enter-right  { animation: slideInRight 0.28s cubic-bezier(0.25,0.46,0.45,0.94) forwards; }
   .r2c-screen-enter-left   { animation: slideInLeft  0.28s cubic-bezier(0.25,0.46,0.45,0.94) forwards; }
@@ -121,23 +165,48 @@ export default function App() {
   const prevScreenRef = useRef(activeScreen)
   const isBackRef = useRef(false)
   const screenHistoryRef = useRef([activeScreen])
-  const screenScrollRef = useRef(null)
+  const screenRefs = useRef({})
   const [animClass, setAnimClass] = useState('')
-  const [displayScreen, setDisplayScreen] = useState(activeScreen)
+  const [transitionFromScreen, setTransitionFromScreen] = useState(null)
+  const [cachedScreens, setCachedScreens] = useState(() => [activeScreen])
 
+  // أضف الشاشة للكاش عند زيارتها بدل إزالة الشاشة السابقة من الـ DOM.
   useEffect(() => {
-    const el = screenScrollRef.current
-    if (!el) return undefined
+    setCachedScreens(prev => {
+      if (shouldResetCache(activeScreen)) {
+        return [activeScreen]
+      }
 
-    const shouldRestore = restoreScrollRequest?.screen === displayScreen
-    const targetScrollTop = shouldRestore
-      ? Math.max(0, Number(restoreScrollRequest?.scrollTop) || 0)
-      : 0
+      const next = prev.filter(screen => shouldKeepAlive(screen) && SCREENS[screen])
+
+      if (shouldKeepAlive(activeScreen) && !next.includes(activeScreen)) {
+        next.push(activeScreen)
+      }
+
+      // احتفظ بـ feed دائمًا إذا كان قد تم تحميله لأنها أكثر شاشة يلاحظ المستخدم إعادة تحميلها.
+      if (prev.includes('feed') && !next.includes('feed')) {
+        next.unshift('feed')
+      }
+
+      return next.length ? next : [activeScreen]
+    })
+  }, [activeScreen])
+
+  // استعادة موضع السكرول للشاشة النشطة فقط.
+  // مهم: لا نعيد السكرول إلى 0 تلقائيًا عند ظهور شاشة محفوظة في الكاش،
+  // لأن ذلك كان يعطي إحساسًا بأن الشاشة ظهرت ثم أعادت التحميل/القفز مرة ثانية.
+  useLayoutEffect(() => {
+    if (restoreScrollRequest?.screen !== activeScreen) return undefined
+
+    const node = screenRefs.current[activeScreen]
+    if (!node) return undefined
+
+    const targetScrollTop = Math.max(0, Number(restoreScrollRequest?.scrollTop) || 0)
 
     const applyScroll = () => {
-      const node = screenScrollRef.current
-      if (!node) return
-      node.scrollTop = targetScrollTop
+      const el = screenRefs.current[activeScreen]
+      if (!el) return
+      el.scrollTop = targetScrollTop
     }
 
     applyScroll()
@@ -153,12 +222,14 @@ export default function App() {
       window.clearTimeout(t1)
       window.clearTimeout(t2)
     }
-  }, [displayScreen, restoreScrollRequest])
+  }, [activeScreen, restoreScrollRequest])
 
-  useEffect(() => {
-    if (activeScreen === displayScreen) return
-
+  // useLayoutEffect يمنع ظهور الشاشة لحظة بدون transition ثم تطبيق الحركة بعدها.
+  // هذا كان سبب الإحساس بأن التنقل يحدث مرتين.
+  useLayoutEffect(() => {
     const from = prevScreenRef.current
+    if (activeScreen === from) return undefined
+
     const to = activeScreen
     const history = screenHistoryRef.current
 
@@ -167,7 +238,7 @@ export default function App() {
     const isBack = prevIndex !== -1 && prevIndex < history.length - 1
     isBackRef.current = isBack
 
-    // حدّث التاريخ
+    // حدّث التاريخ الخاص باتجاه الحركة فقط.
     if (isBack) {
       screenHistoryRef.current = history.slice(0, prevIndex + 1)
     } else {
@@ -184,8 +255,15 @@ export default function App() {
     }
 
     prevScreenRef.current = to
-    setDisplayScreen(to)
+    setTransitionFromScreen(from)
     setAnimClass(cls)
+
+    const clearTimer = window.setTimeout(() => {
+      setAnimClass('')
+      setTransitionFromScreen(null)
+    }, 380)
+
+    return () => window.clearTimeout(clearTimer)
   }, [activeScreen])
 
   if (authLoading) {
@@ -205,8 +283,15 @@ export default function App() {
     )
   }
 
-  const Screen = SCREENS[displayScreen] ?? SCREENS.feed
-  const showHeader = WITH_HEADER.includes(displayScreen)
+  const mountedScreens = shouldResetCache(activeScreen)
+    ? [activeScreen]
+    : Array.from(new Set([
+        ...cachedScreens.filter(screen => shouldKeepAlive(screen) && SCREENS[screen]),
+        transitionFromScreen,
+        activeScreen,
+      ].filter(Boolean)))
+
+  const showHeader = WITH_HEADER.includes(activeScreen)
 
   return (
     <>
@@ -222,20 +307,39 @@ export default function App() {
           paddingTop: 0,
         }}
       >
-        <div
-          key={displayScreen}
-          ref={screenScrollRef}
-          data-r2c-screen-wrapper="active"
-          data-r2c-screen={displayScreen}
-          className={`r2c-screen-wrapper ${animClass}`}
-          style={{
-            paddingTop: showHeader
-              ? 'calc(var(--r2c-statusbar-space-active, 0px) + var(--r2c-header-height, 64px))'
-              : 0,
-          }}
-        >
-          <Screen />
-        </div>
+        {mountedScreens.map(screen => {
+          const Screen = SCREENS[screen] ?? SCREENS.feed
+          const isActive = screen === activeScreen
+          const isTransitionBackdrop = !isActive && screen === transitionFromScreen && !!animClass
+          const screenHasHeader = WITH_HEADER.includes(screen)
+
+          return (
+            <div
+              key={screen}
+              ref={el => {
+                if (el) screenRefs.current[screen] = el
+                else delete screenRefs.current[screen]
+              }}
+              data-r2c-screen-wrapper={isActive ? 'active' : 'inactive'}
+              data-r2c-screen={screen}
+              aria-hidden={isActive ? 'false' : 'true'}
+              className={[
+                'r2c-screen-wrapper',
+                isActive ? 'r2c-screen-active' : isTransitionBackdrop ? 'r2c-screen-backdrop' : 'r2c-screen-hidden',
+                isActive ? animClass : '',
+              ].filter(Boolean).join(' ')}
+              style={{
+                paddingTop: screenHasHeader
+                  ? 'calc(var(--r2c-statusbar-space-active, 0px) + var(--r2c-header-height, 64px))'
+                  : 0,
+                zIndex: isActive ? 3 : isTransitionBackdrop ? 1 : 0,
+              }}
+            >
+              <Screen />
+            </div>
+          )
+        })}
+
         {showHeader && (
           <div
             style={{
@@ -249,7 +353,7 @@ export default function App() {
             <UserAppHeader />
           </div>
         )}
-        {WITH_NAV.includes(displayScreen) && <BottomNav />}
+        {WITH_NAV.includes(activeScreen) && <BottomNav />}
       </div>
     </>
   )

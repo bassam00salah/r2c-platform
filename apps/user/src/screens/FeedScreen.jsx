@@ -319,19 +319,23 @@ function MapPickerModal({ initialCoords, onConfirm, onClose }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  return (
+  const modal = (
     <div
       dir="rtl"
       style={{
         position: 'fixed',
         inset: 0,
-        zIndex: 2147483646,
+        zIndex: 2147483647,
         display: 'flex',
         flexDirection: 'column',
         background: '#fff',
+        width: '100vw',
         height: '100dvh',
         boxSizing: 'border-box',
         paddingTop: 'var(--r2c-statusbar-space-active, 0px)',
+        overflow: 'hidden',
+        overscrollBehavior: 'contain',
+        isolation: 'isolate',
       }}
     >
       {/* Header */}
@@ -341,6 +345,8 @@ function MapPickerModal({ initialCoords, onConfirm, onClose }) {
         borderBottom: '1px solid #e5e7eb',
         background: '#fff',
         flexShrink: 0,
+        position: 'relative',
+        zIndex: 2,
       }}>
         <button
           onClick={onClose}
@@ -364,14 +370,17 @@ function MapPickerModal({ initialCoords, onConfirm, onClose }) {
       </div>
 
       {/* Map */}
-      <div ref={mapRef} style={{ flex: 1, minHeight: 0 }} />
+      <div ref={mapRef} style={{ flex: 1, minHeight: 0, position: 'relative', zIndex: 1 }} />
 
       {/* Confirm button */}
       <div style={{
-        padding: '16px 16px calc(var(--r2c-safe-area-bottom, 0px) + 16px)',
+        padding: '16px 16px calc(var(--r2c-navigationbar-space-active, var(--r2c-safe-area-bottom, 0px)) + 18px)',
         background: '#fff',
         borderTop: '1px solid #e5e7eb',
         flexShrink: 0,
+        position: 'relative',
+        zIndex: 2,
+        boxShadow: '0 -8px 24px rgba(17, 24, 39, 0.06)',
       }}>
         <button
           onClick={() => onConfirm(pickedCoords)}
@@ -389,6 +398,8 @@ function MapPickerModal({ initialCoords, onConfirm, onClose }) {
       </div>
     </div>
   )
+
+  return typeof document !== 'undefined' ? createPortal(modal, document.body) : modal
 }
 
 
@@ -1544,7 +1555,7 @@ export default function FeedScreen() {
 
         {!isSearching && (
           <>
-            <div style={{ padding: '0 12px' }}>
+            <div style={{ padding: '0 0px' }}>
               <MainHeroBannerSlider
                 slides={bannerSlides}
                 fallbackBanner={banner}
@@ -1729,6 +1740,7 @@ function MainHeroBannerSlider({ slides, fallbackBanner, activeSlide, onSlideChan
     ? [displaySlides[count - 1], ...displaySlides, displaySlides[0]]
     : displaySlides
 
+  // الإبقاء على ظهور جزء صغير من الشرائح الجانبية كما كان
   const PEEK = count > 1 ? 18 : 0
   const GAP  = count > 1 ? 8  : 0
 
@@ -1863,6 +1875,8 @@ function MainHeroBannerSlider({ slides, fallbackBanner, activeSlide, onSlideChan
           position: 'relative', height: 190, overflow: 'hidden',
           touchAction: 'pan-y',
           cursor: isDragging ? 'grabbing' : (isClickable ? 'pointer' : 'default'),
+          background: 'transparent',
+          boxShadow: 'none',
         }}
         onClick={handleClick}
         onTouchStart={handleTouchStart}
@@ -1883,16 +1897,17 @@ function MainHeroBannerSlider({ slides, fallbackBanner, activeSlide, onSlideChan
               <div key={idx} style={{
                 width: slideW, height: '100%', flexShrink: 0,
                 borderRadius: 18, overflow: 'hidden',
-                background: `linear-gradient(135deg, ${BLUE} 0%, ${BLUE_LIGHT} 50%, ${BLUE_DARK} 100%)`,
-                boxShadow: isActive ? '0 4px 18px rgba(0,0,0,0.18)' : '0 2px 8px rgba(0,0,0,0.10)',
+                background: 'transparent',
+                boxShadow: 'none',
+                filter: 'none',
                 transform: isActive ? 'scale(1)' : 'scale(0.96)',
-                transition: jumping || isDragging ? 'none' : 'transform 0.42s cubic-bezier(0.25, 0.46, 0.45, 0.94), box-shadow 0.42s ease',
+                transition: jumping || isDragging ? 'none' : 'transform 0.42s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
               }}>
                 <img
                   src={slide.imageUrl}
                   alt={slide.restaurantName || `banner-${idx}`}
                   draggable="false"
-                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', pointerEvents: 'none' }}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', pointerEvents: 'none', boxShadow: 'none' }}
                 />
               </div>
             )
@@ -1920,7 +1935,6 @@ function MainHeroBannerSlider({ slides, fallbackBanner, activeSlide, onSlideChan
     </div>
   )
 }
-
 
 function HeroBannerSlider({ slides, fallbackBanner, activeSlide, onSlideChange, onClick }) {
   const hasSlides = slides && slides.length > 0

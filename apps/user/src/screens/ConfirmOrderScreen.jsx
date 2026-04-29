@@ -5,13 +5,10 @@ import OfferImage from '../components/OfferImage'
 import { httpsCallable } from 'firebase/functions'
 import { collection, query, where, getDocs } from 'firebase/firestore'
 
-const HERO_HEADER_OVERLAP = 'var(--r2c-header-height, 64px)'
-const HERO_SAFE_TOP = 'var(--r2c-statusbar-space-active, 0px)'
-const CONFIRM_HERO_BASE_HEIGHT = 340
-// زيادة بسيطة تمنع ظهور أي شريط أبيض فوق الصورة داخل localhost/Android،
-// وتضمن أن الصورة تبدأ من خلف الهيدر مباشرة مثل OfferDetailsScreen.
-const CONFIRM_HERO_TOP_PULL = 36
-const CONFIRM_HERO_HEIGHT = `calc(${CONFIRM_HERO_BASE_HEIGHT}px + ${HERO_HEADER_OVERLAP} + ${HERO_SAFE_TOP} + ${CONFIRM_HERO_TOP_PULL}px)`
+// نفس القيم المستخدمة في OfferDetailsScreen بدون أي إضافة
+const CONFIRM_HERO_HEIGHT = 'calc(340px + var(--r2c-header-height, 64px) + var(--r2c-statusbar-space-active, 0px))'
+const CONFIRM_HERO_MARGIN_TOP = 'calc(-1 * (var(--r2c-header-height, 64px) + var(--r2c-statusbar-space-active, 0px)))'
+const CONFIRM_HERO_GRADIENT_HEIGHT = 'calc(var(--r2c-header-height, 64px) + var(--r2c-statusbar-space-active, 0px) + 96px)'
 
 export default function ConfirmOrderScreen() {
   const { selectedOffer, setCurrentScreen, userLocation, setUserLocation, setCurrentOrderId } = useApp()
@@ -131,13 +128,9 @@ export default function ConfirmOrderScreen() {
 
         .confirm-order-hero-media img,
         .confirm-order-hero-media video {
-          width: 100%;
-          height: 100%;
           object-fit: cover;
           object-position: center center;
           display: block;
-          transform: scale(1.08);
-          transform-origin: center center;
         }
       `}</style>
 
@@ -145,9 +138,7 @@ export default function ConfirmOrderScreen() {
       <div
         className="relative overflow-visible"
         style={{
-          // ارفع الصورة خلف الهيدر العام + مساحة شريط الحالة في الهاتف.
-          // أضفنا CONFIRM_HERO_TOP_PULL حتى لا تظهر أي مساحة بيضاء فوق الصورة في localhost أو Android.
-          marginTop: `calc(-1 * (${HERO_HEADER_OVERLAP} + ${HERO_SAFE_TOP} + ${CONFIRM_HERO_TOP_PULL}px))`,
+          marginTop: CONFIRM_HERO_MARGIN_TOP,
           height: CONFIRM_HERO_HEIGHT,
         }}
       >
@@ -159,7 +150,7 @@ export default function ConfirmOrderScreen() {
         <div
           className="pointer-events-none absolute inset-x-0 top-0"
           style={{
-            height: `calc(${HERO_HEADER_OVERLAP} + ${HERO_SAFE_TOP} + ${CONFIRM_HERO_TOP_PULL}px + 96px)`,
+            height: CONFIRM_HERO_GRADIENT_HEIGHT,
             background: 'linear-gradient(180deg, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.15) 55%, rgba(0,0,0,0) 100%)',
             zIndex: 2,
           }}
