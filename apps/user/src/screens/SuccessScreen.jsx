@@ -5,6 +5,14 @@ import { doc, onSnapshot } from 'firebase/firestore'
 
 const STORAGE_KEY = 'r2c_current_order_id'
 
+const FULL_SCREEN_SAFE_STYLE = {
+  minHeight: '100dvh',
+  height: '100dvh',
+  boxSizing: 'border-box',
+  paddingTop: 'var(--r2c-statusbar-space-active, env(safe-area-inset-top, 0px))',
+  paddingBottom: 'var(--r2c-navigationbar-space-active, var(--r2c-safe-area-bottom, env(safe-area-inset-bottom, 0px)))',
+}
+
 function QrImage({ qrCode, size = 220 }) {
     const url = `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(qrCode)}`
     return (
@@ -135,7 +143,11 @@ export default function SuccessScreen() {
 
     // ── شاشة التسليم الناجح ───────────────────────────────────────────────────
     if (delivered) return (
-        <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6 text-center">
+        <div dir="rtl" className="bg-white" style={FULL_SCREEN_SAFE_STYLE}>
+            <div
+                className="flex h-full min-h-0 flex-col items-center justify-center overflow-y-auto p-6 text-center"
+                style={{ WebkitOverflowScrolling: 'touch' }}
+            >
             <div className="w-32 h-32 bg-green-500 rounded-full flex items-center justify-center text-6xl text-white font-bold animate-bounce shadow-lg mb-8">✓</div>
             <h1 className="text-3xl font-bold text-green-600 mb-3">تم تسليم طلبك بنجاح! 🎉</h1>
             <p className="text-gray-500 mb-8">نتمنى لك وجبة شهية</p>
@@ -145,12 +157,13 @@ export default function SuccessScreen() {
             >
                 العودة للرئيسية
             </button>
+            </div>
         </div>
     )
 
     // ── شاشة النجاح الرئيسية ──────────────────────────────────────────────────
     return (
-        <div className="min-h-screen bg-white relative overflow-hidden">
+        <div dir="rtl" className="bg-white relative overflow-hidden" style={FULL_SCREEN_SAFE_STYLE}>
             {confettiPieces.map((piece) => (
                 <div
                     key={piece.id}
@@ -159,7 +172,10 @@ export default function SuccessScreen() {
                 />
             ))}
 
-            <div className="relative z-10 p-6 flex flex-col items-center justify-center min-h-screen pb-24">
+            <div
+                className="relative z-10 flex h-full min-h-0 flex-col items-center overflow-y-auto p-6 pb-10"
+                style={{ WebkitOverflowScrolling: 'touch' }}
+            >
                 <div className="relative mb-6 mt-10">
                     <div className="w-28 h-28 bg-green-500 rounded-full flex items-center justify-center text-5xl text-white font-bold animate-bounce shadow-lg">✓</div>
                     <div className="absolute inset-0 bg-green-500 rounded-full animate-ping opacity-20" />

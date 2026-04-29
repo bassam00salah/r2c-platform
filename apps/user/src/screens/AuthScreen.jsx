@@ -5,6 +5,14 @@ import { GoogleAuthProvider, signInWithCredential, signInWithPopup } from 'fireb
 const LOGIN_IMAGE = '/login-success.jpg'
 const SUCCESS_IMAGE = '/login-success.jpg'
 
+const FULL_SCREEN_SAFE_STYLE = {
+  minHeight: '100dvh',
+  height: '100dvh',
+  boxSizing: 'border-box',
+  paddingTop: 'var(--r2c-statusbar-space-active, env(safe-area-inset-top, 0px))',
+  paddingBottom: 'var(--r2c-navigationbar-space-active, var(--r2c-safe-area-bottom, env(safe-area-inset-bottom, 0px)))',
+}
+
 export default function AuthScreen() {
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
@@ -47,7 +55,7 @@ export default function AuthScreen() {
   }
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-black">
+    <div dir="rtl" className="relative overflow-hidden bg-black" style={FULL_SCREEN_SAFE_STYLE}>
       <img
         src={imageSrc}
         alt="Auth visual"
@@ -56,7 +64,7 @@ export default function AuthScreen() {
 
       <div className="absolute inset-0 bg-gradient-to-b from-black/35 via-black/40 to-black/60" />
 
-      <div className="relative z-10 flex min-h-screen flex-col">
+      <div className="relative z-10 flex h-full min-h-0 flex-col">
         <div className="px-6 pt-8">
           <div className="mx-auto max-w-md text-center text-white">
             <img

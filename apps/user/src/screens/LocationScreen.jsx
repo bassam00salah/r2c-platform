@@ -4,6 +4,14 @@ import { useApp } from '../contexts'
 const LOCATION_IMAGE = '/location-banner.jpg'
 const SUCCESS_IMAGE = '/location-banner.jpg'
 
+const FULL_SCREEN_SAFE_STYLE = {
+  minHeight: '100dvh',
+  height: '100dvh',
+  boxSizing: 'border-box',
+  paddingTop: 'var(--r2c-statusbar-space-active, env(safe-area-inset-top, 0px))',
+  paddingBottom: 'var(--r2c-navigationbar-space-active, var(--r2c-safe-area-bottom, env(safe-area-inset-bottom, 0px)))',
+}
+
 export default function LocationScreen() {
   const { setCurrentScreen, setUserLocation, markLocationAsked } = useApp()
   const [locating, setLocating] = useState(false)
@@ -68,7 +76,7 @@ export default function LocationScreen() {
   }, [])
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-black">
+    <div dir="rtl" className="relative overflow-hidden bg-black" style={FULL_SCREEN_SAFE_STYLE}>
       <img
         src={imageSrc}
         alt="Location visual"
@@ -77,7 +85,7 @@ export default function LocationScreen() {
 
       <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/45 to-black/65" />
 
-      <div className="relative z-10 flex min-h-screen flex-col">
+      <div className="relative z-10 flex h-full min-h-0 flex-col">
         <div className="px-6 pt-8">
           <div className="mx-auto max-w-md text-center text-white">
             <img

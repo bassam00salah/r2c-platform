@@ -40,7 +40,7 @@ const SCREENS = {
 }
 
 const WITH_NAV = ['feed', 'grid', 'search', 'restaurantProfile', 'offerDetails', 'orders', 'profile', 'explore']
-const WITH_HEADER = ['grid', 'search', 'restaurantProfile', 'offerDetails', 'confirmOrder', 'waiting', 'success', 'orders', 'profile', 'empty', 'explore']
+const WITH_HEADER = ['grid', 'search', 'restaurantProfile', 'offerDetails', 'confirmOrder', 'waiting', 'orders', 'profile', 'empty', 'explore']
 
 // شاشات يتم الاحتفاظ بها محملة في الخلفية عند التنقل بينها.
 // تم استبعاد auth/location لأنهما جزء من بداية التطبيق، واستبعاد waiting/success لأنها شاشات انتقالية.
