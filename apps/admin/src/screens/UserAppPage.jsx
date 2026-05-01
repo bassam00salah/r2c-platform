@@ -48,6 +48,11 @@ const PREVIEW_META = {
     description: 'يتم تمييز مكان السلايدر الثالث في FeedScreen مع الإشارة إلى أنّه يعرض عدة شرائح متعاقبة.',
     color: '#f59e0b',
   },
+  featuredSection: {
+    title: 'قسم عروض مميزة',
+    description: 'هذا الكارت يتحكم في خلفية قسم عروض مميزة، ونص العنوان، ولون العنوان داخل FeedScreen.',
+    color: '#f0d078',
+  },
 };
 
 function LoadingBox({ text }) {
@@ -343,13 +348,24 @@ function UserAppPreview({ activeArea = 'overview' }) {
                 </div>
 
                 {/* TopOffersPromo */}
-                <div style={{ marginBottom: 10 }}>
+                <PreviewBlock
+                  activeArea={activeArea}
+                  targetKeys={['featuredSection']}
+                  badge="قسم عروض مميزة"
+                  accent={PREVIEW_META.featuredSection.color}
+                  style={{
+                    marginBottom: 10,
+                    borderRadius: 15,
+                    padding: 6,
+                    background: activeArea === 'featuredSection' ? 'rgba(240, 208, 120, 0.12)' : 'transparent',
+                  }}
+                >
                   <div style={{ height: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
                     <div style={{ color: '#111827', fontWeight: 800, fontSize: 11 }}>عروض مميزة</div>
                     <TinyLine width={42} height={5} />
                   </div>
                   <MiniOfferCard wide />
-                </div>
+                </PreviewBlock>
 
                 {/* Top sellers */}
                 <div style={{ marginBottom: 8 }}>
@@ -416,6 +432,7 @@ function UserAppPreview({ activeArea = 'overview' }) {
             { key: 'banner3', label: 'بانر 3', color: PREVIEW_META.banner3.color },
             { key: 'banner1Slider', label: 'سلايدر 1', color: PREVIEW_META.banner1Slider.color },
             { key: 'banner3Slider', label: 'سلايدر 3', color: PREVIEW_META.banner3Slider.color },
+            { key: 'featuredSection', label: 'عروض مميزة', color: PREVIEW_META.featuredSection.color },
           ].map(item => (
             <span key={item.key} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: '#64748b', fontSize: 10.5, fontWeight: 700 }}>
               <span style={{ width: 8, height: 8, borderRadius: 999, background: item.color }} />
@@ -441,6 +458,10 @@ export default function UserAppPage() {
   const [bannerImageUrl, setBannerImageUrl] = useState('');
   const [banner2ImageUrl, setBanner2ImageUrl] = useState('');
   const [banner3ImageUrl, setBanner3ImageUrl] = useState('');
+  const [featuredSectionTitle, setFeaturedSectionTitle] = useState('عروض مميزة');
+  const [featuredSectionTitleColor, setFeaturedSectionTitleColor] = useState('#f0d078');
+  const [featuredSectionBackground, setFeaturedSectionBackground] = useState('linear-gradient(160deg, #0a1929 0%, #0d2644 40%, #0a1929 100%)');
+  const [featuredSectionBackgroundImage, setFeaturedSectionBackgroundImage] = useState('');
 
   const [banners, setBanners] = useState([]);
   const [newBannerUrl, setNewBannerUrl] = useState('');
@@ -461,6 +482,10 @@ export default function UserAppPage() {
         if (data.bannerImageUrl) setBannerImageUrl(data.bannerImageUrl);
         if (data.banner2ImageUrl) setBanner2ImageUrl(data.banner2ImageUrl);
         if (data.banner3ImageUrl) setBanner3ImageUrl(data.banner3ImageUrl);
+        if (data.featuredSectionTitle) setFeaturedSectionTitle(data.featuredSectionTitle);
+        if (data.featuredSectionTitleColor) setFeaturedSectionTitleColor(data.featuredSectionTitleColor);
+        if (data.featuredSectionBackground) setFeaturedSectionBackground(data.featuredSectionBackground);
+        if (data.featuredSectionBackgroundImage) setFeaturedSectionBackgroundImage(data.featuredSectionBackgroundImage);
         if (Array.isArray(data.banners)) setBanners(data.banners);
         if (Array.isArray(data.banners3)) setBanners3(data.banners3);
       })
@@ -541,6 +566,10 @@ export default function UserAppPage() {
         bannerImageUrl: bannerImageUrl || null,
         banner2ImageUrl: banner2ImageUrl || null,
         banner3ImageUrl: banner3ImageUrl || null,
+        featuredSectionTitle: featuredSectionTitle || 'عروض مميزة',
+        featuredSectionTitleColor: featuredSectionTitleColor || '#f0d078',
+        featuredSectionBackground: featuredSectionBackground || 'linear-gradient(160deg, #0a1929 0%, #0d2644 40%, #0a1929 100%)',
+        featuredSectionBackgroundImage: featuredSectionBackgroundImage || null,
         banners,
         banners3,
       }, { merge: true });
@@ -612,6 +641,7 @@ export default function UserAppPage() {
               {[
                 'البانر الأول والثالث يظهران داخل الرسم بنفس ترتيب ظهورهما في FeedScreen.',
                 'سلايدر البانر الأول والثالث يستخدم نفس المساحة المرئية، لكن بتمييز خاص لكونه سلايدر متعدد الشرائح.',
+                'يمكن الآن التحكم في خلفية قسم عروض مميزة بصورة أو بخلفية افتراضية، بالإضافة إلى كلمة العنوان ولونها من كارت مستقل.',
                 'كل الوظائف الحالية للحفظ والإضافة والحذف والتحريك بقيت كما هي دون تغيير.',
               ].map((item, idx) => (
                 <div key={idx} style={{ background: '#f9fafb', borderRadius: '10px', padding: '12px 14px', color: '#4b5563', fontSize: '13px', lineHeight: 1.8 }}>
@@ -620,6 +650,88 @@ export default function UserAppPage() {
               ))}
             </div>
           </div>
+
+          <SectionCard
+            icon="🏷️"
+            title="قسم عروض مميزة"
+            subtitle="يتحكم في خلفية القسم، وكلمة العنوان، ولون العنوان داخل FeedScreen"
+            accent="#f0d078"
+            previewKey="featuredSection"
+            onActivate={setActivePreview}
+          >
+            <div style={{ display: 'grid', gap: '14px' }}>
+              <Field label="كلمة / عنوان القسم">
+                <input
+                  type="text"
+                  value={featuredSectionTitle}
+                  onChange={e => setFeaturedSectionTitle(e.target.value)}
+                  placeholder="مثال: عروض مميزة"
+                  style={inputStyle}
+                />
+              </Field>
+
+              <Field label="لون كلمة العنوان" note="هذا اللون يطبق على الكلمة الظاهرة أعلى قسم عروض مميزة.">
+                <div style={{ display: 'grid', gridTemplateColumns: '64px minmax(0, 1fr)', gap: 10, alignItems: 'center' }}>
+                  <input
+                    type="color"
+                    value={featuredSectionTitleColor || '#f0d078'}
+                    onChange={e => setFeaturedSectionTitleColor(e.target.value)}
+                    style={{ width: 64, height: 42, border: '1px solid #e5e7eb', borderRadius: 12, padding: 4, background: '#fff', cursor: 'pointer' }}
+                  />
+                  <input
+                    type="text"
+                    value={featuredSectionTitleColor}
+                    onChange={e => setFeaturedSectionTitleColor(e.target.value)}
+                    placeholder="#f0d078"
+                    style={inputStyle}
+                  />
+                </div>
+              </Field>
+
+              <Field label="الخلفية الافتراضية للقسم" note="تُستخدم هذه الخلفية فقط إذا لم يتم إدخال صورة خلفية.">
+                <input
+                  type="text"
+                  value={featuredSectionBackground}
+                  onChange={e => setFeaturedSectionBackground(e.target.value)}
+                  placeholder="linear-gradient(160deg, #0a1929 0%, #0d2644 40%, #0a1929 100%)"
+                  style={inputStyle}
+                />
+              </Field>
+
+              <Field label="رابط صورة الخلفية (اختياري)" note="إذا أضفت صورة هنا ستظهر كخلفية لقسم عروض مميزة، وإذا تركته فارغًا ستظهر الخلفية الافتراضية الحالية.">
+                <input
+                  type="url"
+                  value={featuredSectionBackgroundImage}
+                  onChange={e => setFeaturedSectionBackgroundImage(e.target.value)}
+                  placeholder="https://example.com/featured-background.jpg"
+                  style={inputStyle}
+                />
+                <ImagePreview src={featuredSectionBackgroundImage} alt="معاينة صورة خلفية عروض مميزة" height={96} />
+              </Field>
+
+              <div
+                style={{
+                  borderRadius: 18,
+                  padding: '18px 16px',
+                  background: featuredSectionBackgroundImage
+                    ? `linear-gradient(rgba(10,25,41,0.35), rgba(10,25,41,0.45)), url(${featuredSectionBackgroundImage}) center/cover no-repeat`
+                    : (featuredSectionBackground || 'linear-gradient(160deg, #0a1929 0%, #0d2644 40%, #0a1929 100%)'),
+                  border: '1px solid rgba(200,169,110,0.25)',
+                  boxShadow: '0 8px 26px rgba(15, 23, 42, 0.12)',
+                  overflow: 'hidden',
+                }}
+              >
+                <div style={{ textAlign: 'center', color: featuredSectionTitleColor || '#f0d078', fontSize: 20, fontWeight: 800 }}>
+                  {featuredSectionTitle || 'عروض مميزة'}
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'center', gap: 5, marginTop: 12 }}>
+                  {[0, 1, 2].map(i => (
+                    <span key={i} style={{ width: i === 0 ? 18 : 6, height: 6, borderRadius: 999, background: i === 0 ? '#ee7b26' : 'rgba(200,169,110,0.45)' }} />
+                  ))}
+                </div>
+              </div>
+            </div>
+          </SectionCard>
 
           <SectionCard
             icon="📢"

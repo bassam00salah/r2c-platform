@@ -717,7 +717,7 @@ export default function FeedScreen() {
     return () => unsub()
   }, [])
 
-  const [banner, setBanner] = useState({ text: null, restaurantId: null, restaurantName: null, imageUrl: null, discountValue: null, banner2ImageUrl: null, banner3ImageUrl: null })
+  const [banner, setBanner] = useState({ text: null, restaurantId: null, restaurantName: null, imageUrl: null, discountValue: null, banner2ImageUrl: null, banner3ImageUrl: null, featuredSectionTitle: null, featuredSectionTitleColor: null, featuredSectionBackground: null, featuredSectionBackgroundImage: null })
   const [bannerSlides, setBannerSlides] = useState([])
   const [activeSlide, setActiveSlide] = useState(0)
   const slideTimerRef = useRef(null)
@@ -738,6 +738,10 @@ export default function FeedScreen() {
         discountValue: d.bannerDiscountValue || null,
         banner2ImageUrl: d.banner2ImageUrl || null,
         banner3ImageUrl: d.banner3ImageUrl || null,
+        featuredSectionTitle: d.featuredSectionTitle || null,
+        featuredSectionTitleColor: d.featuredSectionTitleColor || null,
+        featuredSectionBackground: d.featuredSectionBackground || null,
+        featuredSectionBackgroundImage: d.featuredSectionBackgroundImage || null,
       })
       const slides = []
       if (d.bannerImageUrl) {
@@ -1578,7 +1582,17 @@ export default function FeedScreen() {
             </div>
 
             <div style={{ padding: '14px 0px 0' }}>
-              <TopOffersPromo offers={featuredOffers} restaurants={restaurants} onOpenOffer={openOffer} onOpenRestaurant={openRestaurant} banner2ImageUrl={banner.banner2ImageUrl} />
+              <TopOffersPromo
+                offers={featuredOffers}
+                restaurants={restaurants}
+                onOpenOffer={openOffer}
+                onOpenRestaurant={openRestaurant}
+                banner2ImageUrl={banner.banner2ImageUrl}
+                featuredSectionTitle={banner.featuredSectionTitle}
+                featuredSectionTitleColor={banner.featuredSectionTitleColor}
+                featuredSectionBackground={banner.featuredSectionBackground}
+                featuredSectionBackgroundImage={banner.featuredSectionBackgroundImage}
+              />
             </div>
 
             <div id="top-sellers-section">
@@ -2109,7 +2123,14 @@ function ExploreCategoryCard({ item, active }) {
   )
 }
 
-function TopOffersPromo({ offers, restaurants = [], onOpenOffer, onOpenRestaurant, banner2ImageUrl }) {
+function TopOffersPromo({ offers, restaurants = [], onOpenOffer, onOpenRestaurant, banner2ImageUrl, featuredSectionTitle, featuredSectionTitleColor, featuredSectionBackground, featuredSectionBackgroundImage }) {
+  const sectionTitle = featuredSectionTitle || 'عروض مميزة'
+  const sectionTitleColor = featuredSectionTitleColor || '#f0d078'
+  const sectionBackground = featuredSectionBackground || 'linear-gradient(160deg, #0a1929 0%, #0d2644 40%, #0a1929 100%)'
+  const sectionBackgroundStyle = featuredSectionBackgroundImage
+    ? `linear-gradient(rgba(10,25,41,0.40), rgba(10,25,41,0.48)), url(${featuredSectionBackgroundImage}) center/cover no-repeat`
+    : sectionBackground
+
   const topFive = useMemo(() => {
     return [...(offers || [])]
       .filter(o => (o.price ?? o.finalPrice ?? o.discountedPrice) != null)
@@ -2223,7 +2244,7 @@ function TopOffersPromo({ offers, restaurants = [], onOpenOffer, onOpenRestauran
     <div style={{ borderRadius: 22, paddingBottom: 16 }}>
       <div style={{
         position: 'relative',
-        background: `linear-gradient(160deg, #0a1929 0%, #0d2644 40%, #0a1929 100%)`,
+        background: sectionBackgroundStyle,
         overflow: 'hidden',
         borderRadius: 22,
         boxShadow: '0 8px 32px rgba(0,0,0,0.35)',
@@ -2271,16 +2292,16 @@ function TopOffersPromo({ offers, restaurants = [], onOpenOffer, onOpenRestauran
         }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
             <span style={{
-              color: '#f0d078',
+              color: sectionTitleColor,
               fontSize: 22,
               fontWeight: 700,
               letterSpacing: 1,
-              textShadow: '0 0 18px rgba(240,208,120,0.5)',
+              textShadow: `0 0 18px ${sectionTitleColor}66`,
               fontFamily: "'Cairo', sans-serif",
-            }}>عروض مميزة</span>
+            }}>{sectionTitle}</span>
             <img
               src={CUISINE_FILTERS.find(f => f.id === 'featured')?.customImg}
-              alt="عروض مميزة"
+              alt={sectionTitle}
               style={{ width: 30, height: 30, objectFit: 'cover', borderRadius: '50%', flexShrink: 0, border: '0px solid rgba(200,169,110,0.4)' }}
               onError={e => { e.currentTarget.style.display = 'none' }}
             />

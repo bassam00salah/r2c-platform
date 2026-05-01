@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { useApp } from '../contexts'
-import { db } from '@r2c/shared'
+import { db, functions } from '@r2c/shared'
 import OfferImage from '../components/OfferImage'
 import { collection, query, where, limit, getDocs, doc, getDoc } from 'firebase/firestore'
+import { httpsCallable } from 'firebase/functions'
 
 function BranchMap({ lat, lng, name, distanceLabel }) {
   if (lat == null || lng == null) return null
@@ -199,16 +201,37 @@ export default function OfferDetailsScreen() {
     currentLocation,
     selectedLocation,
     location: appLocation,
+    setCurrentOrderId,
+    setUserLocation,
   } = useApp()
   const [nearestBranch, setNearestBranch] = useState(null)
   const [mapLoading, setMapLoading] = useState(false)
   const [restaurantData, setRestaurantData] = useState(null)
   const [userCoords, setUserCoords] = useState(null)
+  const [showOrderSheet, setShowOrderSheet] = useState(false)
+  const [quantity, setQuantity] = useState(1)
+  const [submittingOrder, setSubmittingOrder] = useState(false)
+  const [orderError, setOrderError] = useState('')
+  const [locating, setLocating] = useState(false)
 
   // ✅ FIX 1: الصعود لأعلى الشاشة عند الدخول
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' })
   }, [])
+
+  useEffect(() => {
+    if (!showOrderSheet || typeof document === 'undefined') return undefined
+    const previousBodyOverflow = document.body.style.overflow
+    const previousHtmlOverflow = document.documentElement.style.overflow
+
+    document.body.style.overflow = 'hidden'
+    document.documentElement.style.overflow = 'hidden'
+
+    return () => {
+      document.body.style.overflow = previousBodyOverflow
+      document.documentElement.style.overflow = previousHtmlOverflow
+    }
+  }, [showOrderSheet])
 
   // جلب بيانات المطعم (اللوجو والاسم)
   useEffect(() => {
@@ -315,6 +338,86 @@ export default function OfferDetailsScreen() {
   const branchAddress = nearestBranch?.address || nearestBranch?.city || selectedOffer.branchAddress || selectedOffer.city || null
   const branchCoords = getBranchCoords(nearestBranch)
   const branchDistanceLabel = getBranchDistanceLabel(nearestBranch, userCoords)
+  const restaurantName = resolveRestaurantName(selectedOffer, restaurantData)
+  const unitPrice = Number(price || 0)
+  const totalPrice = unitPrice > 0 ? unitPrice * quantity : null
+
+  const updateQuantity = (nextQuantity) => {
+    setQuantity(Math.max(1, Math.min(10, nextQuantity)))
+  }
+
+  const requestLocationForOrder = () => {
+    setOrderError('')
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      setOrderError('خدمة تحديد الموقع غير متاحة على هذا الجهاز.')
+      return
+    }
+
+    setLocating(true)
+    navigator.geolocation.getCurrentPosition(
+      position => {
+        const coords = { lat: position.coords.latitude, lng: position.coords.longitude }
+        setUserCoords(coords)
+        setUserLocation?.(coords)
+        setLocating(false)
+      },
+      () => {
+        setLocating(false)
+        setOrderError('يرجى السماح بالموقع من إعدادات المتصفح ثم المحاولة مجددًا.')
+      },
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 300000 }
+    )
+  }
+
+  const handleOpenOrderSheet = () => {
+    setOrderError('')
+    setShowOrderSheet(true)
+  }
+
+  const handleConfirmOrder = async () => {
+    setOrderError('')
+
+    if (!nearestBranch?.id) {
+      setOrderError('لا يوجد فرع نشط مناسب لهذا العرض حاليًا. جرّب تحديد موقعك أو المحاولة لاحقًا.')
+      return
+    }
+
+    setSubmittingOrder(true)
+    try {
+      const createOrder = httpsCallable(functions, 'createOrder')
+      const result = await createOrder({
+        offerId: selectedOffer.id,
+        branchId: nearestBranch.id,
+        userLat: userCoords?.lat || null,
+        userLng: userCoords?.lng || null,
+      })
+
+      const newOrderId = result.data?.orderId
+      if (newOrderId) {
+        setCurrentOrderId?.(newOrderId)
+        try {
+          localStorage.setItem('r2c_current_order_id', newOrderId)
+          localStorage.setItem(`r2c_order_quantity_${newOrderId}`, String(quantity))
+        } catch {}
+      }
+
+      setShowOrderSheet(false)
+      setCurrentScreen('waiting')
+    } catch (error) {
+      const code = error?.code || ''
+      if (code.includes('resource-exhausted')) {
+        setOrderError(error.message || 'يرجى الانتظار قليلًا قبل إنشاء طلب جديد.')
+      } else if (code.includes('failed-precondition')) {
+        setOrderError('هذا العرض أو الفرع غير متاح حاليًا.')
+      } else if (code.includes('unauthenticated')) {
+        setCurrentScreen('auth')
+      } else {
+        setOrderError('حدث خطأ في إنشاء الطلب. حاول مرة أخرى.')
+      }
+    } finally {
+      setSubmittingOrder(false)
+    }
+  }
 
   return (
     <div className="min-h-screen bg-white">
@@ -331,6 +434,24 @@ export default function OfferDetailsScreen() {
         .offer-details-hero-media video {
           object-fit: cover;
           display: block;
+        }
+
+        @keyframes r2c-sheet-up {
+          from { transform: translateY(100%); opacity: 0.85; }
+          to { transform: translateY(0); opacity: 1; }
+        }
+
+        @keyframes r2c-backdrop-in {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+
+        .r2c-order-sheet-backdrop {
+          animation: r2c-backdrop-in 0.22s ease forwards;
+        }
+
+        .r2c-order-sheet {
+          animation: r2c-sheet-up 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
         }
       `}</style>
 
@@ -455,12 +576,327 @@ export default function OfferDetailsScreen() {
         </div>
 
         <button
-          onClick={() => setCurrentScreen('confirmOrder')}
+          onClick={handleOpenOrderSheet}
           className="gradient-button text-white font-bold text-xl py-4 rounded-2xl w-full transition-transform"
         >
           اطلب الآن
         </button>
       </div>
+
+      {showOrderSheet && (
+        typeof document !== 'undefined'
+          ? createPortal(
+        <div
+          className="fixed inset-0 z-[2147483647] flex items-end justify-center r2c-order-sheet-backdrop"
+          style={{
+            background: 'rgba(8, 15, 26, 0.58)',
+            boxSizing: 'border-box',
+          }}
+          onClick={() => {
+            if (!submittingOrder) setShowOrderSheet(false)
+          }}
+        >
+          <div
+            className="r2c-order-sheet bg-white w-full max-w-md rounded-t-[28px] shadow-2xl overflow-hidden"
+            style={{
+              maxHeight: 'calc(100dvh - var(--r2c-statusbar-space-active, 0px) - 18px)',
+              paddingBottom: 'calc(var(--r2c-navigationbar-space-active, var(--r2c-safe-area-bottom, 0px)) + 12px)',
+            }}
+            onClick={e => e.stopPropagation()}
+            dir="rtl"
+          >
+            <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mt-3 mb-3" />
+
+            <div className="px-5 pb-4 overflow-y-auto" style={{ maxHeight: 'calc(100dvh - 118px)' }}>
+              <div className="flex items-start gap-3 mb-4">
+                <div className="w-24 h-24 rounded-2xl overflow-hidden bg-gray-100 flex-shrink-0 border border-gray-100">
+                  <OfferImage offer={selectedOffer} size="small" />
+                </div>
+                <div className="min-w-0 flex-1 pt-1">
+                  <div className="flex items-start justify-between gap-2">
+                    <h2 className="font-black text-lg leading-7 text-gray-900">{selectedOffer.name}</h2>
+                    <button
+                      onClick={() => setShowOrderSheet(false)}
+                      disabled={submittingOrder}
+                      className="w-8 h-8 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center font-bold flex-shrink-0 disabled:opacity-50"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  <p className="text-gray-500 text-sm mt-1">{restaurantName}</p>
+                  <div className="flex items-baseline gap-2 mt-2">
+                    {price !== null && price !== undefined ? (
+                      <span className="text-[#ee7b26] text-2xl font-black">{Number(price).toLocaleString('ar-SA')} ريال</span>
+                    ) : (
+                      <span className="text-gray-400 font-bold">السعر غير محدد</span>
+                    )}
+                    {oldPrice !== null && oldPrice !== undefined && (
+                      <span className="text-gray-400 text-sm line-through">{Number(oldPrice).toLocaleString('ar-SA')} ريال</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {selectedOffer.description && (
+                <div className="bg-orange-50/70 border border-orange-100 rounded-2xl p-4 mb-3">
+                  <div className="font-bold text-[#ee7b26] mb-1">تفاصيل العرض</div>
+                  <p className="text-gray-600 text-sm leading-7">{selectedOffer.description}</p>
+                </div>
+              )}
+
+              {Array.isArray(selectedOffer.details) && selectedOffer.details.length > 0 && (
+                <div className="bg-gray-50 border border-gray-100 rounded-2xl p-4 mb-3">
+                  <div className="font-bold text-gray-900 mb-2">محتويات العرض</div>
+                  <div className="space-y-2">
+                    {selectedOffer.details.map((detail, index) => (
+                      <div key={index} className="flex items-center gap-2 text-sm text-gray-600">
+                        <span className="text-[#ee7b26]">•</span>
+                        <span>{detail}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="bg-gray-50 border border-gray-100 rounded-2xl p-4 mb-3">
+                <div className="flex items-start gap-3">
+                  <span className="text-[#ee7b26] text-2xl leading-none">📍</span>
+                  <div className="min-w-0 flex-1">
+                    <div className="font-bold text-gray-900">الفرع المحدد</div>
+                    {mapLoading ? (
+                      <p className="text-gray-500 text-sm mt-1">جاري تحديد أقرب فرع مناسب...</p>
+                    ) : nearestBranch ? (
+                      <>
+                        <p className="text-gray-700 text-sm mt-1">{branchName}</p>
+                        {branchAddress && <p className="text-gray-500 text-xs mt-1">{branchAddress}</p>}
+                        {branchDistanceLabel && <p className="text-[#ee7b26] text-xs font-bold mt-1">يبعد عنك {branchDistanceLabel}</p>}
+                      </>
+                    ) : (
+                      <p className="text-red-500 text-sm font-bold mt-1">لم يتم العثور على فرع مناسب حتى الآن.</p>
+                    )}
+                  </div>
+                </div>
+
+                {!userCoords && (
+                  <button
+                    onClick={requestLocationForOrder}
+                    disabled={locating}
+                    className="w-full mt-3 py-3 rounded-xl text-white font-bold disabled:opacity-60"
+                    style={{ background: '#15487d' }}
+                  >
+                    {locating ? 'جاري تحديد الموقع...' : 'تحديد موقعي لاختيار أقرب فرع'}
+                  </button>
+                )}
+              </div>
+
+              {orderError && (
+                <div className="bg-red-50 border border-red-200 rounded-2xl p-3 mb-3 text-center">
+                  <p className="text-red-700 font-bold text-sm leading-6">{orderError}</p>
+                  <button onClick={() => setOrderError('')} className="text-red-500 text-xs underline mt-1">إغلاق</button>
+                </div>
+              )}
+
+              <div className="sticky bottom-0 bg-white pt-3">
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-2xl px-2 py-2 w-[132px] flex-shrink-0">
+                    <button
+                      onClick={() => updateQuantity(quantity - 1)}
+                      disabled={quantity <= 1 || submittingOrder}
+                      className="w-9 h-9 rounded-xl bg-white border border-gray-200 text-xl font-black text-gray-700 disabled:opacity-40"
+                    >
+                      −
+                    </button>
+                    <span className="font-black text-lg min-w-[26px] text-center">{quantity}</span>
+                    <button
+                      onClick={() => updateQuantity(quantity + 1)}
+                      disabled={quantity >= 10 || submittingOrder}
+                      className="w-9 h-9 rounded-xl bg-white border border-gray-200 text-xl font-black text-gray-700 disabled:opacity-40"
+                    >
+                      +
+                    </button>
+                  </div>
+
+                  <button
+                    onClick={handleConfirmOrder}
+                    disabled={submittingOrder || mapLoading || !nearestBranch?.id}
+                    className="flex-1 py-4 rounded-2xl text-white font-black text-base disabled:opacity-50"
+                    style={{ background: '#ee7b26', boxShadow: '0 8px 22px rgba(238,123,38,0.28)' }}
+                  >
+                    {submittingOrder
+                      ? '⏳ جاري إنشاء الطلب...'
+                      : mapLoading
+                        ? 'جاري تحديد الفرع...'
+                        : totalPrice
+                          ? `تأكيد الطلب • ${totalPrice.toLocaleString('ar-SA')} ريال`
+                          : 'تأكيد الطلب'}
+                  </button>
+                </div>
+
+                <p className="text-[11px] text-gray-400 text-center mt-2">
+                  بعد التأكيد سيتم نقلك إلى شاشة انتظار قبول الفرع.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>,
+              document.body
+            )
+          : (
+        <div
+          className="fixed inset-0 z-[2147483647] flex items-end justify-center r2c-order-sheet-backdrop"
+          style={{
+            background: 'rgba(8, 15, 26, 0.58)',
+            boxSizing: 'border-box',
+          }}
+          onClick={() => {
+            if (!submittingOrder) setShowOrderSheet(false)
+          }}
+        >
+          <div
+            className="r2c-order-sheet bg-white w-full max-w-md rounded-t-[28px] shadow-2xl overflow-hidden"
+            style={{
+              maxHeight: 'calc(100dvh - var(--r2c-statusbar-space-active, 0px) - 18px)',
+              paddingBottom: 'calc(var(--r2c-navigationbar-space-active, var(--r2c-safe-area-bottom, 0px)) + 12px)',
+            }}
+            onClick={e => e.stopPropagation()}
+            dir="rtl"
+          >
+            <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mt-3 mb-3" />
+
+            <div className="px-5 pb-4 overflow-y-auto" style={{ maxHeight: 'calc(100dvh - 118px)' }}>
+              <div className="flex items-start gap-3 mb-4">
+                <div className="w-24 h-24 rounded-2xl overflow-hidden bg-gray-100 flex-shrink-0 border border-gray-100">
+                  <OfferImage offer={selectedOffer} size="small" />
+                </div>
+                <div className="min-w-0 flex-1 pt-1">
+                  <div className="flex items-start justify-between gap-2">
+                    <h2 className="font-black text-lg leading-7 text-gray-900">{selectedOffer.name}</h2>
+                    <button
+                      onClick={() => setShowOrderSheet(false)}
+                      disabled={submittingOrder}
+                      className="w-8 h-8 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center font-bold flex-shrink-0 disabled:opacity-50"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  <p className="text-gray-500 text-sm mt-1">{restaurantName}</p>
+                  <div className="flex items-baseline gap-2 mt-2">
+                    {price !== null && price !== undefined ? (
+                      <span className="text-[#ee7b26] text-2xl font-black">{Number(price).toLocaleString('ar-SA')} ريال</span>
+                    ) : (
+                      <span className="text-gray-400 font-bold">السعر غير محدد</span>
+                    )}
+                    {oldPrice !== null && oldPrice !== undefined && (
+                      <span className="text-gray-400 text-sm line-through">{Number(oldPrice).toLocaleString('ar-SA')} ريال</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {selectedOffer.description && (
+                <div className="bg-orange-50/70 border border-orange-100 rounded-2xl p-4 mb-3">
+                  <div className="font-bold text-[#ee7b26] mb-1">تفاصيل العرض</div>
+                  <p className="text-gray-600 text-sm leading-7">{selectedOffer.description}</p>
+                </div>
+              )}
+
+              {Array.isArray(selectedOffer.details) && selectedOffer.details.length > 0 && (
+                <div className="bg-gray-50 border border-gray-100 rounded-2xl p-4 mb-3">
+                  <div className="font-bold text-gray-900 mb-2">محتويات العرض</div>
+                  <div className="space-y-2">
+                    {selectedOffer.details.map((detail, index) => (
+                      <div key={index} className="flex items-center gap-2 text-sm text-gray-600">
+                        <span className="text-[#ee7b26]">•</span>
+                        <span>{detail}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="bg-gray-50 border border-gray-100 rounded-2xl p-4 mb-3">
+                <div className="flex items-start gap-3">
+                  <span className="text-[#ee7b26] text-2xl leading-none">📍</span>
+                  <div className="min-w-0 flex-1">
+                    <div className="font-bold text-gray-900">الفرع المحدد</div>
+                    {mapLoading ? (
+                      <p className="text-gray-500 text-sm mt-1">جاري تحديد أقرب فرع مناسب...</p>
+                    ) : nearestBranch ? (
+                      <>
+                        <p className="text-gray-700 text-sm mt-1">{branchName}</p>
+                        {branchAddress && <p className="text-gray-500 text-xs mt-1">{branchAddress}</p>}
+                        {branchDistanceLabel && <p className="text-[#ee7b26] text-xs font-bold mt-1">يبعد عنك {branchDistanceLabel}</p>}
+                      </>
+                    ) : (
+                      <p className="text-red-500 text-sm font-bold mt-1">لم يتم العثور على فرع مناسب حتى الآن.</p>
+                    )}
+                  </div>
+                </div>
+
+                {!userCoords && (
+                  <button
+                    onClick={requestLocationForOrder}
+                    disabled={locating}
+                    className="w-full mt-3 py-3 rounded-xl text-white font-bold disabled:opacity-60"
+                    style={{ background: '#15487d' }}
+                  >
+                    {locating ? 'جاري تحديد الموقع...' : 'تحديد موقعي لاختيار أقرب فرع'}
+                  </button>
+                )}
+              </div>
+
+              {orderError && (
+                <div className="bg-red-50 border border-red-200 rounded-2xl p-3 mb-3 text-center">
+                  <p className="text-red-700 font-bold text-sm leading-6">{orderError}</p>
+                  <button onClick={() => setOrderError('')} className="text-red-500 text-xs underline mt-1">إغلاق</button>
+                </div>
+              )}
+
+              <div className="sticky bottom-0 bg-white pt-3">
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-2xl px-2 py-2 w-[132px] flex-shrink-0">
+                    <button
+                      onClick={() => updateQuantity(quantity - 1)}
+                      disabled={quantity <= 1 || submittingOrder}
+                      className="w-9 h-9 rounded-xl bg-white border border-gray-200 text-xl font-black text-gray-700 disabled:opacity-40"
+                    >
+                      −
+                    </button>
+                    <span className="font-black text-lg min-w-[26px] text-center">{quantity}</span>
+                    <button
+                      onClick={() => updateQuantity(quantity + 1)}
+                      disabled={quantity >= 10 || submittingOrder}
+                      className="w-9 h-9 rounded-xl bg-white border border-gray-200 text-xl font-black text-gray-700 disabled:opacity-40"
+                    >
+                      +
+                    </button>
+                  </div>
+
+                  <button
+                    onClick={handleConfirmOrder}
+                    disabled={submittingOrder || mapLoading || !nearestBranch?.id}
+                    className="flex-1 py-4 rounded-2xl text-white font-black text-base disabled:opacity-50"
+                    style={{ background: '#ee7b26', boxShadow: '0 8px 22px rgba(238,123,38,0.28)' }}
+                  >
+                    {submittingOrder
+                      ? '⏳ جاري إنشاء الطلب...'
+                      : mapLoading
+                        ? 'جاري تحديد الفرع...'
+                        : totalPrice
+                          ? `تأكيد الطلب • ${totalPrice.toLocaleString('ar-SA')} ريال`
+                          : 'تأكيد الطلب'}
+                  </button>
+                </div>
+
+                <p className="text-[11px] text-gray-400 text-center mt-2">
+                  بعد التأكيد سيتم نقلك إلى شاشة انتظار قبول الفرع.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+            )
+      )}
     </div>
   )
 }
