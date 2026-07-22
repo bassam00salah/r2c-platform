@@ -7,6 +7,9 @@
       "hosting": {
         "admin": [
           "r2capp-64f2a"
+        ],
+        "user": [
+          "r2c-user-64f2a"
         ]
       }
     }

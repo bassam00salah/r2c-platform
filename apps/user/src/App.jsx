@@ -4,7 +4,7 @@ import { useRef, useState, useEffect, useLayoutEffect } from 'react'
 // Screens
 import AuthScreen from './screens/AuthScreen'
 import LocationScreen from './screens/LocationScreen'
-import FeedScreen from './screens/FeedScreen'
+import HomeScreen from './screens/HomeScreen'
 import GridScreen from './screens/GridScreen'
 import SearchScreen from './screens/SearchScreen'
 import RestaurantProfileScreen from './screens/RestaurantProfileScreen'
@@ -25,7 +25,7 @@ import UserAppHeader from './components/UserAppHeader'
 const SCREENS = {
   auth: AuthScreen,
   location: LocationScreen,
-  feed: FeedScreen,
+  feed: HomeScreen,
   grid: GridScreen,
   search: SearchScreen,
   restaurantProfile: RestaurantProfileScreen,

@@ -18,10 +18,11 @@ export const STATUS_BAR_THEMES = {
     overlay: true,
   },
   location: {
-    color: '#FFFFFF',
-    style: 'dark',
-    padTop: true,
+    color: '#00000000',
+    style: 'light',
+    padTop: false,
     overlay: true,
+    screenBackground: '#120b07',
   },
   feed: {
     color: '#FFFFFF',
